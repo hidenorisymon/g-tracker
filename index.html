@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G Tracker</title>
+
+    <!-- PWA: standalone app on Android/iOS -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="G Tracker">
+    <meta name="theme-color" content="#3a3a3a">
+    <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;G Tracker&quot;,&quot;short_name&quot;:&quot;G Tracker&quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23ffffff&quot;,&quot;theme_color&quot;:&quot;%233a3a3a&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%233a3a3a' rx='24'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E&quot;,&quot;sizes&quot;:&quot;192x192&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2d3436;
+            --secondary: #3a3a3a;
+            --accent: #4a4a4a;
+            --success: #27ae60;
+            --warning: #e17055;
+            --light: #f5f6fa;
+            --border: #dfe6e9;
+            --text: #2d3436;
+            --text-light: #636e72;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: linear-gradient(135deg, var(--light) 0%, #f9fafb 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+        }
+
+        .nav-btn {
+            padding: 7px 14px;
+            border: none;
+            background: var(--light);
+            color: var(--text-light);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-btn:hover {
+            background: var(--border);
+        }
+
+        .nav-btn.active {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Page 1: Log Intake */
+        .log-section {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            border-radius: 16px;
+            padding: 20px 30px;
+            color: white;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(58, 58, 58, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: auto;
+        }
+
+        .date-time-display {
+            margin-bottom: 10px;
+        }
+
+        .date-time-label {
+            font-size: 11px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: block;
+        }
+
+        .date-time-content {
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%);
+            padding: 14px 24px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .time-separator {
+            opacity: 0.7;
+            font-size: 16px;
+        }
+
+        .blink-colon {
+            animation: blink 1s infinite;
+            display: inline-block;
+        }
+
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        .ml-display {
+            font-size: 48px;
+            font-weight: 300;
+            margin: 12px 0;
+            letter-spacing: -2px;
+        }
+
+        .ml-unit {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin: 16px 0 20px 0;
+        }
+
+        .btn-control {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+        }
+
+        .btn-control:hover {
+            background: rgba(255, 255, 255, 0.35);
+            transform: scale(1.1);
+        }
+
+        .btn-control:active {
+            transform: scale(0.95);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text);
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 70px;
+            transition: all 0.3s ease;
+            color: var(--text);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(58, 58, 58, 0.1);
+        }
+
+        .char-count {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 3px;
+            text-align: right;
+        }
+
+        .btn-log {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            margin-top: 0;
+            box-shadow: 0 4px 15px rgba(58, 58, 58, 0.2);
+        }
+
+        .btn-log:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 58, 58, 0.3);
+        }
+
+        .btn-log:active {
+            transform: translateY(0);
+        }
+
+        .btn-manual {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: var(--text);
+            border: 2px solid var(--text);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            margin-top: 12px;
+        }
+
+        .btn-manual:hover {
+            background: var(--light);
+        }
+
+        .btn-manual:active {
+            transform: scale(0.98);
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 20px;
+            border-top: 2px solid var(--border);
+        }
+
+        .btn-modal-cancel {
+            flex: 1;
+            padding: 12px;
+            background: var(--light);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-modal-cancel:hover {
+            background: var(--border);
+        }
+
+        .btn-modal-save {
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-modal-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(58, 58, 58, 0.2);
+        }
+
+        /* Page 2: Overview Dashboard */
+        .date-selector {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+            padding: 12px;
+            background: var(--light);
+            border-radius: 12px;
+            border: 2px solid var(--border);
+        }
+
+        .nav-arrow {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--secondary);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-arrow:hover {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .nav-arrow:active {
+            transform: scale(0.95);
+        }
+
+        .date-picker-input {
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            color: var(--text);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+            max-width: 180px;
+            text-align: center;
+        }
+
+        .date-picker-input:hover {
+            border-color: var(--secondary);
+            background: var(--light);
+        }
+
+        .date-picker-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+        }
+
+        .selected-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f5f6fa 0%, #ffffff 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--secondary);
+            box-shadow: 0 4px 12px rgba(58, 58, 58, 0.1);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 300;
+            color: var(--secondary);
+            letter-spacing: -1px;
+        }
+
+        .stat-unit {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-left: 4px;
+        }
+
+        .table-section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            color: var(--primary);
+            text-align: center;
+        }
+
+        .log-entries-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .log-entry-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 2fr auto;
+            gap: 12px;
+            align-items: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .log-entry-card:hover {
+            border-color: var(--secondary);
+            box-shadow: 0 4px 12px rgba(58, 58, 58, 0.1);
+        }
+
+        .entry-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .entry-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+        }
+
+        .entry-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--secondary);
+        }
+
+        .entry-notes {
+            grid-column: 1 / -1;
+            font-size: 12px;
+            font-style: italic;
+            color: var(--text-light);
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-delete {
+            width: 28px;
+            height: 28px;
+            border: 1.5px solid var(--warning);
+            background: rgba(225, 112, 85, 0.08);
+            color: var(--warning);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .btn-delete:hover {
+            background: var(--warning);
+            color: white;
+            opacity: 1;
+        }
+
+        .btn-delete:active {
+            transform: scale(0.95);
+        }
+
+        .btn-edit {
+            width: 28px;
+            height: 28px;
+            border: 1.5px solid var(--secondary);
+            background: rgba(58, 58, 58, 0.08);
+            color: var(--secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            line-height: 1;
+            opacity: 0.6;
+        }
+
+        .btn-edit:hover {
+            background: var(--secondary);
+            color: white;
+            opacity: 1;
+        }
+
+        .btn-edit:active {
+            transform: scale(0.95);
+        }
+
+        .btn-column {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Page 4: Settings */
+        .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-card {
+            background: linear-gradient(135deg, #f5f6fa 0%, #ffffff 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .settings-field {
+            margin-bottom: 20px;
+        }
+
+        .settings-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text);
+        }
+
+        .settings-field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 16px;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .settings-field input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(58, 58, 58, 0.1);
+        }
+
+        .modal-body .form-group input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+
+        .modal-body .form-group input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(58, 58, 58, 0.1);
+        }
+
+        .modal-body .form-group textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--text);
+            min-height: 70px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .modal-body .form-group textarea:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(58, 58, 58, 0.1);
+        }
+
+        .settings-hint {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .btn-save-settings {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(58, 58, 58, 0.2);
+        }
+
+        .btn-save-settings:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(58, 58, 58, 0.3);
+        }
+
+        .btn-save-settings:active {
+            transform: translateY(0);
+        }
+
+        .btn-settings {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+            margin-bottom: 10px;
+        }
+
+        .btn-settings:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-settings:active {
+            transform: translateY(0);
+        }
+        .toggle-group {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            background: var(--light);
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            color: var(--secondary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-container {
+            position: relative;
+            min-height: 420px;
+            margin-bottom: 24px;
+            margin-left: auto;
+            margin-right: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 5% 3% 2% 3%;
+            border: 2px solid var(--border);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .period-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .period-card:hover {
+            border-color: var(--secondary);
+            box-shadow: 0 4px 12px rgba(58, 58, 58, 0.1);
+        }
+
+        .period-header {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--secondary);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .period-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .period-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .period-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+        }
+
+        .period-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        .details-section {
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
+            border: none;
+            display: block;
+        }
+
+        .history-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .bar-fill {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+        }
+
+        .bar-chart-item {
+            margin-bottom: 16px;
+        }
+
+        .bar-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .bar-container {
+            height: 24px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--accent) 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header-title {
+                font-size: 20px;
+            }
+
+            .log-section {
+                padding: 30px 20px;
+            }
+
+            .ml-display {
+                font-size: 48px;
+            }
+
+            .nav-tabs {
+                gap: 4px;
+            }
+
+            .nav-btn {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">G Tracker</div>
+            <div class="nav-tabs">
+                <button class="nav-btn active" data-page="log">Log</button>
+                <button class="nav-btn" data-page="overview">Overview</button>
+                <button class="nav-btn" data-page="history">History</button>
+                <button class="nav-btn" data-page="settings" title="Settings">⚙</button>
+            </div>
+        </header>
+
+        <!-- Auth Page -->
+        <!-- Page 1: Log Intake -->
+        <div id="log" class="page active">
+            <div class="log-section">
+
+                <!-- Timers row: above date/time -->
+                <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; width: 100%;">
+                    <!-- Time since last log -->
+                    <div style="flex: 1; text-align: center;">
+                        <div style="font-size: 9px; opacity: 0.6; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; color: white;">Since last log</div>
+                        <div id="elapsedBox" style="display: flex; align-items: center; justify-content: center; gap: 2px; padding: 10px 0; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.25); background: transparent; font-size: 22px; font-weight: 300; letter-spacing: 2px; color: white; transition: color 0.4s, border-color 0.4s;">
+                            <span id="elapsedHH">--</span><span class="blink-colon" style="opacity:0.5;">:</span><span id="elapsedMM">--</span>
+                        </div>
+                    </div>
+                    <!-- Time remaining -->
+                    <div style="flex: 1; text-align: center;">
+                        <div style="font-size: 9px; opacity: 0.6; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; color: white;">Remaining <span id="targetLabel" style="opacity:0.7;"></span></div>
+                        <div id="remainingBox" style="display: flex; align-items: center; justify-content: center; gap: 2px; padding: 10px 0; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.25); background: transparent; font-size: 22px; font-weight: 300; letter-spacing: 2px; color: white; transition: color 0.4s, border-color 0.4s;">
+                            <span id="remainingHH">--</span><span class="blink-colon" style="opacity:0.5;">:</span><span id="remainingMM">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="date-time-display">
+                    <div class="date-time-label">Current Date & Time</div>
+                    <div class="date-time-content">
+                        <span id="dateDisplay">12/15/24 Mon</span>
+                        <span class="time-separator">•</span>
+                        <span id="timeDisplay"><span id="hours">12</span><span class="blink-colon">:</span><span id="minutes">00</span> <span id="ampm">PM</span></span>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 16px;">
+                    <button class="btn-control" id="btnMinus">−</button>
+                    <div class="ml-display">
+                        <span id="mlValue">1.0</span> <span class="ml-unit">ml</span>
+                    </div>
+                    <button class="btn-control" id="btnPlus">+</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="notes"><span style="text-align: center; display: block;">Notes</span></label>
+                <textarea id="notes" placeholder="Add any notes..." maxlength="200"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/200</div>
+            </div>
+
+            <button class="btn-log" id="btnLog">Log Entry</button>
+
+            <button class="btn-manual" id="btnManual">+ ADD MANUAL</button>
+        </div>
+
+        <!-- Manual Entry Modal -->
+        <div id="manualModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Add Manual Entry</div>
+                    <button class="modal-close" id="btnCloseModal">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="manualDate">Date</label>
+                        <input type="date" id="manualDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualTime">Time</label>
+                        <input type="time" id="manualTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualMl">ML</label>
+                        <input type="number" id="manualMl" placeholder="0.0" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="manualNotes">Notes (Optional)</label>
+                        <textarea id="manualNotes" placeholder="Add any notes..." maxlength="200"></textarea>
+                        <div class="char-count"><span id="manualCharCount">0</span>/200</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-modal-cancel" id="btnCancelManual">Cancel</button>
+                    <button class="btn-modal-save" id="btnSaveManual">Save Entry</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: Overview Dashboard -->
+        <div id="overview" class="page">
+            <div class="date-selector">
+                <button class="nav-arrow" id="prevDate">←</button>
+                <input type="date" id="datePicker" class="date-picker-input">
+                <button class="nav-arrow" id="nextDate">→</button>
+            </div>
+            <div style="text-align: center; font-size: 13px; font-weight: 600; color: var(--text-light); margin: -12px 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;" id="selectedDate">Today</div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Avg Time Diff</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="summaryAvgDiff">—</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Cost</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="totalCost">0</div>
+                        <div class="stat-unit">₱</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total ML</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="totalToday">0</div>
+                        <div class="stat-unit">ml</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Entries</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="entryCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="section-title">Log</div>
+                <div id="logEntriesContainer" class="log-entries-container">
+                    <div style="text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 13px;">No entries yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 3: History & Analytics -->
+        <div id="history" class="page">
+            <div class="toggle-group">
+                <button class="toggle-btn active" data-period="weekly">Weekly</button>
+                <button class="toggle-btn" data-period="monthly">Monthly</button>
+                <button class="toggle-btn" data-period="yearly">Yearly</button>
+            </div>
+
+            <div id="weekNavigator" class="date-selector" style="display: none;">
+                <button class="nav-arrow" id="prevWeek">←</button>
+                <div class="selected-date" id="selectedWeekDisplay">Week</div>
+                <button class="nav-arrow" id="nextWeek">→</button>
+            </div>
+
+            <div id="monthNavigator" class="date-selector" style="display: none;">
+                <button class="nav-arrow" id="prevMonth">←</button>
+                <div class="selected-date" id="selectedMonthDisplay">Month</div>
+                <button class="nav-arrow" id="nextMonth">→</button>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="intakeChart"></canvas>
+            </div>
+
+            <div id="monthlyTable" style="display: none; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 12px; border: 2px solid var(--border);">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border);">
+                            <th style="padding: 12px; text-align: center; color: var(--text); font-weight: 600;">Day</th>
+                            <th style="padding: 12px; text-align: center; color: var(--text); font-weight: 600;">Avg Time Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="history-stats-grid" id="historyStatsGrid">
+                <div class="stat-card">
+                    <div class="stat-label">Avg Time Diff</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="historyAvgDiff">—</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Cost</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="historyTotalCost">0</div>
+                        <div class="stat-unit">₱</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total ML</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="historyTotalMl">0</div>
+                        <div class="stat-unit">ml</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Entries</div>
+                    <div style="display: flex; justify-content: center; align-items: baseline;">
+                        <div class="stat-value" id="historyPeriods">0</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Page 4: Settings -->
+        <div id="settings" class="page">
+            <div class="settings-section">
+                <div class="section-title">Cost Settings</div>
+                <div class="settings-card">
+                    <div class="settings-field">
+                        <label for="costPerMlInput">Cost Per ML (₱)</label>
+                        <input type="number" id="costPerMl" placeholder="50" min="0" step="0.01" value="50">
+                        <div class="settings-hint">This cost will be applied to all logged entries</div>
+                    </div>
+                    <div class="settings-field">
+                        <label for="targetInterval">Target Interval (HH:MM)</label>
+                        <input type="text" id="targetInterval" placeholder="04:00" maxlength="5" style="letter-spacing: 2px; font-size: 18px;">
+                        <div class="settings-hint">How long you want to wait between each log</div>
+                    </div>
+                    <button class="btn-save-settings" id="btnSaveSettings">Save Settings</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="section-title">Data Management</div>
+                <div class="settings-card">
+                    <button class="btn-settings" id="btnBulkImport">📤 Bulk Import Entries</button>
+                    <button class="btn-settings" id="btnExportJSON">📋 Export as JSON</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="section-title">Backup & Restore</div>
+                <div class="settings-card">
+                    <div class="settings-hint" style="margin-bottom: 12px;">Uses GitHub Gist for cloud storage. You'll be asked for a Personal Access Token (gist scope) on first use.</div>
+                    <button class="btn-settings" id="btnBackupGitHub">💾 Backup to GitHub</button>
+                    <button class="btn-settings" id="btnLoadGitHub">📥 Load from GitHub</button>
+                    <button class="btn-settings" id="btnClearGitHubToken" style="background: linear-gradient(135deg, #636e72 0%, #4a4a4a 100%);">🔑 Reset GitHub Token</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // localStorage-only data layer (no backend required)
+        
+        // Data Management
+        const dataKey = 'intakeTrackerData';
+        const costKey = 'costPerMl';
+        let currentMl = 1.0;
+        let chart = null;
+        let selectedDate = new Date();
+        let selectedWeek = new Date(); // For week navigation in history
+        let selectedMonth = new Date(); // For month navigation in history
+        let costPerMl = 50; // Default cost
+        let editingTimestamp = null; // Tracks entry being edited (deleted on re-save)
+
+        // Initialize
+        async function init() {
+            await loadCostSettings();
+            updateTime();
+            setInterval(updateTime, 500);
+            setInterval(updateElapsedTimer, 1000);
+            setupEventListeners();
+            await loadAndRender();
+            await updateElapsedTimer();
+
+            // Auto-backup to GitHub every 1 hour (only if token + gistId already set)
+            setInterval(async () => {
+                const token = localStorage.getItem('githubToken');
+                const savedGistId = localStorage.getItem('gistId');
+                if (token && savedGistId) {
+                    try {
+                        const data = await getAllData();
+                        const content = JSON.stringify({ entries: data, costPerMl }, null, 2);
+                        await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ files: { 'g-tracker-data.json': { content } } })
+                        });
+                        showToast('✓ Auto-backup saved');
+                    } catch (e) {}
+                }
+            }, 1 * 60 * 60 * 1000); // every 1 hour
+
+            // Auto-load from GitHub every 1 hour (only if gistId saved, no token needed for public read)
+            setInterval(async () => {
+                const savedGistId = localStorage.getItem('gistId');
+                const token = localStorage.getItem('githubToken');
+                // Only auto-load if no token — means this is a viewer, not the owner
+                if (savedGistId && !token) {
+                    try {
+                        const response = await fetch(`https://api.github.com/gists/${savedGistId}`);
+                        const gist = await response.json();
+                        if (gist.files && gist.files['g-tracker-data.json']) {
+                            const data = JSON.parse(gist.files['g-tracker-data.json'].content);
+                            localStorage.setItem(dataKey, JSON.stringify(data.entries));
+                            localStorage.setItem(costKey, data.costPerMl);
+                            costPerMl = data.costPerMl;
+                            await loadAndRender();
+                            await updateElapsedTimer();
+                            showToast('✓ Auto-synced from Gist');
+                        }
+                    } catch (e) {}
+                }
+            }, 1 * 60 * 60 * 1000); // every 1 hour
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const dayName = now.toLocaleString('en-US', { weekday: 'short' });
+            const hours = String(now.getHours() % 12 || 12).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            
+            document.getElementById('dateDisplay').textContent = `${month}/${day}/${year} ${dayName}`;
+            document.getElementById('hours').textContent = hours;
+            document.getElementById('minutes').textContent = minutes;
+            document.getElementById('ampm').textContent = ampm;
+        }
+
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const page = btn.dataset.page;
+                    // Cancel any pending edit if navigating away from log
+                    if (page !== 'log' && editingTimestamp !== null) {
+                        editingTimestamp = null;
+                        document.getElementById('btnLog').textContent = 'Log Entry';
+                    }
+                    await switchPage(page);
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Manual entry modal
+            document.getElementById('btnManual').addEventListener('click', () => {
+                const today = new Date();
+                document.getElementById('manualDate').valueAsDate = today;
+                document.getElementById('manualTime').value = today.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                document.getElementById('manualMl').value = '';
+                document.getElementById('manualNotes').value = '';
+                document.getElementById('manualCharCount').textContent = '0';
+                document.getElementById('manualModal').style.display = 'flex';
+            });
+
+            document.getElementById('btnCloseModal').addEventListener('click', () => {
+                document.getElementById('manualModal').style.display = 'none';
+            });
+
+            document.getElementById('btnCancelManual').addEventListener('click', () => {
+                document.getElementById('manualModal').style.display = 'none';
+            });
+
+            document.getElementById('btnSaveManual').addEventListener('click', saveManualEntry);
+
+            document.getElementById('manualNotes').addEventListener('input', (e) => {
+                document.getElementById('manualCharCount').textContent = e.target.value.length;
+            });
+
+            // Close modal when clicking outside
+            document.getElementById('manualModal').addEventListener('click', (e) => {
+                if (e.target.id === 'manualModal') {
+                    document.getElementById('manualModal').style.display = 'none';
+                }
+            });
+
+            // Date navigation
+            // Helper function to update date picker input
+            function updateDatePicker() {
+                const year = selectedDate.getFullYear();
+                const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const day = String(selectedDate.getDate()).padStart(2, '0');
+                document.getElementById('datePicker').value = `${year}-${month}-${day}`;
+            }
+
+            document.getElementById('prevDate').addEventListener('click', () => {
+                selectedDate.setDate(selectedDate.getDate() - 1);
+                updateDatePicker();
+                renderOverview();
+            });
+
+            document.getElementById('nextDate').addEventListener('click', () => {
+                selectedDate.setDate(selectedDate.getDate() + 1);
+                updateDatePicker();
+                renderOverview();
+            });
+
+            // Date picker calendar selection
+            document.getElementById('datePicker').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const pickedDate = new Date(e.target.value);
+                    selectedDate = new Date(pickedDate.getFullYear(), pickedDate.getMonth(), pickedDate.getDate());
+                    renderOverview();
+                }
+            });
+
+            // Initialize date picker with today's date
+            updateDatePicker();
+
+            // Log page controls
+            document.getElementById('btnMinus').addEventListener('click', () => {
+                currentMl = Math.max(0.1, Number((currentMl - 0.1).toFixed(1)));
+                updateDisplay();
+            });
+
+            document.getElementById('btnPlus').addEventListener('click', () => {
+                currentMl = Number((currentMl + 0.1).toFixed(1));
+                updateDisplay();
+            });
+
+            document.getElementById('btnLog').addEventListener('click', logEntry);
+
+            // Settings buttons
+            document.getElementById('btnSaveSettings').addEventListener('click', saveCostSettings);
+            document.getElementById('btnBulkImport').addEventListener('click', bulkImportEntries);
+            document.getElementById('btnExportJSON').addEventListener('click', exportAsJSON);
+            document.getElementById('btnBackupGitHub').addEventListener('click', backupToGitHub);
+            document.getElementById('btnLoadGitHub').addEventListener('click', loadFromGitHub);
+            document.getElementById('btnClearGitHubToken').addEventListener('click', () => {
+                localStorage.removeItem('githubToken');
+                localStorage.removeItem('gistId');
+                gistId = null;
+                showToast('GitHub token cleared');
+            });
+
+            // Character counter
+            document.getElementById('notes').addEventListener('input', (e) => {
+                document.getElementById('charCount').textContent = e.target.value.length;
+            });
+
+            // History page toggles
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const period = btn.dataset.period;
+                    
+                    // Show/hide navigators
+                    if (period === 'weekly') {
+                        document.getElementById('weekNavigator').style.display = 'flex';
+                        document.getElementById('monthNavigator').style.display = 'none';
+                        selectedWeek = new Date();
+                    } else if (period === 'monthly') {
+                        document.getElementById('weekNavigator').style.display = 'none';
+                        document.getElementById('monthNavigator').style.display = 'flex';
+                        selectedMonth = new Date();
+                    } else {
+                        document.getElementById('weekNavigator').style.display = 'none';
+                        document.getElementById('monthNavigator').style.display = 'none';
+                    }
+                    
+                    await renderHistoryChart(period, period === 'weekly' ? selectedWeek : (period === 'monthly' ? selectedMonth : null));
+                });
+            });
+
+            // Week navigation
+            document.getElementById('prevWeek').addEventListener('click', async () => {
+                selectedWeek.setDate(selectedWeek.getDate() - 7);
+                await renderHistoryChart('weekly', selectedWeek);
+            });
+
+            document.getElementById('nextWeek').addEventListener('click', async () => {
+                selectedWeek.setDate(selectedWeek.getDate() + 7);
+                await renderHistoryChart('weekly', selectedWeek);
+            });
+
+            // Month navigation
+            document.getElementById('prevMonth').addEventListener('click', async () => {
+                selectedMonth.setMonth(selectedMonth.getMonth() - 1);
+                await renderHistoryChart('monthly', selectedMonth);
+            });
+
+            document.getElementById('nextMonth').addEventListener('click', async () => {
+                selectedMonth.setMonth(selectedMonth.getMonth() + 1);
+                await renderHistoryChart('monthly', selectedMonth);
+            });
+        }
+
+        function updateDisplay() {
+            document.getElementById('mlValue').textContent = currentMl.toFixed(1);
+        }
+
+        async function updateElapsedTimer() {
+            const data = await getAllData();
+            const elapsedBox = document.getElementById('elapsedBox');
+            const remainingBox = document.getElementById('remainingBox');
+            const elapsedHH = document.getElementById('elapsedHH');
+            const elapsedMM = document.getElementById('elapsedMM');
+            const remainingHH = document.getElementById('remainingHH');
+            const remainingMM = document.getElementById('remainingMM');
+            const targetLabel = document.getElementById('targetLabel');
+            if (!elapsedHH) return;
+
+            // Get target interval from localStorage (in minutes)
+            const targetMinutes = parseInt(localStorage.getItem('targetIntervalMinutes') || '0');
+
+            // Show target in label
+            if (targetLabel) {
+                if (targetMinutes > 0) {
+                    const th = Math.floor(targetMinutes / 60);
+                    const tm = targetMinutes % 60;
+                    targetLabel.textContent = `(target ${String(th).padStart(2,'0')}:${String(tm).padStart(2,'0')})`;
+                } else {
+                    targetLabel.textContent = '(no target set)';
+                }
+            }
+
+            if (data.length === 0) {
+                elapsedHH.textContent = '--'; elapsedMM.textContent = '--';
+                remainingHH.textContent = '--'; remainingMM.textContent = '--';
+                elapsedBox.style.color = 'white'; elapsedBox.style.borderColor = 'rgba(255,255,255,0.25)';
+                remainingBox.style.color = 'white'; remainingBox.style.borderColor = 'rgba(255,255,255,0.25)';
+                return;
+            }
+
+            const lastTs = data[data.length - 1].timestamp;
+            const elapsedMs = Date.now() - lastTs;
+            const elapsedTotalMins = Math.floor(elapsedMs / 60000);
+            const eH = Math.floor(elapsedTotalMins / 60);
+            const eM = elapsedTotalMins % 60;
+            elapsedHH.textContent = String(eH).padStart(2, '0');
+            elapsedMM.textContent = String(eM).padStart(2, '0');
+
+            const green = '#27ae60';
+            const red = '#e17055';
+
+            if (targetMinutes > 0) {
+                const pastTarget = elapsedTotalMins >= targetMinutes;
+
+                // Elapsed: green if past target, red if not
+                elapsedBox.style.color = pastTarget ? green : red;
+                elapsedBox.style.borderColor = pastTarget ? green : red;
+
+                // Remaining
+                const remainingMins = targetMinutes - elapsedTotalMins;
+                if (remainingMins > 0) {
+                    // Still time left — red
+                    const rH = Math.floor(remainingMins / 60);
+                    const rM = remainingMins % 60;
+                    remainingHH.textContent = String(rH).padStart(2, '0');
+                    remainingMM.textContent = String(rM).padStart(2, '0');
+                    remainingBox.style.color = red;
+                    remainingBox.style.borderColor = red;
+                } else {
+                    // Overdue — show how long past, green
+                    const overdueMins = Math.abs(remainingMins);
+                    const oH = Math.floor(overdueMins / 60);
+                    const oM = overdueMins % 60;
+                    remainingHH.textContent = '+' + String(oH).padStart(2, '0');
+                    remainingMM.textContent = String(oM).padStart(2, '0');
+                    remainingBox.style.color = green;
+                    remainingBox.style.borderColor = green;
+                }
+            } else {
+                // No target set — neutral
+                elapsedBox.style.color = 'white'; elapsedBox.style.borderColor = 'rgba(255,255,255,0.25)';
+                remainingHH.textContent = '--'; remainingMM.textContent = '--';
+                remainingBox.style.color = 'white'; remainingBox.style.borderColor = 'rgba(255,255,255,0.25)';
+            }
+        }
+
+        async function logEntry() {
+            const notes = document.getElementById('notes').value;
+            const now = new Date();
+
+            let data = await getAllData();
+
+            // If editing an existing entry, remove the original first
+            if (editingTimestamp !== null) {
+                data = data.filter(e => e.timestamp !== editingTimestamp);
+                editingTimestamp = null;
+                document.getElementById('btnLog').textContent = 'Log Entry';
+            }
+
+            const entry = {
+                timestamp: now.getTime(),
+                ml: currentMl,
+                notes: notes
+            };
+
+            data.push(entry);
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+
+            currentMl = 1.0;
+            updateDisplay();
+            document.getElementById('notes').value = '';
+            document.getElementById('charCount').textContent = '0';
+            showToast('Entry logged successfully');
+            await loadAndRender();
+            await updateElapsedTimer();
+        }
+
+        async function getAllData() {
+            const raw = localStorage.getItem(dataKey);
+            const data = raw ? JSON.parse(raw) : [];
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            return data;
+        }
+
+        async function getDataForDate(date) {
+            const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+            const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+            const allData = await getAllData();
+            return allData.filter(entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd);
+        }
+
+        async function loadCostSettings() {
+            const saved = localStorage.getItem(costKey);
+            costPerMl = saved ? parseFloat(saved) : 50;
+            if (document.getElementById('costPerMl')) document.getElementById('costPerMl').value = costPerMl;
+
+            const targetMins = parseInt(localStorage.getItem('targetIntervalMinutes') || '0');
+            if (document.getElementById('targetInterval') && targetMins > 0) {
+                const th = Math.floor(targetMins / 60);
+                const tm = targetMins % 60;
+                document.getElementById('targetInterval').value = `${String(th).padStart(2,'0')}:${String(tm).padStart(2,'0')}`;
+            }
+        }
+
+        async function saveCostSettings() {
+            const newCost = parseFloat(document.getElementById('costPerMl').value) || 50;
+            costPerMl = newCost;
+            localStorage.setItem(costKey, newCost);
+
+            // Save target interval
+            const intervalInput = (document.getElementById('targetInterval').value || '').trim();
+            const match = intervalInput.match(/^(\d+):(\d{2})$/);
+            if (match) {
+                const totalMins = parseInt(match[1]) * 60 + parseInt(match[2]);
+                localStorage.setItem('targetIntervalMinutes', totalMins);
+            } else if (intervalInput === '' || intervalInput === '00:00') {
+                localStorage.removeItem('targetIntervalMinutes');
+            }
+
+            showToast('✓ Settings saved');
+            await renderOverview();
+            await updateElapsedTimer();
+        }
+
+        async function saveManualEntry() {
+            const dateStr = document.getElementById('manualDate').value;
+            const timeStr = document.getElementById('manualTime').value;
+            const ml = parseFloat(document.getElementById('manualMl').value);
+            const notes = document.getElementById('manualNotes').value;
+
+            if (!dateStr || !timeStr || !ml || ml <= 0) {
+                showToast('Please fill in all required fields');
+                return;
+            }
+
+            const dateTime = new Date(`${dateStr}T${timeStr}`);
+            const entry = {
+                timestamp: dateTime.getTime(),
+                ml: ml,
+                notes: notes
+            };
+
+            const data = await getAllData();
+            data.push(entry);
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+
+            showToast('Manual entry added');
+            document.getElementById('manualModal').style.display = 'none';
+            await renderOverview();
+        }
+
+        async function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(page).classList.add('active');
+            if (page === 'history') {
+                // Use whichever period toggle is currently active
+                const activePeriod = document.querySelector('.toggle-btn.active')?.dataset.period || 'weekly';
+                if (activePeriod === 'weekly') {
+                    document.getElementById('weekNavigator').style.display = 'flex';
+                    document.getElementById('monthNavigator').style.display = 'none';
+                } else if (activePeriod === 'monthly') {
+                    document.getElementById('weekNavigator').style.display = 'none';
+                    document.getElementById('monthNavigator').style.display = 'flex';
+                } else {
+                    document.getElementById('weekNavigator').style.display = 'none';
+                    document.getElementById('monthNavigator').style.display = 'none';
+                }
+                await renderHistoryChart(activePeriod, activePeriod === 'weekly' ? selectedWeek : (activePeriod === 'monthly' ? selectedMonth : null));
+            } else if (page === 'overview') {
+                selectedDate = new Date();
+                await renderOverview();
+            }
+        }
+
+        async function loadAndRender() {
+            await renderOverview();
+        }
+
+        async function renderOverview() {
+            const selectedData = await getDataForDate(selectedDate);
+            
+            // Sort by timestamp (chronological order)
+            selectedData.sort((a, b) => a.timestamp - b.timestamp);
+            
+            const totalMl = selectedData.reduce((sum, entry) => sum + entry.ml, 0);
+
+            // Update date display
+            const today = new Date();
+            let dateText = 'Today';
+            if (selectedDate.toDateString() === today.toDateString()) {
+                dateText = 'Today';
+            } else {
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (selectedDate.toDateString() === yesterday.toDateString()) {
+                    dateText = 'Yesterday';
+                } else {
+                    dateText = selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+            }
+            document.getElementById('selectedDate').textContent = dateText;
+
+            document.getElementById('totalToday').textContent = totalMl.toFixed(1);
+            document.getElementById('totalCost').textContent = (totalMl * costPerMl).toFixed(2);
+            document.getElementById('entryCount').textContent = selectedData.length;
+
+            // Calculate summary stats
+            let totalDiffMs = 0;
+            for (let i = 1; i < selectedData.length; i++) {
+                totalDiffMs += selectedData[i].timestamp - selectedData[i - 1].timestamp;
+            }
+            
+            let avgTimeDiff = '—';
+            if (selectedData.length > 1) {
+                const avgDiffMs = totalDiffMs / (selectedData.length - 1);
+                const avgHours = Math.floor(avgDiffMs / (1000 * 60 * 60));
+                const avgMinutes = Math.floor((avgDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (avgHours > 0) {
+                    avgTimeDiff = `${avgHours}h ${avgMinutes}m`;
+                } else {
+                    avgTimeDiff = `${avgMinutes}m`;
+                }
+            }
+
+            document.getElementById('summaryAvgDiff').textContent = avgTimeDiff;
+
+            // Render entries
+            const container = document.getElementById('logEntriesContainer');
+            
+            if (selectedData.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 13px;">No entries yet</div>';
+                return;
+            }
+
+            // Get all data for continuous time difference calculation
+            const allData = await getAllData();
+            allData.sort((a, b) => a.timestamp - b.timestamp);
+
+            let html = '';
+
+            selectedData.forEach((entry, index) => {
+                const date = new Date(entry.timestamp);
+                const time = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                
+                let timeDiff = '—';
+                
+                // Find this entry in ALL data to get previous entry
+                const entryIndexInAll = allData.findIndex(e => e.timestamp === entry.timestamp && e.ml === entry.ml);
+                if (entryIndexInAll > 0) {
+                    const prevEntry = allData[entryIndexInAll - 1];
+                    const diffMs = entry.timestamp - prevEntry.timestamp;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    
+                    if (diffHours > 0) {
+                        timeDiff = `${diffHours}h ${diffMinutes}m`;
+                    } else {
+                        timeDiff = `${diffMinutes}m`;
+                    }
+                }
+
+                const entryCost = (entry.ml * costPerMl).toFixed(2);
+
+                html += `
+                    <div class="log-entry-card" data-entry-id="${entry.timestamp}">
+                        <div class="entry-field">
+                            <div class="entry-label">Time</div>
+                            <div class="entry-value">${time}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">ML</div>
+                            <div class="entry-value">${entry.ml.toFixed(1)} ml</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Time Diff</div>
+                            <div class="entry-value">${timeDiff}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Cost</div>
+                            <div class="entry-value">₱${entryCost}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Notes</div>
+                            <div class="entry-value" style="color: var(--text-light); font-style: italic;">${entry.notes || '—'}</div>
+                        </div>
+                        <div class="btn-column">
+                            <button class="btn-edit" onclick="editEntry(${entry.timestamp})" title="Edit entry">✎</button>
+                            <button class="btn-delete" onclick="deleteEntry(${entry.timestamp})" title="Delete entry">×</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function renderHistoryChart(period, baseDate = null) {
+            const data = await getAllData();
+            let periods = [];
+            let labels = [];
+            let mlValues = [];
+            let costLabels = [];
+            let timeDiffLabels = [];
+            let mmddLabels = [];
+            const now = baseDate || new Date();
+
+            if (period === 'weekly') {
+                // Get Monday of the selected week
+                const weekBase = new Date(now);
+                const dow = weekBase.getDay(); // 0=Sun
+                const diffToMon = dow === 0 ? -6 : 1 - dow;
+                weekBase.setDate(weekBase.getDate() + diffToMon);
+                weekBase.setHours(0, 0, 0, 0);
+
+                const weekEndDate = new Date(weekBase);
+                weekEndDate.setDate(weekEndDate.getDate() + 6);
+
+                // Update navigator display
+                const weekDisplay = `${weekBase.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                document.getElementById('selectedWeekDisplay').textContent = weekDisplay;
+
+                // Build one bar per day Mon–Sun
+                const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                for (let i = 0; i < 7; i++) {
+                    const dayStart = new Date(weekBase);
+                    dayStart.setDate(weekBase.getDate() + i);
+                    const dayStartMs = dayStart.getTime();
+                    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+
+                    const dayData = data.filter(e => e.timestamp >= dayStartMs && e.timestamp < dayEndMs);
+                    const totalMl = dayData.reduce((sum, e) => sum + e.ml, 0);
+                    const totalCost = (totalMl * costPerMl).toFixed(2);
+
+                    let avgTimeDiffText = '—';
+                    if (dayData.length > 1) {
+                        let totalDiffMs = 0;
+                        for (let j = 1; j < dayData.length; j++) {
+                            totalDiffMs += dayData[j].timestamp - dayData[j - 1].timestamp;
+                        }
+                        const avgDiffMs = totalDiffMs / (dayData.length - 1);
+                        const avgHours = Math.floor(avgDiffMs / (1000 * 60 * 60));
+                        const avgMinutes = Math.floor((avgDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        avgTimeDiffText = avgHours > 0 ? `${avgHours}h ${avgMinutes}m` : `${avgMinutes}m`;
+                    }
+
+                    const mmdd = `${String(dayStart.getMonth()+1).padStart(2,'0')}/${String(dayStart.getDate()).padStart(2,'0')}`;
+                    periods.push({ label: dayNames[i], totalMl, totalCost, avgTimeDiffText, entryCount: dayData.length });
+                    labels.push(dayNames[i]);
+                    mmddLabels.push(mmdd);
+                    mlValues.push(totalMl);
+                    costLabels.push(`₱${totalCost}`);
+                    timeDiffLabels.push(avgTimeDiffText);
+                }
+            } else if (period === 'monthly') {
+                // Show days of the month (1-31)
+                const monthDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthStr = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getTime();
+                const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1).getTime();
+                
+                // Get the number of days in this month
+                const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), day).getTime();
+                    const dayEnd = new Date(monthDate.getFullYear(), monthDate.getMonth(), day + 1).getTime();
+                    
+                    const dayData = data.filter(entry => entry.timestamp >= dayStart && entry.timestamp < dayEnd);
+                    const totalMl = dayData.reduce((sum, entry) => sum + entry.ml, 0);
+                    const totalCost = (totalMl * costPerMl).toFixed(2);
+                    
+                    // Calculate average time difference
+                    let avgTimeDiffText = '—';
+                    if (dayData.length > 1) {
+                        let totalDiffMs = 0;
+                        for (let j = 1; j < dayData.length; j++) {
+                            totalDiffMs += dayData[j].timestamp - dayData[j - 1].timestamp;
+                        }
+                        const avgDiffMs = totalDiffMs / (dayData.length - 1);
+                        const avgHours = Math.floor(avgDiffMs / (1000 * 60 * 60));
+                        const avgMinutes = Math.floor((avgDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        
+                        if (avgHours > 0) {
+                            avgTimeDiffText = `${avgHours}h ${avgMinutes}m`;
+                        } else {
+                            avgTimeDiffText = `${avgMinutes}m`;
+                        }
+                    }
+                    
+                    const dayDateStr = new Date(dayStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    periods.push({ label: dayDateStr, totalMl, totalCost, avgTimeDiffText, entryCount: dayData.length });
+                    labels.push(day.toString());
+                    mlValues.push(totalMl);
+                    costLabels.push(`₱${totalCost}`);
+                    timeDiffLabels.push(avgTimeDiffText);
+                }
+                
+                // Update month navigator display
+                document.getElementById('selectedMonthDisplay').textContent = monthStr;
+                
+                // Populate monthly table
+                let tableHtml = '';
+                for (let i = 0; i < periods.length; i++) {
+                    tableHtml += `
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px; text-align: center; color: var(--text);">${periods[i].label}</td>
+                            <td style="padding: 12px; text-align: center; color: var(--text);">${periods[i].avgTimeDiffText}</td>
+                        </tr>
+                    `;
+                }
+                document.getElementById('monthlyTableBody').innerHTML = tableHtml;
+                document.getElementById('monthlyTable').style.display = 'block';
+            } else if (period === 'yearly') {
+                // Last 5 years
+                for (let i = 4; i >= 0; i--) {
+                    const year = now.getFullYear() - i;
+                    const yearStr = year.toString();
+                    const yearStart = new Date(year, 0, 1).getTime();
+                    const yearEnd = new Date(year + 1, 0, 1).getTime();
+                    
+                    const yearData = data.filter(entry => entry.timestamp >= yearStart && entry.timestamp < yearEnd);
+                    const totalMl = yearData.reduce((sum, entry) => sum + entry.ml, 0);
+                    const totalCost = (totalMl * costPerMl).toFixed(2);
+                    
+                    // Calculate average time difference - only for days with entries
+                    let avgTimeDiffText = '—';
+                    if (yearData.length > 1) {
+                        // Group entries by day and only count time diff between days with entries
+                        const dayGroups = {};
+                        yearData.forEach(entry => {
+                            const day = new Date(entry.timestamp).toDateString();
+                            if (!dayGroups[day]) dayGroups[day] = [];
+                            dayGroups[day].push(entry);
+                        });
+                        
+                        const daysWithEntries = Object.keys(dayGroups).sort();
+                        let totalDiffMs = 0;
+                        
+                        // Calculate time difference between consecutive days with entries
+                        for (let d = 1; d < daysWithEntries.length; d++) {
+                            const prevDayLastEntry = dayGroups[daysWithEntries[d - 1]][dayGroups[daysWithEntries[d - 1]].length - 1];
+                            const currDayFirstEntry = dayGroups[daysWithEntries[d]][0];
+                            totalDiffMs += currDayFirstEntry.timestamp - prevDayLastEntry.timestamp;
+                        }
+                        
+                        if (daysWithEntries.length > 1) {
+                            const avgDiffMs = totalDiffMs / (daysWithEntries.length - 1);
+                            let avgHours = Math.floor(avgDiffMs / (1000 * 60 * 60));
+                            let avgMinutes = Math.floor((avgDiffMs - (avgHours * 1000 * 60 * 60)) / (1000 * 60));
+                            
+                            if (avgHours > 0) {
+                                avgTimeDiffText = `${avgHours}h ${avgMinutes}m`;
+                            } else if (avgMinutes > 0) {
+                                avgTimeDiffText = `${avgMinutes}m`;
+                            }
+                        }
+                    }
+                    
+                    periods.push({ label: yearStr, totalMl, totalCost, avgTimeDiffText, entryCount: yearData.length });
+                    labels.push(yearStr);
+                    mlValues.push(totalMl);
+                    costLabels.push(`₱${totalCost}`);
+                    timeDiffLabels.push(avgTimeDiffText);
+                }
+            }
+
+            // Render simple bar chart
+            const ctx = document.getElementById('intakeChart').getContext('2d');
+            
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+
+            const plugin = {
+                id: 'customLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data, chartArea } = chart;
+                    const xScale = chart.scales.x;
+                    const yScale = chart.scales.y;
+
+                    // Draw cost labels above bars
+                    data.datasets[0].data.forEach((value, index) => {
+                        if (value > 0) {
+                            const x = xScale.getPixelForValue(index);
+                            const y = yScale.getPixelForValue(value) - 15;
+                            
+                            ctx.fillStyle = '#3a3a3a';
+                            ctx.font = 'bold 10px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(costLabels[index], x, y);
+                        }
+                    });
+
+                    // Draw time diff labels below x-axis (skip for monthly)
+                    if (period !== 'monthly') {
+                        for (let i = 0; i < timeDiffLabels.length; i++) {
+                            const x = xScale.getPixelForValue(i);
+                            const y = period === 'weekly' ? chartArea.bottom + 42 : chartArea.bottom + 30;
+
+                            ctx.fillStyle = '#636e72';
+                            ctx.font = '10px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(timeDiffLabels[i], x, y);
+                        }
+                    }
+
+                    // Draw day name + MM/DD manually for weekly (replaces built-in ticks)
+                    if (period === 'weekly' && mmddLabels.length > 0) {
+                        for (let i = 0; i < mmddLabels.length; i++) {
+                            const x = xScale.getPixelForValue(i);
+
+                            // Day name (Mon, Tue…)
+                            ctx.fillStyle = '#636e72';
+                            ctx.font = '11px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(labels[i], x, chartArea.bottom + 8);
+
+                            // MM/DD smaller, just below
+                            ctx.fillStyle = '#b2bec3';
+                            ctx.font = '9px Arial';
+                            ctx.fillText(mmddLabels[i], x, chartArea.bottom + 22);
+                        }
+                    }
+                }
+            };
+
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total ML',
+                        data: mlValues,
+                        backgroundColor: 'rgba(58, 58, 58, 0.8)',
+                        borderColor: '#3a3a3a',
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(58, 58, 58, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 50,
+                            bottom: 55
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' ml';
+                                },
+                                font: {
+                                    size: 11
+                                },
+                                color: '#636e72'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                display: period !== 'weekly',
+                                font: {
+                                    size: 11
+                                },
+                                color: '#636e72'
+                            }
+                        }
+                    }
+                },
+                plugins: [plugin]
+            });
+
+            // Hide monthly table for non-monthly periods
+            if (period !== 'monthly') {
+                document.getElementById('monthlyTable').style.display = 'none';
+            }
+
+            // Calculate and display history stats
+            const totalMlAll = periods.reduce((sum, p) => sum + p.totalMl, 0);
+            const totalCostAll = periods.reduce((sum, p) => sum + parseFloat(p.totalCost), 0);
+            let totalAvgDiff = '—';
+
+            if (periods.length > 0) {
+                let totalDiffMinutes = 0;
+                let validPeriods = 0;
+                
+                periods.forEach(p => {
+                    const timeStr = p.avgTimeDiffText;
+                    if (timeStr !== '—') {
+                        const hm = timeStr.match(/(\d+)h\s*(\d+)m/);
+                        const mOnly = timeStr.match(/^(\d+)m$/);
+                        if (hm) {
+                            totalDiffMinutes += parseInt(hm[1]) * 60 + parseInt(hm[2]);
+                            validPeriods++;
+                        } else if (mOnly) {
+                            totalDiffMinutes += parseInt(mOnly[1]);
+                            validPeriods++;
+                        }
+                    }
+                });
+
+                if (validPeriods > 0) {
+                    const avgMinutesTotal = Math.round(totalDiffMinutes / validPeriods);
+                    const avgHours = Math.floor(avgMinutesTotal / 60);
+                    const avgMins = avgMinutesTotal % 60;
+                    if (avgHours > 0) {
+                        totalAvgDiff = `${avgHours}h ${avgMins}m`;
+                    } else if (avgMins > 0) {
+                        totalAvgDiff = `${avgMins}m`;
+                    }
+                }
+            }
+
+            document.getElementById('historyAvgDiff').textContent = totalAvgDiff;
+            document.getElementById('historyTotalCost').textContent = totalCostAll.toFixed(2);
+            document.getElementById('historyTotalMl').textContent = totalMlAll.toFixed(1);
+
+            // Entries: count only entries within the displayed period range
+            const periodEntries = periods.reduce((sum, p) => sum + (p.entryCount || 0), 0);
+            document.getElementById('historyPeriods').textContent = periodEntries;
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        async function deleteEntry(entryId) {
+            const card = document.querySelector(`[data-entry-id="${entryId}"]`);
+            if (!card) return;
+
+            // If already showing confirm UI, do nothing (prevents double-click)
+            if (card.querySelector('.delete-confirm')) return;
+
+            const btnCol = card.querySelector('.btn-column');
+            const original = btnCol.innerHTML;
+
+            btnCol.innerHTML = `
+                <div class="delete-confirm" style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+                    <button onclick="confirmDelete(${entryId})" style="width:48px;padding:4px 0;background:#e17055;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Yes</button>
+                    <button onclick="cancelDelete(${entryId})" style="width:48px;padding:4px 0;background:var(--light);color:var(--text);border:1.5px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">No</button>
+                </div>`;
+        }
+
+        async function confirmDelete(entryId) {
+            const data = await getAllData();
+            const timestamp = parseInt(entryId);
+            const index = data.findIndex(e => e.timestamp === timestamp);
+            if (index >= 0) {
+                data.splice(index, 1);
+                localStorage.setItem(dataKey, JSON.stringify(data));
+                showToast('✓ Entry deleted');
+                await renderOverview();
+            }
+        }
+
+        function cancelDelete(entryId) {
+            // Re-render to restore original buttons
+            renderOverview();
+        }
+
+        async function editEntry(entryId) {
+            const data = await getAllData();
+            const ts = parseInt(entryId);
+            const entry = data.find(e => e.timestamp === ts);
+
+            if (entry) {
+                // Store which entry we're editing (will be removed on re-save)
+                editingTimestamp = ts;
+
+                currentMl = entry.ml;
+                document.getElementById('notes').value = entry.notes || '';
+                document.getElementById('charCount').textContent = (entry.notes || '').length;
+                updateDisplay();
+
+                // Switch to log page
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById('log').classList.add('active');
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('[data-page="log"]').classList.add('active');
+
+                // Change button label so user knows they're editing
+                document.getElementById('btnLog').textContent = 'Save Edit';
+                showToast('Entry loaded — press Save Edit when done');
+            }
+        }
+
+        // Settings functions
+
+        async function bulkImportEntries() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,.csv';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    let importData = [];
+                    
+                    if (file.name.endsWith('.json')) {
+                        const parsed = JSON.parse(text);
+                        importData = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+                    } else if (file.name.endsWith('.csv')) {
+                        const lines = text.trim().split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                        
+                        for (let i = 1; i < lines.length; i++) {
+                            if (!lines[i].trim()) continue;
+                            
+                            const values = lines[i].split(',').map(v => v.replace(/^"(.*)"$/, '$1').trim());
+                            const entry = {};
+                            let dateStr = '';
+                            let timeStr = '';
+                            
+                            headers.forEach((header, idx) => {
+                                const val = values[idx] || '';
+                                if (header === 'date') dateStr = val;
+                                else if (header === 'time') timeStr = val;
+                                else if (header === 'timestamp') entry.timestamp = parseInt(val);
+                                else if (header === 'ml' || header === 'amount') entry.ml = parseFloat(val);
+                                else if (header === 'notes' || header === 'note' || header === 'comment') entry.notes = val;
+                            });
+                            
+                            if (dateStr && timeStr) {
+                                try {
+                                    const currentYear = new Date().getFullYear();
+                                    const dateObj = new Date(`${dateStr}/${currentYear} ${timeStr}`);
+                                    entry.timestamp = dateObj.getTime();
+                                } catch (e) {}
+                            }
+                            
+                            if (entry.timestamp && entry.ml) importData.push(entry);
+                        }
+                    }
+                    
+                    if (importData.length === 0) {
+                        showToast('No valid entries found');
+                        return;
+                    }
+                    
+                    const existing = await getAllData();
+                    const merged = [...existing, ...importData];
+                    merged.sort((a, b) => a.timestamp - b.timestamp);
+                    localStorage.setItem(dataKey, JSON.stringify(merged));
+                    showToast(`✓ Imported ${importData.length} entries`);
+                    await renderOverview();
+                } catch (err) {
+                    showToast('Import failed: ' + err.message);
+                }
+            };
+            input.click();
+        }
+
+        async function exportAsJSON() {
+            const data = await getAllData();
+            const exportData = {
+                entries: data,
+                costPerMl: costPerMl,
+                exportDate: new Date().toISOString()
+            };
+            
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `g-tracker-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('✓ Exported as JSON');
+        }
+
+        const GITHUB_API = 'https://api.github.com';
+        let gistId = localStorage.getItem('gistId');
+
+        function getGitHubToken() {
+            let token = localStorage.getItem('githubToken');
+            if (!token) {
+                token = prompt('Enter your GitHub Personal Access Token (needs "gist" scope):\n\nCreate one at: github.com/settings/tokens');
+                if (token) localStorage.setItem('githubToken', token.trim());
+            }
+            return token ? token.trim() : null;
+        }
+
+        async function backupToGitHub() {
+            const token = getGitHubToken();
+            if (!token) { showToast('GitHub token required'); return; }
+
+            try {
+                const data = await getAllData();
+                const content = JSON.stringify({ entries: data, costPerMl }, null, 2);
+
+                if (gistId) {
+                    const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
+                        method: 'PATCH',
+                        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: { 'g-tracker-data.json': { content } } })
+                    });
+                    if (response.ok) {
+                        showToast('✓ Backup updated');
+                    } else {
+                        const err = await response.json();
+                        showToast('Backup failed: ' + (err.message || response.status));
+                    }
+                } else {
+                    const response = await fetch(`${GITHUB_API}/gists`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            public: false,
+                            description: 'G Tracker backup',
+                            files: { 'g-tracker-data.json': { content } }
+                        })
+                    });
+                    const gist = await response.json();
+                    if (gist.id) {
+                        gistId = gist.id;
+                        localStorage.setItem('gistId', gistId);
+                        const url = `https://gist.github.com/${gist.owner.login}/${gistId}`;
+                        localStorage.setItem('gistUrl', url);
+                        showToast('✓ Backup created!');
+                        alert('Backup link (save this!):\n' + url);
+                    } else {
+                        showToast('Backup failed: ' + (gist.message || 'Unknown error'));
+                        if (gist.message === 'Bad credentials') localStorage.removeItem('githubToken');
+                    }
+                }
+            } catch (err) {
+                showToast('Backup failed: ' + err.message);
+            }
+        }
+
+        async function loadFromGitHub() {
+            try {
+                let id = localStorage.getItem('gistId');
+
+                if (!id) {
+                    const url = prompt('Enter Gist URL (e.g., https://gist.github.com/username/abc123)');
+                    if (!url) return;
+                    const match = url.match(/gist\.github\.com\/[\w-]+\/([\w]+)/);
+                    if (!match) { showToast('Invalid Gist URL'); return; }
+                    id = match[1];
+                    localStorage.setItem('gistId', id);
+                    gistId = id;
+                }
+
+                const response = await fetch(`https://api.github.com/gists/${id}`);
+                const gist = await response.json();
+
+                if (!gist.files || !gist.files['g-tracker-data.json']) {
+                    showToast('No data found in Gist');
+                    return;
+                }
+
+                const fileContent = gist.files['g-tracker-data.json'].content;
+                const data = JSON.parse(fileContent);
+
+                localStorage.setItem(dataKey, JSON.stringify(data.entries));
+                localStorage.setItem(costKey, data.costPerMl);
+                costPerMl = data.costPerMl;
+                if (document.getElementById('costPerMl')) document.getElementById('costPerMl').value = costPerMl;
+
+                showToast('✓ Data restored from Gist');
+                await loadAndRender();
+                await updateElapsedTimer();
+            } catch (err) {
+                showToast('Restore failed: ' + err.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            init().catch(err => console.error('Init error:', err));
+        });
+
+        // Register service worker for PWA standalone mode
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl, { scope: '/' })
+                .catch(() => {}); // Silently fail if blocked
+        }
+    </script>
+</body>
+</html>
