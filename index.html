@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>G Tracker</title>
 
-    <!-- PWA: standalone app on Android/iOS -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="G Tracker">
     <meta name="theme-color" content="#3a3a3a">
-    <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;G Tracker&quot;,&quot;short_name&quot;:&quot;G Tracker&quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23ffffff&quot;,&quot;theme_color&quot;:&quot;%233a3a3a&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%233a3a3a' rx='24'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E&quot;,&quot;sizes&quot;:&quot;192x192&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+    <link rel="manifest" href="/manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -30,6 +29,10 @@
             --border: #dfe6e9;
             --text: #2d3436;
             --text-light: #636e72;
+            --feeling: #5dade2;
+            --meds: #58d68d;
+            --sleep: #9b59b6;
+            --wake: #f39c12;
         }
 
         body {
@@ -308,6 +311,106 @@
             transform: scale(0.98);
         }
 
+        .btn-row-split {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn-secondary-action {
+            flex: 1;
+            padding: 12px 8px;
+            background: white;
+            color: var(--text);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary-action:hover {
+            background: var(--light);
+        }
+
+        .btn-secondary-action:active {
+            transform: scale(0.98);
+        }
+
+        .btn-feeling { border-color: var(--feeling); color: var(--feeling); }
+        .btn-meds    { border-color: var(--meds);    color: var(--meds); }
+        .btn-sleep   { border-color: var(--sleep);   color: var(--sleep); }
+        .btn-wake    { border-color: var(--wake);    color: var(--wake); }
+
+        .meds-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--light);
+        }
+        .meds-row:last-child { border-bottom: none; }
+
+        .meds-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .meds-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .dose-toggle {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dose-toggle label {
+            font-size: 12px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .dose-toggle input[type="radio"] {
+            display: none;
+        }
+
+        .dose-toggle label:has(input[type="radio"]:checked) {
+            background: var(--meds);
+            color: white;
+            border-color: var(--meds);
+        }
+
+        .feeling-textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--text);
+            resize: vertical;
+            background: white;
+        }
+
+        .feeling-textarea:focus {
+            outline: none;
+            border-color: var(--feeling);
+        }
+
         /* Modal Styles */
         .modal {
             position: fixed;
@@ -581,6 +684,36 @@
         .log-entry-card:hover {
             border-color: var(--secondary);
             box-shadow: 0 4px 12px rgba(58, 58, 58, 0.1);
+        }
+
+        .log-entry-card.feeling {
+            border-left: 5px solid var(--feeling);
+            grid-template-columns: auto 1fr auto;
+        }
+
+        .log-entry-card.meds {
+            border-left: 5px solid var(--meds);
+            grid-template-columns: auto 1fr auto;
+        }
+
+        .log-entry-card.sleep {
+            border-left: 5px solid var(--sleep);
+            grid-template-columns: auto 1fr auto;
+        }
+
+        .log-entry-card.wake {
+            border-left: 5px solid var(--wake);
+            grid-template-columns: auto 1fr auto;
+        }
+
+        .log-entry-card.feeling .entry-value.entry-text,
+        .log-entry-card.meds .entry-value.entry-text,
+        .log-entry-card.sleep .entry-value.entry-text,
+        .log-entry-card.wake .entry-value.entry-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         .entry-field {
@@ -1023,6 +1156,170 @@
                 font-size: 11px;
             }
         }
+
+        /* ====== Meds Guide page (scoped) ====== */
+        #medsInfo {
+            --green: #00b894;
+            --red: #d63031;
+            --purple: #6c5ce7;
+            --yellow: #fdcb6e;
+            --muted: #636e72;
+            --card: #ffffff;
+            padding: 4px 2px 16px;
+        }
+
+        #medsInfo h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--secondary);
+            margin-bottom: 2px;
+        }
+
+        #medsInfo .subtitle {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 20px;
+            letter-spacing: 0.03em;
+        }
+
+        #medsInfo h2 {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin: 20px 0 10px;
+        }
+
+        #medsInfo .timeline { display: flex; flex-direction: column; gap: 8px; }
+
+        #medsInfo .block {
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        #medsInfo .block.warn   { border-left: 3px solid var(--red);    background: #fff5f5; }
+        #medsInfo .block.green  { border-left: 3px solid var(--green);  background: #f0faf8; }
+        #medsInfo .block.purple { border-left: 3px solid var(--purple); background: #f5f3ff; }
+        #medsInfo .block.neutral{ border-left: 3px solid var(--border); }
+
+        #medsInfo .time-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            color: var(--muted);
+        }
+
+        #medsInfo .block.warn   .time-label { color: var(--red); }
+        #medsInfo .block.green  .time-label { color: var(--green); }
+        #medsInfo .block.purple .time-label { color: var(--purple); }
+
+        #medsInfo .block p {
+            font-size: 13px;
+            color: var(--text);
+            margin: 2px 0;
+            line-height: 1.6;
+        }
+
+        #medsInfo .block .med {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        #medsInfo .block .note {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 5px;
+        }
+
+        #medsInfo .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 6px 0;
+        }
+
+        #medsInfo .dont-list { display: flex; flex-direction: column; gap: 6px; }
+
+        #medsInfo .dont-item {
+            display: flex;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--red);
+            border-radius: 8px;
+            padding: 10px 12px;
+            align-items: flex-start;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        #medsInfo .dont-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        #medsInfo .dont-text { flex: 1; }
+        #medsInfo .dont-text strong {
+            color: var(--secondary);
+            font-size: 13px;
+            display: block;
+        }
+        #medsInfo .dont-text span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        #medsInfo .dates-grid { display: flex; flex-direction: column; gap: 6px; }
+
+        #medsInfo .date-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        #medsInfo .date-row .date {
+            color: var(--purple);
+            font-size: 13px;
+            font-weight: 700;
+            min-width: 60px;
+        }
+
+        #medsInfo .date-row .what {
+            color: var(--text);
+            font-size: 13px;
+            text-align: right;
+            flex: 1;
+            padding-left: 8px;
+        }
+
+        #medsInfo .date-row.start     { border-left: 3px solid var(--green); }
+        #medsInfo .date-row.important { border-left: 3px solid var(--red); }
+        #medsInfo .date-row.normal    { border-left: 3px solid var(--purple); }
+
+        #medsInfo .reality-box {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--yellow);
+            border-radius: 10px;
+            padding: 14px;
+            color: var(--text);
+            font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        #medsInfo .reality-box strong { color: var(--secondary); }
     </style>
 </head>
 <body>
@@ -1033,6 +1330,7 @@
                 <button class="nav-btn active" data-page="log">Log</button>
                 <button class="nav-btn" data-page="overview">Overview</button>
                 <button class="nav-btn" data-page="history">History</button>
+                <button class="nav-btn" data-page="medsInfo">Meds</button>
                 <button class="nav-btn" data-page="settings" title="Settings">⚙</button>
             </div>
         </header>
@@ -1086,6 +1384,16 @@
             <button class="btn-log" id="btnLog">Log Entry</button>
 
             <button class="btn-manual" id="btnManual">+ ADD MANUAL</button>
+
+            <div class="btn-row-split">
+                <button class="btn-secondary-action btn-feeling" id="btnFeeling">📝 Log Feelings</button>
+                <button class="btn-secondary-action btn-meds" id="btnMeds">💊 Log Meds</button>
+            </div>
+
+            <div class="btn-row-split">
+                <button class="btn-secondary-action btn-sleep" id="btnSleep">😴 Sleep Wind Down</button>
+                <button class="btn-secondary-action btn-wake" id="btnWake">🌞 Log Wake Up</button>
+            </div>
         </div>
 
         <!-- Manual Entry Modal -->
@@ -1117,6 +1425,103 @@
                 <div class="modal-footer">
                     <button class="btn-modal-cancel" id="btnCancelManual">Cancel</button>
                     <button class="btn-modal-save" id="btnSaveManual">Save Entry</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feeling Modal -->
+        <div id="feelingModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">📝 Log Feelings</div>
+                    <button class="modal-close" id="btnCloseFeeling">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="feelingText">How are you feeling?</label>
+                        <textarea id="feelingText" class="feeling-textarea" placeholder="Mood, sleep, anxiety, body sensations, anything..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-modal-cancel" id="btnCancelFeeling">Cancel</button>
+                    <button class="btn-modal-save" id="btnSaveFeeling">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meds Modal -->
+        <div id="medsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">💊 Log Meds</div>
+                    <button class="modal-close" id="btnCloseMeds">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="meds-row">
+                        <label><input type="checkbox" id="medVortioxetine"> Vortioxetine (Brintellix)</label>
+                        <div class="dose-toggle">
+                            <label><input type="radio" name="vortioxetineDose" value="5mg" checked> 5mg</label>
+                            <label><input type="radio" name="vortioxetineDose" value="10mg"> 10mg</label>
+                        </div>
+                    </div>
+                    <div class="meds-row">
+                        <label><input type="checkbox" id="medTopiramate"> Topiramate 25mg</label>
+                    </div>
+                    <div class="meds-row">
+                        <label><input type="checkbox" id="medLemborexant"> Lemborexant (Dayvigo) 5mg</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-modal-cancel" id="btnCancelMeds">Cancel</button>
+                    <button class="btn-modal-save" id="btnSaveMeds">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleep Edit Modal (timestamp only) -->
+        <div id="sleepEditModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">😴 Edit Sleep Wind Down</div>
+                    <button class="modal-close" id="btnCloseSleepEdit">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="sleepEditDate">Date</label>
+                        <input type="date" id="sleepEditDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="sleepEditTime">Time</label>
+                        <input type="time" id="sleepEditTime">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-modal-cancel" id="btnCancelSleepEdit">Cancel</button>
+                    <button class="btn-modal-save" id="btnSaveSleepEdit">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wake Up Modal -->
+        <div id="wakeModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">🌞 Log Wake Up</div>
+                    <button class="modal-close" id="btnCloseWake">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="wakeHours">Hours of Sleep</label>
+                        <input type="number" id="wakeHours" min="0" step="0.5" placeholder="e.g., 7.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="wakeThoughts">Thoughts</label>
+                        <textarea id="wakeThoughts" class="feeling-textarea" placeholder="Dreams, mood, body, anything..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-modal-cancel" id="btnCancelWake">Cancel</button>
+                    <button class="btn-modal-save" id="btnSaveWake">Save</button>
                 </div>
             </div>
         </div>
@@ -1235,7 +1640,131 @@
 
         </div>
 
-        <!-- Page 4: Settings -->
+        <!-- Page 4: Meds Guide -->
+        <div id="medsInfo" class="page">
+            <h1>💊 Meds Guide</h1>
+            <p class="subtitle">DR. GONTIÑAS · FOLLOW-UP JUNE 14, 2026 · SLEEP 12PM · WAKE 7PM</p>
+
+            <h2>Daily Schedule</h2>
+            <div class="timeline">
+                <div class="block neutral">
+                    <div class="time-label">7:00 PM — Wake Up</div>
+                    <p>No medications. GHB taper resumes normally.</p>
+                </div>
+
+                <div class="block green">
+                    <div class="time-label">~8:00–9:00 PM — After First Meal</div>
+                    <p><span class="med">✅ Topiramate 25mg</span> — 1 tablet</p>
+                    <p class="note">Must be taken WITH food. Never on empty stomach.</p>
+                </div>
+
+                <div class="block neutral">
+                    <div class="time-label">9:00 PM – 10:00 AM — Work / Normal Hours</div>
+                    <p>Continue GHB taper as usual. Maintain normal dosing intervals.</p>
+                </div>
+
+                <div class="block warn">
+                    <div class="time-label">⛔ 10:00 AM — Last GHB Dose</div>
+                    <p>Hard cutoff. No GHB after this.</p>
+                    <p class="note">2-hour gap needed before sleep meds. Lemborexant + GHB = dangerous combination.</p>
+                </div>
+
+                <div class="block green">
+                    <div class="time-label">11:30 AM — 30 Mins Before Sleep</div>
+                    <p><span class="med">✅ Vortioxetine (Brintellix)</span></p>
+                    <p>Days 1–6: ½ tablet (5mg) &nbsp;|&nbsp; Day 7+: 1 full tablet (10mg)</p>
+                    <div class="divider"></div>
+                    <p><span class="med">✅ Lemborexant (Dayvigo) 5mg</span></p>
+                    <p>Days 1–5: Every night &nbsp;|&nbsp; Day 6+: Only if needed</p>
+                    <p class="note">⛔ No GHB after 10AM on medication nights. Not even a small dose.</p>
+                </div>
+
+                <div class="block purple">
+                    <div class="time-label">12:00 Noon — Sleep</div>
+                    <p>Target: 7 hours minimum.</p>
+                    <p class="note">If you wake mid-sleep — stay in bed. Do not redose GHB. Lemborexant is still active.</p>
+                </div>
+            </div>
+
+            <h2>Never Do This</h2>
+            <div class="dont-list">
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>GHB after 10:00 AM on med nights</strong>
+                        <span>Dangerous combo with Lemborexant</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>MDMA while on Vortioxetine</strong>
+                        <span>Serotonin syndrome risk — medically serious</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>Topiramate on empty stomach</strong>
+                        <span>Nausea and increased cognitive fog</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>Alcohol + Lemborexant same night</strong>
+                        <span>Contraindicated — amplifies sedation dangerously</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>Drive within 7–8 hrs of Lemborexant</strong>
+                        <span>17–19 hour half-life — next-day impairment risk</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>Stop any medication suddenly</strong>
+                        <span>Always consult Dr. Gontiñas first</span>
+                    </div>
+                </div>
+                <div class="dont-item">
+                    <span class="dont-icon">⛔</span>
+                    <div class="dont-text">
+                        <strong>Ignore skin rash on Topiramate</strong>
+                        <span>Stop immediately — call Dr. Gontiñas</span>
+                    </div>
+                </div>
+            </div>
+
+            <h2>Key Dates</h2>
+            <div class="dates-grid">
+                <div class="date-row start">
+                    <span class="date">May 25</span>
+                    <span class="what">Start medications tonight</span>
+                </div>
+                <div class="date-row normal">
+                    <span class="date">May 30</span>
+                    <span class="what">Lemborexant → as needed (Day 6)</span>
+                </div>
+                <div class="date-row normal">
+                    <span class="date">May 31</span>
+                    <span class="what">Full 10mg Vortioxetine (Day 7)</span>
+                </div>
+                <div class="date-row important">
+                    <span class="date">Jun 14</span>
+                    <span class="what">Session 2 — Dr. Gontiñas</span>
+                </div>
+            </div>
+
+            <div class="reality-box">
+                💡 Most important thing you bring to June 14: your <strong>G Tracker data</strong> — average gaps, total ml, sleep quality notes.
+            </div>
+        </div>
+
+        <!-- Page 5: Settings -->
         <div id="settings" class="page">
             <div class="settings-section">
                 <div class="section-title">Cost Settings</div>
@@ -1287,6 +1816,32 @@
         let selectedMonth = new Date(); // For month navigation in history
         let costPerMl = 50; // Default cost
         let editingTimestamp = null; // Tracks entry being edited (deleted on re-save)
+        let editingFeelingTimestamp = null;
+        let editingMedsTimestamp = null;
+        let editingSleepTimestamp = null;
+        let editingWakeTimestamp = null;
+
+        const isDoseEntry = (e) => !e.type || e.type === 'dose';
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatMedLabel(key) {
+            switch (key) {
+                case 'vortioxetine_5mg':  return 'Vortioxetine 5mg';
+                case 'vortioxetine_10mg': return 'Vortioxetine 10mg';
+                case 'topiramate':        return 'Topiramate 25mg';
+                case 'lemborexant':       return 'Lemborexant 5mg';
+                default:                  return key;
+            }
+        }
 
         // Initialize
         async function init() {
@@ -1361,18 +1916,17 @@
                 btn.addEventListener('click', async () => {
                     const page = btn.dataset.page;
                     // Cancel any pending edit if navigating away from log
-                    if (page !== 'log' && editingTimestamp !== null) {
-                        editingTimestamp = null;
-                        document.getElementById('btnLog').textContent = 'Log Entry';
-                    }
+                    // Dose edits now happen in the Manual Entry modal, so navigating away
+                    // never strands the user mid-edit. No reset needed here.
                     await switchPage(page);
                     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                 });
             });
 
-            // Manual entry modal
+            // Manual entry modal (add-new mode)
             document.getElementById('btnManual').addEventListener('click', () => {
+                resetManualModalMode();
                 const today = new Date();
                 document.getElementById('manualDate').valueAsDate = today;
                 document.getElementById('manualTime').value = today.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -1382,13 +1936,8 @@
                 document.getElementById('manualModal').style.display = 'flex';
             });
 
-            document.getElementById('btnCloseModal').addEventListener('click', () => {
-                document.getElementById('manualModal').style.display = 'none';
-            });
-
-            document.getElementById('btnCancelManual').addEventListener('click', () => {
-                document.getElementById('manualModal').style.display = 'none';
-            });
+            document.getElementById('btnCloseModal').addEventListener('click', closeManualModal);
+            document.getElementById('btnCancelManual').addEventListener('click', closeManualModal);
 
             document.getElementById('btnSaveManual').addEventListener('click', saveManualEntry);
 
@@ -1398,9 +1947,43 @@
 
             // Close modal when clicking outside
             document.getElementById('manualModal').addEventListener('click', (e) => {
-                if (e.target.id === 'manualModal') {
-                    document.getElementById('manualModal').style.display = 'none';
-                }
+                if (e.target.id === 'manualModal') closeManualModal();
+            });
+
+            // Feeling modal
+            document.getElementById('btnFeeling').addEventListener('click', () => openFeelingModal());
+            document.getElementById('btnCloseFeeling').addEventListener('click', closeFeelingModal);
+            document.getElementById('btnCancelFeeling').addEventListener('click', closeFeelingModal);
+            document.getElementById('btnSaveFeeling').addEventListener('click', saveFeeling);
+            document.getElementById('feelingModal').addEventListener('click', (e) => {
+                if (e.target.id === 'feelingModal') closeFeelingModal();
+            });
+
+            // Meds modal
+            document.getElementById('btnMeds').addEventListener('click', () => openMedsModal());
+            document.getElementById('btnCloseMeds').addEventListener('click', closeMedsModal);
+            document.getElementById('btnCancelMeds').addEventListener('click', closeMedsModal);
+            document.getElementById('btnSaveMeds').addEventListener('click', saveMeds);
+            document.getElementById('medsModal').addEventListener('click', (e) => {
+                if (e.target.id === 'medsModal') closeMedsModal();
+            });
+
+            // Sleep Wind Down (one-tap; modal only used for edit)
+            document.getElementById('btnSleep').addEventListener('click', saveSleepNow);
+            document.getElementById('btnCloseSleepEdit').addEventListener('click', closeSleepEditModal);
+            document.getElementById('btnCancelSleepEdit').addEventListener('click', closeSleepEditModal);
+            document.getElementById('btnSaveSleepEdit').addEventListener('click', saveSleepEdit);
+            document.getElementById('sleepEditModal').addEventListener('click', (e) => {
+                if (e.target.id === 'sleepEditModal') closeSleepEditModal();
+            });
+
+            // Wake Up modal
+            document.getElementById('btnWake').addEventListener('click', () => openWakeModal());
+            document.getElementById('btnCloseWake').addEventListener('click', closeWakeModal);
+            document.getElementById('btnCancelWake').addEventListener('click', closeWakeModal);
+            document.getElementById('btnSaveWake').addEventListener('click', saveWake);
+            document.getElementById('wakeModal').addEventListener('click', (e) => {
+                if (e.target.id === 'wakeModal') closeWakeModal();
             });
 
             // Date navigation
@@ -1520,7 +2103,8 @@
         }
 
         async function updateElapsedTimer() {
-            const data = await getAllData();
+            // Timer measures gap since last DOSE; feeling/meds entries must not reset it.
+            const data = (await getAllData()).filter(isDoseEntry);
             const elapsedBox = document.getElementById('elapsedBox');
             const remainingBox = document.getElementById('remainingBox');
             const elapsedHH = document.getElementById('elapsedHH');
@@ -1599,25 +2183,11 @@
         }
 
         async function logEntry() {
+            // Dose edits now happen through the Manual Entry modal (see editEntry).
+            // This handler only creates fresh dose entries with the current ml + notes.
             const notes = document.getElementById('notes').value;
-            const now = new Date();
-
-            let data = await getAllData();
-
-            // If editing an existing entry, remove the original first
-            if (editingTimestamp !== null) {
-                data = data.filter(e => e.timestamp !== editingTimestamp);
-                editingTimestamp = null;
-                document.getElementById('btnLog').textContent = 'Log Entry';
-            }
-
-            const entry = {
-                timestamp: now.getTime(),
-                ml: currentMl,
-                notes: notes
-            };
-
-            data.push(entry);
+            const data = await getAllData();
+            data.push({ timestamp: Date.now(), ml: currentMl, notes });
             data.sort((a, b) => a.timestamp - b.timestamp);
             localStorage.setItem(dataKey, JSON.stringify(data));
 
@@ -1689,21 +2259,250 @@
                 return;
             }
 
-            const dateTime = new Date(`${dateStr}T${timeStr}`);
-            const entry = {
-                timestamp: dateTime.getTime(),
-                ml: ml,
-                notes: notes
-            };
+            const newTs = new Date(`${dateStr}T${timeStr}`).getTime();
+            const entry = { timestamp: newTs, ml, notes };
 
-            const data = await getAllData();
+            let data = await getAllData();
+            const isEditing = editingTimestamp !== null;
+            if (isEditing) {
+                data = data.filter(e => e.timestamp !== editingTimestamp);
+            }
             data.push(entry);
             data.sort((a, b) => a.timestamp - b.timestamp);
             localStorage.setItem(dataKey, JSON.stringify(data));
 
-            showToast('Manual entry added');
+            showToast(isEditing ? '✓ Entry updated' : 'Manual entry added');
+            closeManualModal();
+            await loadAndRender();
+            await updateElapsedTimer();
+        }
+
+        function resetManualModalMode() {
+            editingTimestamp = null;
+            document.querySelector('#manualModal .modal-title').textContent = 'Add Manual Entry';
+            document.getElementById('btnSaveManual').textContent = 'Save Entry';
+        }
+
+        function closeManualModal() {
             document.getElementById('manualModal').style.display = 'none';
-            await renderOverview();
+            resetManualModalMode();
+        }
+
+        function openManualModalForEdit(entry) {
+            editingTimestamp = entry.timestamp;
+            const d = new Date(entry.timestamp);
+            const y = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, '0');
+            const da = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            document.getElementById('manualDate').value = `${y}-${mo}-${da}`;
+            document.getElementById('manualTime').value = `${hh}:${mm}`;
+            document.getElementById('manualMl').value = entry.ml;
+            document.getElementById('manualNotes').value = entry.notes || '';
+            document.getElementById('manualCharCount').textContent = (entry.notes || '').length;
+            document.querySelector('#manualModal .modal-title').textContent = 'Edit Entry';
+            document.getElementById('btnSaveManual').textContent = 'Save Edit';
+            document.getElementById('manualModal').style.display = 'flex';
+        }
+
+        function openFeelingModal(prefillText = '') {
+            document.getElementById('feelingText').value = prefillText;
+            document.getElementById('feelingModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('feelingText').focus(), 50);
+        }
+
+        function closeFeelingModal() {
+            document.getElementById('feelingModal').style.display = 'none';
+            editingFeelingTimestamp = null;
+            document.getElementById('btnSaveFeeling').textContent = 'Save';
+        }
+
+        async function saveFeeling() {
+            const text = document.getElementById('feelingText').value.trim();
+            if (!text) { showToast('Type something first'); return; }
+            let data = await getAllData();
+            let ts = Date.now();
+            if (editingFeelingTimestamp !== null) {
+                const old = data.find(e => e.timestamp === editingFeelingTimestamp);
+                if (old) ts = old.timestamp;
+                data = data.filter(e => e.timestamp !== editingFeelingTimestamp);
+            }
+            data.push({ type: 'feeling', timestamp: ts, text });
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            showToast('Feelings logged');
+            closeFeelingModal();
+            await loadAndRender();
+        }
+
+        async function editFeeling(entryId) {
+            const data = await getAllData();
+            const ts = parseInt(entryId);
+            const entry = data.find(e => e.timestamp === ts);
+            if (!entry) return;
+            editingFeelingTimestamp = ts;
+            document.getElementById('btnSaveFeeling').textContent = 'Save Edit';
+            openFeelingModal(entry.text || '');
+        }
+
+        function openMedsModal(prefillTaken = null) {
+            document.getElementById('medVortioxetine').checked = false;
+            document.getElementById('medTopiramate').checked = false;
+            document.getElementById('medLemborexant').checked = false;
+            document.querySelector('input[name="vortioxetineDose"][value="5mg"]').checked = true;
+
+            if (Array.isArray(prefillTaken)) {
+                if (prefillTaken.includes('vortioxetine_5mg')) {
+                    document.getElementById('medVortioxetine').checked = true;
+                    document.querySelector('input[name="vortioxetineDose"][value="5mg"]').checked = true;
+                }
+                if (prefillTaken.includes('vortioxetine_10mg')) {
+                    document.getElementById('medVortioxetine').checked = true;
+                    document.querySelector('input[name="vortioxetineDose"][value="10mg"]').checked = true;
+                }
+                if (prefillTaken.includes('topiramate')) document.getElementById('medTopiramate').checked = true;
+                if (prefillTaken.includes('lemborexant')) document.getElementById('medLemborexant').checked = true;
+            }
+            document.getElementById('medsModal').style.display = 'flex';
+        }
+
+        function closeMedsModal() {
+            document.getElementById('medsModal').style.display = 'none';
+            editingMedsTimestamp = null;
+            document.getElementById('btnSaveMeds').textContent = 'Save';
+        }
+
+        async function saveMeds() {
+            const taken = [];
+            if (document.getElementById('medVortioxetine').checked) {
+                const dose = document.querySelector('input[name="vortioxetineDose"]:checked').value;
+                taken.push(`vortioxetine_${dose}`);
+            }
+            if (document.getElementById('medTopiramate').checked) taken.push('topiramate');
+            if (document.getElementById('medLemborexant').checked) taken.push('lemborexant');
+            if (taken.length === 0) { showToast('Select at least one'); return; }
+
+            let data = await getAllData();
+            let ts = Date.now();
+            if (editingMedsTimestamp !== null) {
+                const old = data.find(e => e.timestamp === editingMedsTimestamp);
+                if (old) ts = old.timestamp;
+                data = data.filter(e => e.timestamp !== editingMedsTimestamp);
+            }
+            data.push({ type: 'meds', timestamp: ts, taken });
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            showToast('Meds logged');
+            closeMedsModal();
+            await loadAndRender();
+        }
+
+        async function editMeds(entryId) {
+            const data = await getAllData();
+            const ts = parseInt(entryId);
+            const entry = data.find(e => e.timestamp === ts);
+            if (!entry) return;
+            editingMedsTimestamp = ts;
+            document.getElementById('btnSaveMeds').textContent = 'Save Edit';
+            openMedsModal(entry.taken || []);
+        }
+
+        // ---- Sleep Wind Down ----
+        async function saveSleepNow() {
+            const data = await getAllData();
+            data.push({ type: 'sleep_winddown', timestamp: Date.now() });
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            showToast('😴 Sleep wind down logged');
+            await loadAndRender();
+            await updateElapsedTimer();
+        }
+
+        function openSleepEditModal(timestamp) {
+            const d = new Date(timestamp);
+            const y = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, '0');
+            const da = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            document.getElementById('sleepEditDate').value = `${y}-${mo}-${da}`;
+            document.getElementById('sleepEditTime').value = `${hh}:${mm}`;
+            document.getElementById('sleepEditModal').style.display = 'flex';
+        }
+
+        function closeSleepEditModal() {
+            document.getElementById('sleepEditModal').style.display = 'none';
+            editingSleepTimestamp = null;
+        }
+
+        async function saveSleepEdit() {
+            if (editingSleepTimestamp === null) { closeSleepEditModal(); return; }
+            const dateStr = document.getElementById('sleepEditDate').value;
+            const timeStr = document.getElementById('sleepEditTime').value;
+            if (!dateStr || !timeStr) { showToast('Date and time required'); return; }
+            const newTs = new Date(`${dateStr}T${timeStr}`).getTime();
+            if (isNaN(newTs)) { showToast('Invalid date/time'); return; }
+
+            let data = await getAllData();
+            data = data.filter(e => e.timestamp !== editingSleepTimestamp);
+            data.push({ type: 'sleep_winddown', timestamp: newTs });
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            showToast('Sleep updated');
+            closeSleepEditModal();
+            await loadAndRender();
+        }
+
+        async function editSleep(entryId) {
+            const ts = parseInt(entryId);
+            editingSleepTimestamp = ts;
+            openSleepEditModal(ts);
+        }
+
+        // ---- Wake Up ----
+        function openWakeModal(prefill = null) {
+            document.getElementById('wakeHours').value = prefill ? String(prefill.hoursOfSleep ?? '') : '';
+            document.getElementById('wakeThoughts').value = prefill ? (prefill.thoughts || '') : '';
+            document.getElementById('wakeModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('wakeHours').focus(), 50);
+        }
+
+        function closeWakeModal() {
+            document.getElementById('wakeModal').style.display = 'none';
+            editingWakeTimestamp = null;
+            document.getElementById('btnSaveWake').textContent = 'Save';
+        }
+
+        async function saveWake() {
+            const hoursRaw = document.getElementById('wakeHours').value.trim();
+            const hours = parseFloat(hoursRaw);
+            if (!hoursRaw || isNaN(hours) || hours <= 0) { showToast('Hours of sleep required'); return; }
+            const thoughts = document.getElementById('wakeThoughts').value.trim();
+
+            let data = await getAllData();
+            let ts = Date.now();
+            if (editingWakeTimestamp !== null) {
+                const old = data.find(e => e.timestamp === editingWakeTimestamp);
+                if (old) ts = old.timestamp;
+                data = data.filter(e => e.timestamp !== editingWakeTimestamp);
+            }
+            data.push({ type: 'wake_up', timestamp: ts, hoursOfSleep: hours, thoughts });
+            data.sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem(dataKey, JSON.stringify(data));
+            showToast('🌞 Wake up logged');
+            closeWakeModal();
+            await loadAndRender();
+        }
+
+        async function editWake(entryId) {
+            const data = await getAllData();
+            const ts = parseInt(entryId);
+            const entry = data.find(e => e.timestamp === ts);
+            if (!entry) return;
+            editingWakeTimestamp = ts;
+            document.getElementById('btnSaveWake').textContent = 'Save Edit';
+            openWakeModal({ hoursOfSleep: entry.hoursOfSleep, thoughts: entry.thoughts });
         }
 
         async function switchPage(page) {
@@ -1735,11 +2534,13 @@
 
         async function renderOverview() {
             const selectedData = await getDataForDate(selectedDate);
-            
+
             // Sort by timestamp (chronological order)
             selectedData.sort((a, b) => a.timestamp - b.timestamp);
-            
-            const totalMl = selectedData.reduce((sum, entry) => sum + entry.ml, 0);
+
+            // Dose-only slice for stats (taper metrics don't count feeling/meds)
+            const selectedDoseData = selectedData.filter(isDoseEntry);
+            const totalMl = selectedDoseData.reduce((sum, entry) => sum + entry.ml, 0);
 
             // Update date display
             const today = new Date();
@@ -1759,20 +2560,20 @@
 
             document.getElementById('totalToday').textContent = totalMl.toFixed(1);
             document.getElementById('totalCost').textContent = (totalMl * costPerMl).toFixed(2);
-            document.getElementById('entryCount').textContent = selectedData.length;
+            document.getElementById('entryCount').textContent = selectedDoseData.length;
 
-            // Calculate summary stats
+            // Calculate summary stats (dose-only)
             let totalDiffMs = 0;
-            for (let i = 1; i < selectedData.length; i++) {
-                totalDiffMs += selectedData[i].timestamp - selectedData[i - 1].timestamp;
+            for (let i = 1; i < selectedDoseData.length; i++) {
+                totalDiffMs += selectedDoseData[i].timestamp - selectedDoseData[i - 1].timestamp;
             }
-            
+
             let avgTimeDiff = '—';
-            if (selectedData.length > 1) {
-                const avgDiffMs = totalDiffMs / (selectedData.length - 1);
+            if (selectedDoseData.length > 1) {
+                const avgDiffMs = totalDiffMs / (selectedDoseData.length - 1);
                 const avgHours = Math.floor(avgDiffMs / (1000 * 60 * 60));
                 const avgMinutes = Math.floor((avgDiffMs % (1000 * 60 * 60)) / (1000 * 60));
-                
+
                 if (avgHours > 0) {
                     avgTimeDiff = `${avgHours}h ${avgMinutes}m`;
                 } else {
@@ -1784,32 +2585,115 @@
 
             // Render entries
             const container = document.getElementById('logEntriesContainer');
-            
+
             if (selectedData.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 40px 20px; font-size: 13px;">No entries yet</div>';
                 return;
             }
 
-            // Get all data for continuous time difference calculation
+            // Get all data for continuous time difference calculation (dose-only for the lookback)
             const allData = await getAllData();
             allData.sort((a, b) => a.timestamp - b.timestamp);
+            const allDoseData = allData.filter(isDoseEntry);
 
             let html = '';
 
-            selectedData.forEach((entry, index) => {
+            selectedData.forEach((entry) => {
                 const date = new Date(entry.timestamp);
                 const time = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                
+
+                if (entry.type === 'feeling') {
+                    html += `
+                        <div class="log-entry-card feeling" data-entry-id="${entry.timestamp}">
+                            <div class="entry-field">
+                                <div class="entry-label">Time</div>
+                                <div class="entry-value">${time}</div>
+                            </div>
+                            <div class="entry-field">
+                                <div class="entry-label">📝 Feelings</div>
+                                <div class="entry-value entry-text">${escapeHtml(entry.text)}</div>
+                            </div>
+                            <div class="btn-column">
+                                <button class="btn-edit" onclick="editFeeling(${entry.timestamp})" title="Edit feeling">✎</button>
+                                <button class="btn-delete" onclick="deleteEntry(${entry.timestamp})" title="Delete feeling">×</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (entry.type === 'meds') {
+                    const label = (entry.taken || []).map(formatMedLabel).join(', ');
+                    html += `
+                        <div class="log-entry-card meds" data-entry-id="${entry.timestamp}">
+                            <div class="entry-field">
+                                <div class="entry-label">Time</div>
+                                <div class="entry-value">${time}</div>
+                            </div>
+                            <div class="entry-field">
+                                <div class="entry-label">💊 Meds</div>
+                                <div class="entry-value entry-text">${escapeHtml(label)}</div>
+                            </div>
+                            <div class="btn-column">
+                                <button class="btn-edit" onclick="editMeds(${entry.timestamp})" title="Edit meds">✎</button>
+                                <button class="btn-delete" onclick="deleteEntry(${entry.timestamp})" title="Delete meds">×</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (entry.type === 'sleep_winddown') {
+                    html += `
+                        <div class="log-entry-card sleep" data-entry-id="${entry.timestamp}">
+                            <div class="entry-field">
+                                <div class="entry-label">Time</div>
+                                <div class="entry-value">${time}</div>
+                            </div>
+                            <div class="entry-field">
+                                <div class="entry-label">😴 Sleep Wind Down</div>
+                                <div class="entry-value entry-text" style="color: var(--text-light); font-style: italic;">winding down for sleep</div>
+                            </div>
+                            <div class="btn-column">
+                                <button class="btn-edit" onclick="editSleep(${entry.timestamp})" title="Edit timestamp">✎</button>
+                                <button class="btn-delete" onclick="deleteEntry(${entry.timestamp})" title="Delete">×</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (entry.type === 'wake_up') {
+                    const hrs = (entry.hoursOfSleep != null) ? `${entry.hoursOfSleep}h sleep` : '';
+                    const thoughtsHtml = entry.thoughts ? `<div style="margin-top: 4px; font-style: italic; color: var(--text-light); font-size: 12px;">${escapeHtml(entry.thoughts)}</div>` : '';
+                    html += `
+                        <div class="log-entry-card wake" data-entry-id="${entry.timestamp}">
+                            <div class="entry-field">
+                                <div class="entry-label">Time</div>
+                                <div class="entry-value">${time}</div>
+                            </div>
+                            <div class="entry-field">
+                                <div class="entry-label">🌞 Woke Up</div>
+                                <div class="entry-value entry-text">${escapeHtml(hrs)}${thoughtsHtml}</div>
+                            </div>
+                            <div class="btn-column">
+                                <button class="btn-edit" onclick="editWake(${entry.timestamp})" title="Edit wake up">✎</button>
+                                <button class="btn-delete" onclick="deleteEntry(${entry.timestamp})" title="Delete">×</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Dose entry (default)
                 let timeDiff = '—';
-                
-                // Find this entry in ALL data to get previous entry
-                const entryIndexInAll = allData.findIndex(e => e.timestamp === entry.timestamp && e.ml === entry.ml);
+                const entryIndexInAll = allDoseData.findIndex(e => e.timestamp === entry.timestamp);
                 if (entryIndexInAll > 0) {
-                    const prevEntry = allData[entryIndexInAll - 1];
+                    const prevEntry = allDoseData[entryIndexInAll - 1];
                     const diffMs = entry.timestamp - prevEntry.timestamp;
                     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
                     const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                    
+
                     if (diffHours > 0) {
                         timeDiff = `${diffHours}h ${diffMinutes}m`;
                     } else {
@@ -1839,7 +2723,7 @@
                         </div>
                         <div class="entry-field">
                             <div class="entry-label">Notes</div>
-                            <div class="entry-value" style="color: var(--text-light); font-style: italic;">${entry.notes || '—'}</div>
+                            <div class="entry-value" style="color: var(--text-light); font-style: italic;">${escapeHtml(entry.notes) || '—'}</div>
                         </div>
                         <div class="btn-column">
                             <button class="btn-edit" onclick="editEntry(${entry.timestamp})" title="Edit entry">✎</button>
@@ -1853,7 +2737,8 @@
         }
 
         async function renderHistoryChart(period, baseDate = null) {
-            const data = await getAllData();
+            // Taper metrics are dose-only; feeling/meds entries are excluded from history charts.
+            const data = (await getAllData()).filter(isDoseEntry);
             let periods = [];
             let labels = [];
             let mlValues = [];
@@ -2244,26 +3129,8 @@
             const data = await getAllData();
             const ts = parseInt(entryId);
             const entry = data.find(e => e.timestamp === ts);
-
-            if (entry) {
-                // Store which entry we're editing (will be removed on re-save)
-                editingTimestamp = ts;
-
-                currentMl = entry.ml;
-                document.getElementById('notes').value = entry.notes || '';
-                document.getElementById('charCount').textContent = (entry.notes || '').length;
-                updateDisplay();
-
-                // Switch to log page
-                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-                document.getElementById('log').classList.add('active');
-                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                document.querySelector('[data-page="log"]').classList.add('active');
-
-                // Change button label so user knows they're editing
-                document.getElementById('btnLog').textContent = 'Save Edit';
-                showToast('Entry loaded — press Save Edit when done');
-            }
+            if (!entry || !isDoseEntry(entry)) return;
+            openManualModalForEdit(entry);
         }
 
         // Settings functions
@@ -2427,7 +3294,22 @@
                     gistId = id;
                 }
 
-                const response = await fetch(`https://api.github.com/gists/${id}`);
+                const token = localStorage.getItem('githubToken');
+                const headers = { 'Accept': 'application/vnd.github.v3+json' };
+                if (token) headers['Authorization'] = `token ${token}`;
+
+                const response = await fetch(`https://api.github.com/gists/${id}`, { headers });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('githubToken');
+                    showToast('Token expired — please re-enter via Backup button');
+                    return;
+                }
+                if (response.status === 404) {
+                    showToast('Gist not found — check the URL');
+                    return;
+                }
+
                 const gist = await response.json();
 
                 if (!gist.files || !gist.files['g-tracker-data.json']) {
@@ -2455,17 +3337,9 @@
             init().catch(err => console.error('Init error:', err));
         });
 
-        // Register service worker for PWA standalone mode
+        // Register real service worker for PWA standalone mode on Android
         if ('serviceWorker' in navigator) {
-            const swCode = `
-                self.addEventListener('install', e => self.skipWaiting());
-                self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
-            `;
-            const blob = new Blob([swCode], { type: 'application/javascript' });
-            const swUrl = URL.createObjectURL(blob);
-            navigator.serviceWorker.register(swUrl, { scope: '/' })
-                .catch(() => {}); // Silently fail if blocked
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
         }
     </script>
 </body>
