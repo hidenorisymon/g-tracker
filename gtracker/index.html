@@ -54,15 +54,16 @@
 
         header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
             border-bottom: 2px solid var(--light);
         }
 
         .header-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
             color: var(--primary);
             letter-spacing: -0.5px;
@@ -70,21 +71,23 @@
 
         .nav-tabs {
             display: flex;
-            gap: 6px;
+            gap: 4px;
+            justify-content: space-between;
         }
 
         .nav-btn {
-            padding: 7px 14px;
+            padding: 6px 10px;
             border: none;
             background: var(--light);
             color: var(--text-light);
             border-radius: 20px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            flex: 1;
         }
 
         .nav-btn:hover {
@@ -120,9 +123,9 @@
         .log-section {
             background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
             border-radius: 16px;
-            padding: 20px 30px;
+            padding: 14px 20px;
             color: white;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
             text-align: center;
             box-shadow: 0 10px 30px rgba(58, 58, 58, 0.15);
             display: flex;
@@ -134,6 +137,15 @@
 
         .date-time-display {
             margin-bottom: 10px;
+        }
+
+        .datetime-plain {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.75);
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
         }
 
         .date-time-label {
@@ -1340,7 +1352,15 @@
         <div id="log" class="page active">
             <div class="log-section">
 
-                <!-- Timers row: above date/time -->
+                <!-- Datetime: plain centered text at top of card -->
+                <div class="datetime-plain">
+                    <span id="dateDisplay">--/--/-- ---</span>
+                    <span style="opacity:0.6;"> · </span>
+                    <span id="hours">--</span>:<span id="minutes">--</span>
+                    <span id="ampm">--</span>
+                </div>
+
+                <!-- Timers row -->
                 <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; width: 100%;">
                     <!-- Time since last log -->
                     <div style="flex: 1; text-align: center;">
@@ -1358,15 +1378,7 @@
                     </div>
                 </div>
 
-                <div class="date-time-display">
-                    <div class="date-time-label">Current Date & Time</div>
-                    <div class="date-time-content">
-                        <span id="dateDisplay">12/15/24 Mon</span>
-                        <span class="time-separator">•</span>
-                        <span id="timeDisplay"><span id="hours">12</span><span class="blink-colon">:</span><span id="minutes">00</span> <span id="ampm">PM</span></span>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 16px;">
+                <div style="margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 16px;">
                     <button class="btn-control" id="btnMinus">−</button>
                     <div class="ml-display">
                         <span id="mlValue">1.0</span> <span class="ml-unit">ml</span>
@@ -1381,9 +1393,10 @@
                 <div class="char-count"><span id="charCount">0</span>/200</div>
             </div>
 
-            <button class="btn-log" id="btnLog">Log Entry</button>
-
-            <button class="btn-manual" id="btnManual">+ ADD MANUAL</button>
+            <div class="btn-row-split" style="margin-top: 12px;">
+                <button class="btn-log" id="btnLog" style="flex: 1; padding: 12px 8px; font-size: 13px; margin-top: 0;">Log Entry</button>
+                <button class="btn-manual" id="btnManual" style="flex: 1; padding: 12px 8px; font-size: 13px; margin-top: 0;">+ Add Manual</button>
+            </div>
 
             <div class="btn-row-split">
                 <button class="btn-secondary-action btn-feeling" id="btnFeeling">📝 Log Feelings</button>
@@ -1649,7 +1662,7 @@
             <div class="timeline">
                 <div class="block neutral">
                     <div class="time-label">7:00 PM — Wake Up</div>
-                    <p>No medications. GHB taper resumes normally.</p>
+                    <p>No medications. G taper resumes normally.</p>
                 </div>
 
                 <div class="block green">
@@ -1660,13 +1673,13 @@
 
                 <div class="block neutral">
                     <div class="time-label">9:00 PM – 10:00 AM — Work / Normal Hours</div>
-                    <p>Continue GHB taper as usual. Maintain normal dosing intervals.</p>
+                    <p>Continue G taper as usual. Maintain normal dosing intervals.</p>
                 </div>
 
                 <div class="block warn">
-                    <div class="time-label">⛔ 10:00 AM — Last GHB Dose</div>
-                    <p>Hard cutoff. No GHB after this.</p>
-                    <p class="note">2-hour gap needed before sleep meds. Lemborexant + GHB = dangerous combination.</p>
+                    <div class="time-label">⛔ 10:00 AM — Last G Dose</div>
+                    <p>Hard cutoff. No G after this.</p>
+                    <p class="note">2-hour gap needed before sleep meds. Lemborexant + G = dangerous combination.</p>
                 </div>
 
                 <div class="block green">
@@ -1676,13 +1689,13 @@
                     <div class="divider"></div>
                     <p><span class="med">✅ Lemborexant (Dayvigo) 5mg</span></p>
                     <p>Days 1–5: Every night &nbsp;|&nbsp; Day 6+: Only if needed</p>
-                    <p class="note">⛔ No GHB after 10AM on medication nights. Not even a small dose.</p>
+                    <p class="note">⛔ No G after 10AM on medication nights. Not even a small dose.</p>
                 </div>
 
                 <div class="block purple">
                     <div class="time-label">12:00 Noon — Sleep</div>
                     <p>Target: 7 hours minimum.</p>
-                    <p class="note">If you wake mid-sleep — stay in bed. Do not redose GHB. Lemborexant is still active.</p>
+                    <p class="note">If you wake mid-sleep — stay in bed. Do not redose G. Lemborexant is still active.</p>
                 </div>
             </div>
 
@@ -1691,14 +1704,14 @@
                 <div class="dont-item">
                     <span class="dont-icon">⛔</span>
                     <div class="dont-text">
-                        <strong>GHB after 10:00 AM on med nights</strong>
+                        <strong>G after 10:00 AM on med nights</strong>
                         <span>Dangerous combo with Lemborexant</span>
                     </div>
                 </div>
                 <div class="dont-item">
                     <span class="dont-icon">⛔</span>
                     <div class="dont-text">
-                        <strong>MDMA while on Vortioxetine</strong>
+                        <strong>E while on Vortioxetine</strong>
                         <span>Serotonin syndrome risk — medically serious</span>
                     </div>
                 </div>
@@ -2259,15 +2272,18 @@
                 return;
             }
 
-            const newTs = new Date(`${dateStr}T${timeStr}`).getTime();
-            const entry = { timestamp: newTs, ml, notes };
+            let newTs = new Date(`${dateStr}T${timeStr}`).getTime();
+            if (isNaN(newTs)) { showToast('Invalid date/time'); return; }
 
             let data = await getAllData();
             const isEditing = editingTimestamp !== null;
             if (isEditing) {
                 data = data.filter(e => e.timestamp !== editingTimestamp);
             }
-            data.push(entry);
+            // Bump by 1ms while colliding with another entry (timestamp is the entry key)
+            while (data.some(e => e.timestamp === newTs)) newTs += 1;
+
+            data.push({ timestamp: newTs, ml, notes });
             data.sort((a, b) => a.timestamp - b.timestamp);
             localStorage.setItem(dataKey, JSON.stringify(data));
 
@@ -2506,6 +2522,13 @@
         }
 
         async function switchPage(page) {
+            // Close any open modal before navigating so it doesn't sit on top of the new page
+            closeManualModal();
+            closeFeelingModal();
+            closeMedsModal();
+            closeSleepEditModal();
+            closeWakeModal();
+
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.getElementById(page).classList.add('active');
             if (page === 'history') {
@@ -3084,6 +3107,8 @@
         }
 
         function showToast(message) {
+            // Remove any existing toasts so rapid actions don't stack visually
+            document.querySelectorAll('.toast').forEach(t => t.remove());
             const toast = document.createElement('div');
             toast.className = 'toast';
             toast.textContent = message;
