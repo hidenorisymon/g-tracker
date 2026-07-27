@@ -192,7 +192,7 @@
   .bg-blue{background:var(--blue);} .bg-green{background:var(--green);} .bg-teal{background:var(--teal);}
   .bg-amber{background:var(--amber);} .bg-orange{background:var(--orange);} .bg-purple{background:var(--purple);} .bg-grey{background:var(--grey);}
   .c-blue{color:var(--blue);} .c-green{color:var(--green);} .c-amber{color:var(--amber);}
-  .c-orange{color:var(--orange);} .c-purple{color:var(--purple);} .c-grey{color:var(--grey);}
+  .c-orange{color:var(--orange);} .c-purple{color:var(--purple);} .c-grey{color:var(--grey);} .c-teal{color:var(--teal);}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
 </style>
 </head>
@@ -234,7 +234,7 @@
         <div class="chip c-amber"  id="chipConcerta27"><span class="cd bg-amber"></span>Concerta 27</div>
         <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
         <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
-        <div class="chip c-grey"   id="chipWearOff"><span class="cd bg-grey"></span>Wear off</div>
+        <div class="chip c-teal"   id="chipRitalin20"><span class="cd bg-teal"></span>Ritalin 20</div>
       </div>
 
       <div class="daynav">
@@ -315,6 +315,8 @@
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 36" value="55" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 5</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 5" value="20" min="0" step="1"></div></div>
+        <div class="setrow"><div class="sk"><span class="cd bg-teal"></span>Ritalin 20</div>
+          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 20" value="80" min="0" step="1"></div></div>
       </div>
 
       <div class="setgroup">
@@ -399,11 +401,11 @@
   const TARGET_KEY = 'targetIntervalMinutes';
   const GITHUB_API = 'https://api.github.com';
 
-  const MED_MG = { 'Concerta 27':27, 'Concerta 36':36, 'Ritalin 5':5, 'Wear off':0 };
-  const MED_CL = { 'Concerta 27':'amber', 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Wear off':'grey' };
+  const MED_MG = { 'Concerta 27':27, 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
+  const MED_CL = { 'Concerta 27':'amber', 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 20':'teal' };
 
   let costPerMl = 50;
-  let medCost = { 'Concerta 27':40, 'Concerta 36':55, 'Ritalin 5':20 };
+  let medCost = { 'Concerta 27':40, 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':80 };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -602,20 +604,10 @@
   async function logMed(name) {
     const data = await getAllData();
     const tm = Date.now();
-    if (name === 'Wear off') {
-      let target = null;
-      for (let i = data.length - 1; i >= 0; i--) {
-        const e = data[i];
-        if (e.type === 'med' && e.mg > 0 && e.durationMin == null) { target = e; break; }
-      }
-      if (target) target.durationMin = Math.max(Math.round((tm - target.timestamp) / 60000), 0);
-      data.push({ type: 'med', name, mg: 0, cl: 'grey', cost: 0, timestamp: tm, durationMin: null, endedName: target ? target.name : null });
-    } else {
-      data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost: medCost[name] || 0, timestamp: tm, durationMin: null });
-    }
+    data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost: medCost[name] || 0, timestamp: tm, durationMin: null });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
-    showToast(name === 'Wear off' ? 'Wear off logged' : `💊 ${name} logged`);
+    showToast(`💊 ${name} logged`);
     await renderLog();
   }
 
@@ -854,7 +846,7 @@
       doseCostSum += ml * costPerMl;
       dMeds.forEach(e => {
         if (e.name === 'Concerta 27' || e.name === 'Concerta 36') concCostSum += (e.cost || 0);
-        else if (e.name === 'Ritalin 5') ritCostSum += (e.cost || 0);
+        else if (e.name === 'Ritalin 5' || e.name === 'Ritalin 20') ritCostSum += (e.cost || 0);
       });
 
       let rangeAvgText = '—';
@@ -1000,7 +992,7 @@
     document.getElementById('chipConcerta27').addEventListener('click', () => logMed('Concerta 27'));
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
-    document.getElementById('chipWearOff').addEventListener('click', () => logMed('Wear off'));
+    document.getElementById('chipRitalin20').addEventListener('click', () => logMed('Ritalin 20'));
 
     document.getElementById('prevDay').addEventListener('click', () => {
       selectedDate.setDate(selectedDate.getDate() - 1);
