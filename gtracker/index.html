@@ -665,7 +665,7 @@
       const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       let meta;
       if (e.mg > 0) {
-        meta = `${e.mg} mg` + (e.durationMin != null ? ` · lasted <span class="mono">${fmtGap(e.durationMin)}</span>` : ` · <span class="mono">active</span>`);
+        meta = `${e.mg} mg`;
       } else {
         meta = e.endedName ? `ended ${escapeHtml(e.endedName)}` : 'marker';
       }
@@ -1100,7 +1100,7 @@
     out += d.meds.length ? [...d.meds].reverse().map(e => {
       const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       const meta = e.mg > 0
-        ? (`${e.mg} mg` + (e.durationMin != null ? ', lasted ' + fmtGap(e.durationMin) : ', active'))
+        ? `${e.mg} mg`
         : (e.endedName ? 'ended ' + e.endedName : 'marker');
       return `${e.name}   ${meta}   ${time}`;
     }).join('\n') : '—';
