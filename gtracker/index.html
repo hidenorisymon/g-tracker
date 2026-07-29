@@ -231,7 +231,7 @@
 
       <div class="glabel">Medication</div>
       <div class="chips meds">
-        <div class="chip c-amber"  id="chipConcerta27"><span class="cd bg-amber"></span>Concerta 27</div>
+        <div class="chip c-amber"  id="chipRitalin10"><span class="cd bg-amber"></span>Ritalin 10</div>
         <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
         <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
         <div class="chip c-teal"   id="chipRitalin20"><span class="cd bg-teal"></span>Ritalin 20</div>
@@ -309,8 +309,8 @@
 
       <div class="setgroup">
         <div class="glabel">Medication cost</div>
-        <div class="setrow"><div class="sk"><span class="cd bg-amber"></span>Concerta 27</div>
-          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 27" value="40" min="0" step="1"></div></div>
+        <div class="setrow"><div class="sk"><span class="cd bg-amber"></span>Ritalin 10</div>
+          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 10" value="40" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-orange"></span>Concerta 36</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 36" value="55" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 5</div>
@@ -401,11 +401,11 @@
   const TARGET_KEY = 'targetIntervalMinutes';
   const GITHUB_API = 'https://api.github.com';
 
-  const MED_MG = { 'Concerta 27':27, 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
-  const MED_CL = { 'Concerta 27':'amber', 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 20':'teal' };
+  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 10':10, 'Ritalin 20':20 };
+  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 10':'amber', 'Ritalin 20':'teal' };
 
   let costPerMl = 50;
-  let medCost = { 'Concerta 27':40, 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':80 };
+  let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 10':40, 'Ritalin 20':80 };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -457,7 +457,8 @@
       if (e.type === 'med_log') {
         migrated = true;
         const name = e.med === 'Concerta' ? 'Concerta 27' : 'Ritalin 5';
-        return { type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost: medCost[name] || 0, timestamp: e.timestamp, durationMin: null };
+        const legacy = { 'Concerta 27': { mg: 27, cl: 'amber', cost: 40 }, 'Ritalin 5': { mg: 5, cl: 'purple', cost: 20 } };
+        return { type: 'med', name, mg: legacy[name].mg, cl: legacy[name].cl, cost: legacy[name].cost, timestamp: e.timestamp, durationMin: null };
       }
       return e;
     });
@@ -846,7 +847,7 @@
       doseCostSum += ml * costPerMl;
       dMeds.forEach(e => {
         if (e.name === 'Concerta 27' || e.name === 'Concerta 36') concCostSum += (e.cost || 0);
-        else if (e.name === 'Ritalin 5' || e.name === 'Ritalin 20') ritCostSum += (e.cost || 0);
+        else if (e.name === 'Ritalin 5' || e.name === 'Ritalin 10' || e.name === 'Ritalin 20') ritCostSum += (e.cost || 0);
       });
 
       let rangeAvgText = '—';
@@ -989,7 +990,7 @@
     document.getElementById('manualSave').addEventListener('click', submitManualEntry);
     document.getElementById('manualEntryModal').addEventListener('click', (e) => { if (e.target.id === 'manualEntryModal') closeManualEntry(); });
 
-    document.getElementById('chipConcerta27').addEventListener('click', () => logMed('Concerta 27'));
+    document.getElementById('chipRitalin10').addEventListener('click', () => logMed('Ritalin 10'));
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
     document.getElementById('chipRitalin20').addEventListener('click', () => logMed('Ritalin 20'));
