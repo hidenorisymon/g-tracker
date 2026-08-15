@@ -94,6 +94,7 @@
   .drow .dd{font-size:14px;font-weight:600;color:var(--ink);}
   .drow .dv{display:flex;gap:16px;align-items:baseline;}
   .drow .dml{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ink-2);}
+  .drow .dml.over{color:var(--wait);} .drow .dml.under{color:var(--ready);}
   .drow .dgap{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:52px;text-align:right;}
   .stat{text-align:center;position:relative;}
   .stat + .stat::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:1px;background:var(--hair);}
@@ -156,6 +157,8 @@
   .field.cost input{border:none;outline:none;background:transparent;width:58px;text-align:right;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink);}
   .field.cost input::-webkit-outer-spin-button,.field.cost input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .field.cost.wide input{width:66px;text-align:center;letter-spacing:2px;}
+  #setTaperStart{width:124px;text-align:left;}
+  .brow .bv.over{color:var(--wait);} .brow .bv.under{color:var(--ready);}
   .setbtns{display:flex;flex-direction:column;gap:9px;}
   .sbtn{height:48px;border-radius:13px;border:1px solid var(--hair);background:var(--surface);cursor:pointer;
     display:flex;align-items:center;gap:11px;padding:0 16px;font-size:14px;font-weight:500;color:var(--ink);transition:.16s;font-family:var(--sans);text-align:left;}
@@ -230,10 +233,8 @@
 
       <div class="glabel">Medication</div>
       <div class="chips meds">
-        <div class="chip c-amber"  id="chipRitalin10"><span class="cd bg-amber"></span>Ritalin 10</div>
         <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
         <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
-        <div class="chip c-teal"   id="chipRitalin20"><span class="cd bg-teal"></span>Ritalin 20</div>
       </div>
 
       <div class="daynav">
@@ -286,6 +287,12 @@
         <div class="stat"><div class="v" id="hMg">0</div><div class="k">Total mg</div></div>
       </div>
 
+      <div class="glabel" id="taperLabel" hidden>Taper adherence</div>
+      <div class="breakdown" id="taperCard" hidden>
+        <div class="brow"><span class="bk">Target dose this week</span><span class="bv" id="taperTargetVal">—</span></div>
+        <div class="brow total"><span class="bk">Total vs ceiling</span><span class="bv" id="taperCeilingVal">—</span></div>
+      </div>
+
       <div class="glabel">Per <span id="rowUnit">day</span> · total & avg gap</div>
       <div class="daylist" id="daylist"></div>
 
@@ -309,15 +316,25 @@
       </div>
 
       <div class="setgroup">
+        <div class="glabel">Taper plan</div>
+        <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
+          <div class="field cost"><input type="date" id="setTaperStart"></div></div>
+        <div class="setrow"><div class="sk">Starting dose</div>
+          <div class="field cost"><input type="number" id="setTaperStartDose" step="0.1" min="0.1" value="0.8"><span class="cur">ml</span></div></div>
+        <div class="setrow"><div class="sk">Step down</div>
+          <div class="field cost"><input type="number" id="setTaperStep" step="0.1" min="0" value="0.1"><span class="cur">ml</span></div></div>
+        <div class="setrow"><div class="sk">Every</div>
+          <div class="field cost"><input type="number" id="setTaperDays" step="1" min="1" value="7"><span class="cur">days</span></div></div>
+        <div class="setrow"><div class="sk">Floor<small>Won't step down past this</small></div>
+          <div class="field cost"><input type="number" id="setTaperFloor" step="0.1" min="0" value="0.1"><span class="cur">ml</span></div></div>
+      </div>
+
+      <div class="setgroup">
         <div class="glabel">Medication cost</div>
-        <div class="setrow"><div class="sk"><span class="cd bg-amber"></span>Ritalin 10</div>
-          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 10" value="40" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-orange"></span>Concerta 36</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 36" value="55" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 5</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 5" value="20" min="0" step="1"></div></div>
-        <div class="setrow"><div class="sk"><span class="cd bg-teal"></span>Ritalin 20</div>
-          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 20" value="80" min="0" step="1"></div></div>
       </div>
 
       <div class="setgroup">
@@ -400,13 +417,15 @@
   const costKey = 'costPerMl';
   const MED_COST_KEY = 'medCostSettings';
   const TARGET_KEY = 'targetIntervalMinutes';
+  const TAPER_KEY = 'taperPlanSettings';
   const GITHUB_API = 'https://api.github.com';
 
-  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 10':10, 'Ritalin 20':20 };
-  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 10':'amber', 'Ritalin 20':'teal' };
+  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5 };
+  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple' };
 
   let costPerMl = 50;
-  let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 10':40, 'Ritalin 20':80 };
+  let medCost = { 'Concerta 36':55, 'Ritalin 5':20 };
+  let taperPlan = { start: null, startDose: 0.8, step: 0.1, everyDays: 7, floor: 0.1 };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -438,6 +457,18 @@
   function fmtPeso(n) { return '₱' + Math.round(n).toLocaleString('en-US'); }
 
   function isToday(d) { return d.toDateString() === new Date().toDateString(); }
+
+  // Target dose for the week containing `date`, per the taper plan (null if not started yet)
+  function getTaperTargetForDate(date) {
+    if (!taperPlan.start) return null;
+    const startDate = new Date(taperPlan.start + 'T00:00:00');
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((dayStart - startDate) / 86400000);
+    if (diffDays < 0) return null;
+    const stepsElapsed = Math.floor(diffDays / taperPlan.everyDays);
+    const dose = Math.max(taperPlan.startDose - stepsElapsed * taperPlan.step, taperPlan.floor);
+    return Math.round(dose * 100) / 100;
+  }
 
   function dayLabel(d) {
     if (isToday(d)) return 'Today';
@@ -504,6 +535,14 @@
       const tm = String(targetMins % 60).padStart(2, '0');
       document.getElementById('setInterval').value = `${th}:${tm}`;
     }
+
+    const savedTaper = localStorage.getItem(TAPER_KEY);
+    if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
+    document.getElementById('setTaperStart').value = taperPlan.start || '';
+    document.getElementById('setTaperStartDose').value = taperPlan.startDose;
+    document.getElementById('setTaperStep').value = taperPlan.step;
+    document.getElementById('setTaperDays').value = taperPlan.everyDays;
+    document.getElementById('setTaperFloor').value = taperPlan.floor;
   }
 
   async function saveSettings() {
@@ -522,6 +561,15 @@
       medCost[inp.dataset.med] = parseFloat(inp.value) || 0;
     });
     localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost));
+
+    taperPlan = {
+      start: document.getElementById('setTaperStart').value || null,
+      startDose: parseFloat(document.getElementById('setTaperStartDose').value) || 0.8,
+      step: parseFloat(document.getElementById('setTaperStep').value) || 0,
+      everyDays: parseInt(document.getElementById('setTaperDays').value) || 7,
+      floor: parseFloat(document.getElementById('setTaperFloor').value) || 0,
+    };
+    localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
 
     showToast('✓ Settings saved');
     await paintRing();
@@ -795,6 +843,7 @@
     let ranges = [];
     let unit = 'day';
     let perLabel = '';
+    let taperTarget = null, taperCeiling = null;
 
     if (period === 'weekly') {
       const weekBase = new Date(selectedWeek);
@@ -811,6 +860,8 @@
         ranges.push({ start: s.getTime(), end: e.getTime(), label: dayNames[i], full: dayNames[i] });
       }
       unit = 'day';
+      taperTarget = getTaperTargetForDate(weekBase);
+      if (taperTarget != null) taperCeiling = Math.round(taperTarget * 9.6 * 7 * 100) / 100;
     } else if (period === 'monthly') {
       const monthDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
       perLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -860,7 +911,13 @@
         totalDiffMin += avgMin;
         diffPeriods++;
       }
-      if (ml > 0) rows.push({ label: r.full, ml, avgGapText: rangeAvgText });
+
+      let rowOver = null;
+      if (unit === 'day') {
+        const rowTarget = getTaperTargetForDate(new Date(r.start));
+        if (rowTarget != null) rowOver = ml > Math.round(rowTarget * 9.6 * 100) / 100;
+      }
+      if (ml > 0) rows.push({ label: r.full, ml, count: dDoses.length, avgGapText: rangeAvgText, over: rowOver });
     });
 
     const max = Math.max(...mlVals, 0.001);
@@ -872,7 +929,8 @@
       ranges, mlVals, rows, unit, perLabel, max, peakIdx,
       totalMl, totalMg, avgAll,
       doseCostSum, concCostSum, ritCostSum,
-      grandTotal: doseCostSum + concCostSum + ritCostSum
+      grandTotal: doseCostSum + concCostSum + ritCostSum,
+      taperTarget, taperCeiling
     };
   }
 
@@ -900,9 +958,24 @@
     document.getElementById('hMl').textContent = h.totalMl.toFixed(1);
     document.getElementById('hMg').textContent = h.totalMg;
 
-    document.getElementById('daylist').innerHTML = h.rows.length ? h.rows.map(r =>
-      `<div class="drow"><span class="dd">${escapeHtml(r.label)}</span><span class="dv"><span class="dml">${r.ml.toFixed(1)} ml</span><span class="dgap">${r.avgGapText}</span></span></div>`
-    ).join('') : '<div class="empty">No data.</div>';
+    document.getElementById('daylist').innerHTML = h.rows.length ? h.rows.map(r => {
+      const overClass = r.over === true ? ' over' : r.over === false ? ' under' : '';
+      return `<div class="drow"><span class="dd">${escapeHtml(r.label)}</span><span class="dv"><span class="dml${overClass}">${r.count}× · ${r.ml.toFixed(1)} ml</span><span class="dgap">${r.avgGapText}</span></span></div>`;
+    }).join('') : '<div class="empty">No data.</div>';
+
+    const taperLabel = document.getElementById('taperLabel');
+    const taperCard = document.getElementById('taperCard');
+    if (h.taperTarget != null) {
+      taperLabel.hidden = false; taperCard.hidden = false;
+      document.getElementById('taperTargetVal').textContent = `${h.taperTarget.toFixed(1)} ml`;
+      const ceilingEl = document.getElementById('taperCeilingVal');
+      const over = h.totalMl > h.taperCeiling;
+      ceilingEl.textContent = `${h.totalMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml`;
+      ceilingEl.classList.toggle('over', over);
+      ceilingEl.classList.toggle('under', !over);
+    } else {
+      taperLabel.hidden = true; taperCard.hidden = true;
+    }
 
     document.getElementById('cDose').textContent = fmtPeso(h.doseCostSum);
     document.getElementById('cConc').textContent = fmtPeso(h.concCostSum);
@@ -945,7 +1018,7 @@
       if (token && savedGistId) {
         try {
           const data = await getAllData();
-          const content = JSON.stringify({ entries: data, costPerMl, medCost }, null, 2);
+          const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan }, null, 2);
           await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
             method: 'PATCH',
             headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
@@ -970,6 +1043,7 @@
             localStorage.setItem(costKey, data.costPerMl);
             costPerMl = data.costPerMl;
             if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
+            if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
             loadSettings();
             await renderLog();
             await paintRing();
@@ -991,10 +1065,8 @@
     document.getElementById('manualSave').addEventListener('click', submitManualEntry);
     document.getElementById('manualEntryModal').addEventListener('click', (e) => { if (e.target.id === 'manualEntryModal') closeManualEntry(); });
 
-    document.getElementById('chipRitalin10').addEventListener('click', () => logMed('Ritalin 10'));
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
-    document.getElementById('chipRitalin20').addEventListener('click', () => logMed('Ritalin 20'));
 
     document.getElementById('prevDay').addEventListener('click', () => {
       selectedDate.setDate(selectedDate.getDate() - 1);
@@ -1113,7 +1185,11 @@
     const h = await computeHistoryData();
     const pname = period.charAt(0).toUpperCase() + period.slice(1);
     let out = `G Tracker — ${pname} (${h.perLabel})\nAvg gap ${h.avgAll} · Total ${h.totalMl.toFixed(1)} ml · ${h.totalMg} mg\n\nPer ${h.unit}\n`;
-    out += h.rows.length ? h.rows.map(r => `${r.label}   ${r.ml.toFixed(1)} ml   ${r.avgGapText}`).join('\n') : '—';
+    out += h.rows.length ? h.rows.map(r => `${r.label}   ${r.count}× · ${r.ml.toFixed(1)} ml   ${r.avgGapText}${r.over ? '   over' : ''}`).join('\n') : '—';
+    if (h.taperTarget != null) {
+      const status = h.totalMl > h.taperCeiling ? 'over' : 'under/at';
+      out += `\n\nTaper target ${h.taperTarget.toFixed(1)} ml/dose · ${h.totalMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml ceiling (${status})\n`;
+    }
     out += `\n\nCost\nDoses · ml   ${fmtPeso(h.doseCostSum)}\nConcerta   ${fmtPeso(h.concCostSum)}\nRitalin   ${fmtPeso(h.ritCostSum)}\nGrand total   ${fmtPeso(h.grandTotal)}\n`;
     return out;
   }
@@ -1180,7 +1256,7 @@
 
   async function exportAsJSON() {
     const data = await getAllData();
-    const exportData = { entries: data, costPerMl, medCost, exportDate: new Date().toISOString() };
+    const exportData = { entries: data, costPerMl, medCost, taperPlan, exportDate: new Date().toISOString() };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1207,7 +1283,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -1282,6 +1358,7 @@
       localStorage.setItem(costKey, data.costPerMl);
       costPerMl = data.costPerMl;
       if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
+      if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
       loadSettings();
 
       showToast('✓ Data restored from Gist');
