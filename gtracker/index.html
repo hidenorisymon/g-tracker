@@ -65,7 +65,7 @@
 
   .glabel{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 2px 9px;}
   .chips{display:grid;gap:8px;margin-bottom:20px;}
-  .chips.ml3{grid-template-columns:1fr 1fr 1fr;} .chips.meds{grid-template-columns:1fr 1fr;}
+  .chips.ml2{grid-template-columns:1fr 1fr;} .chips.meds{grid-template-columns:1fr 1fr;}
   .chip{height:50px;border-radius:14px;background:var(--surface);border:1px solid var(--hair);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink);transition:.16s;font-family:var(--sans);}
   .chip:hover{border-color:currentColor;} .chip:active{transform:scale(.98);}
   .chip .cd{width:7px;height:7px;border-radius:50%;flex:none;}
@@ -225,16 +225,15 @@
       </div>
 
       <div class="glabel">Log dose · ml</div>
-      <div class="chips ml3">
-        <div class="chip c-blue"  id="chipDose06"><span class="cd bg-blue"></span>.6 ml</div>
-        <div class="chip c-green" id="chipDose08"><span class="cd bg-green"></span>.8 ml</div>
+      <div class="chips ml2">
+        <div class="chip c-green" id="chipLogDose"><span class="cd bg-green"></span><span id="logDoseLabel">Log Dose</span></div>
         <div class="chip" id="chipManual">Manual</div>
       </div>
 
       <div class="glabel">Medication</div>
       <div class="chips meds">
-        <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
         <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
+        <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
       </div>
 
       <div class="daynav">
@@ -500,7 +499,31 @@
     return data;
   }
 
-  function saveData(data) { localStorage.setItem(dataKey, JSON.stringify(data)); }
+  function saveData(data) {
+    localStorage.setItem(dataKey, JSON.stringify(data));
+    silentBackupToGitHub();
+  }
+
+  // Fire-and-forget gist push so external tools (e.g. an n8n "ready to dose"
+  // notifier) see the latest dose within seconds, not just on the hourly
+  // auto-backup. No-ops silently if backup was never set up.
+  async function silentBackupToGitHub() {
+    const token = localStorage.getItem('githubToken');
+    const savedGistId = localStorage.getItem('gistId');
+    if (!token || !savedGistId) return;
+    try {
+      const data = JSON.parse(localStorage.getItem(dataKey) || '[]');
+      const content = JSON.stringify({
+        entries: data, costPerMl, medCost, taperPlan,
+        targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null
+      }, null, 2);
+      await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: { 'g-tracker-data.json': { content } } })
+      });
+    } catch (e) {}
+  }
 
   async function getDataForDate(date) {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
@@ -570,6 +593,7 @@
       floor: parseFloat(document.getElementById('setTaperFloor').value) || 0,
     };
     localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
+    silentBackupToGitHub();
 
     showToast('✓ Settings saved');
     await paintRing();
@@ -598,6 +622,13 @@
     const target = parseInt(localStorage.getItem(TARGET_KEY) || '0');
     const col = '<span class="bl">:</span>';
     const p = n => String(n).padStart(2, '0');
+
+    const doseLabel = document.getElementById('logDoseLabel');
+    if (doseLabel) {
+      const taperTarget = getTaperTargetForDate(new Date());
+      const doseAmt = taperTarget != null ? taperTarget : taperPlan.startDose;
+      doseLabel.textContent = `Log Dose · ${doseAmt.toFixed(1)}ml`;
+    }
 
     const doseData = (await getAllData()).filter(isDoseEntry);
 
@@ -1018,7 +1049,7 @@
       if (token && savedGistId) {
         try {
           const data = await getAllData();
-          const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan }, null, 2);
+          const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
           await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
             method: 'PATCH',
             headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
@@ -1044,6 +1075,7 @@
             costPerMl = data.costPerMl;
             if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
             if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
+            if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
             loadSettings();
             await renderLog();
             await paintRing();
@@ -1057,8 +1089,10 @@
   function setupListeners() {
     document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => show(el.dataset.view)));
 
-    document.getElementById('chipDose06').addEventListener('click', () => logDose(0.6));
-    document.getElementById('chipDose08').addEventListener('click', () => logDose(0.8));
+    document.getElementById('chipLogDose').addEventListener('click', () => {
+      const target = getTaperTargetForDate(new Date());
+      logDose(target != null ? target : taperPlan.startDose);
+    });
 
     document.getElementById('chipManual').addEventListener('click', openManualEntry);
     document.getElementById('manualCancel').addEventListener('click', closeManualEntry);
@@ -1256,7 +1290,7 @@
 
   async function exportAsJSON() {
     const data = await getAllData();
-    const exportData = { entries: data, costPerMl, medCost, taperPlan, exportDate: new Date().toISOString() };
+    const exportData = { entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1283,7 +1317,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -1359,6 +1393,7 @@
       costPerMl = data.costPerMl;
       if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
       if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
+      if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
       loadSettings();
 
       showToast('✓ Data restored from Gist');
