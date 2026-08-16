@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>G Tracker</title>
 
 <meta name="mobile-web-app-capable" content="yes">
@@ -28,7 +28,9 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;}
-  body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;}
+  /* Vertical scrolling only — no pinch/double-tap zoom */
+  html{touch-action:pan-y;-webkit-text-size-adjust:100%;}
+  body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:pan-y;}
   .phone{width:100%;max-width:432px;margin:0 auto;background:var(--app);min-height:100vh;display:flex;flex-direction:column;}
   .scroll{padding:14px 24px 40px;}
 
@@ -253,25 +255,6 @@
       </div>
 
       <div id="currentSessionWrap"></div>
-
-      <div class="daynav">
-        <div class="navgroup">
-          <div class="arrow" id="prevDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
-          <div class="lbl" id="dayLbl">Today</div>
-          <div class="arrow" id="nextDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-        </div>
-        <button class="copybtn" id="copyDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-      </div>
-
-      <div class="stats">
-        <div class="stat"><div class="v" id="stAvg">—</div><div class="k">Avg gap</div></div>
-        <div class="stat"><div class="v" id="stCost">₱0</div><div class="k">Cost</div></div>
-        <div class="stat"><div class="v" id="stMl">0</div><div class="k">Total ml</div></div>
-        <div class="stat"><div class="v" id="stMg">0</div><div class="k">Total mg</div></div>
-      </div>
-
-      <div class="logblock"><div class="loghead"><span class="t">Meds</span></div><div id="medLog"></div></div>
-      <div class="logblock"><div class="loghead"><span class="t">Doses · ml</span></div><div id="doseLog"></div></div>
     </div>
 
     <!-- ============ TAPER ============ -->
@@ -336,6 +319,10 @@
       </div>
 
       <div id="histDailyWrap" hidden>
+        <div class="grouprow">
+          <div class="glabel" style="margin-bottom:0">Day detail</div>
+          <button class="copybtn" id="copyHistDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        </div>
         <div class="stats">
           <div class="stat"><div class="v" id="hdAvg">—</div><div class="k">Avg gap</div></div>
           <div class="stat"><div class="v" id="hdCost">₱0</div><div class="k">Cost</div></div>
@@ -885,21 +872,10 @@
     }).join('') : `<div class="empty">No meds logged.</div>`;
   }
 
+  // The Log page is now actions + live session only — the per-day breakdown
+  // it used to carry lives in History → Daily.
   async function renderLog() {
     await renderCurrentSession();
-
-    const d = await computeDayData(selectedDate);
-
-    document.getElementById('dayLbl').textContent = d.dayLbl;
-    document.getElementById('nextDay').classList.toggle('off', isToday(selectedDate));
-
-    document.getElementById('stAvg').textContent = d.avg;
-    document.getElementById('stCost').textContent = fmtPeso(d.cost);
-    document.getElementById('stMl').textContent = d.totalMl.toFixed(1);
-    document.getElementById('stMg').textContent = d.totalMg;
-
-    document.getElementById('doseLog').innerHTML = doseLogHtml(d);
-    document.getElementById('medLog').innerHTML = medLogHtml(d);
   }
 
 
@@ -1283,21 +1259,11 @@
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
 
-    document.getElementById('prevDay').addEventListener('click', () => {
-      selectedDate.setDate(selectedDate.getDate() - 1);
-      renderLog();
-    });
-    document.getElementById('nextDay').addEventListener('click', () => {
-      if (isToday(selectedDate)) return;
-      selectedDate.setDate(selectedDate.getDate() + 1);
-      renderLog();
-    });
-
-    document.getElementById('copyDay').addEventListener('click', async (e) => {
-      copyText(await buildDayText(selectedDate), e.currentTarget);
-    });
     document.getElementById('copyHist').addEventListener('click', async (e) => {
       copyText(await buildHistText(), e.currentTarget);
+    });
+    document.getElementById('copyHistDay').addEventListener('click', async (e) => {
+      copyText(await buildDayText(histDate), e.currentTarget);
     });
     document.getElementById('toggleSleepStat').addEventListener('click', (e) => {
       showSleepStat = !showSleepStat;
@@ -1305,8 +1271,6 @@
       renderHistory();
     });
 
-    document.getElementById('doseLog').addEventListener('click', handleEntryClick);
-    document.getElementById('medLog').addEventListener('click', handleEntryClick);
     document.getElementById('hdDoseLog').addEventListener('click', handleEntryClick);
     document.getElementById('hdMedLog').addEventListener('click', handleEntryClick);
     document.getElementById('editCancel').addEventListener('click', closeEntryEdit);
