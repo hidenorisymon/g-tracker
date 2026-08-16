@@ -315,6 +315,12 @@
       </div>
 
       <div class="setgroup">
+        <div class="glabel">Notifications</div>
+        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged when you log a dose, so n8n can alert you when the next one is ready</small></div>
+          <div class="field cost wide"><input type="text" id="setWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-dose"></div></div>
+      </div>
+
+      <div class="setgroup">
         <div class="glabel">Taper plan</div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
           <div class="field cost"><input type="date" id="setTaperStart"></div></div>
@@ -417,6 +423,7 @@
   const MED_COST_KEY = 'medCostSettings';
   const TARGET_KEY = 'targetIntervalMinutes';
   const TAPER_KEY = 'taperPlanSettings';
+  const WEBHOOK_KEY = 'n8nWebhookUrl';
   const GITHUB_API = 'https://api.github.com';
 
   const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5 };
@@ -559,6 +566,8 @@
       document.getElementById('setInterval').value = `${th}:${tm}`;
     }
 
+    document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
+
     const savedTaper = localStorage.getItem(TAPER_KEY);
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
@@ -584,6 +593,10 @@
       medCost[inp.dataset.med] = parseFloat(inp.value) || 0;
     });
     localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost));
+
+    const webhookUrl = (document.getElementById('setWebhookUrl').value || '').trim();
+    if (webhookUrl) localStorage.setItem(WEBHOOK_KEY, webhookUrl);
+    else localStorage.removeItem(WEBHOOK_KEY);
 
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
@@ -673,13 +686,32 @@
   // ===== Logging =====
   async function logDose(ml, ts) {
     if (!(ml > 0)) { showToast('Enter a valid ml amount'); return; }
+    const resolvedTs = ts || Date.now();
     const data = await getAllData();
-    data.push({ timestamp: ts || Date.now(), ml });
+    data.push({ timestamp: resolvedTs, ml });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
+    notifyN8nDoseLogged(resolvedTs);
     showToast(`✓ ${ml.toFixed(1)} ml logged`);
     await paintRing();
     await renderLog();
+  }
+
+  // Fire-and-forget ping to an n8n webhook so it can schedule a "ready to
+  // dose" push (e.g. via ntfy) without the app needing to run in the
+  // background. `wait` is minutes remaining until the target interval is up,
+  // computed here so a backdated manual entry still schedules correctly
+  // (and old/overdue entries are skipped rather than firing immediately).
+  function notifyN8nDoseLogged(ts) {
+    const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
+    if (!webhookUrl) return;
+    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
+    if (targetMinutes <= 0) return;
+    const elapsedMin = Math.floor((Date.now() - ts) / 60000);
+    const waitMinutes = targetMinutes - elapsedMin;
+    if (waitMinutes <= 0) return;
+    const sep = webhookUrl.includes('?') ? '&' : '?';
+    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&wait=${encodeURIComponent(waitMinutes)}`).catch(() => {});
   }
 
   async function logMed(name) {
