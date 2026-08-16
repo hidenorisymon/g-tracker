@@ -95,6 +95,7 @@
   .drow .dv{display:flex;gap:16px;align-items:baseline;}
   .drow .dml{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ink-2);}
   .drow .dml.over{color:var(--wait);} .drow .dml.under{color:var(--ready);}
+  .drow .dsleep{font-family:var(--mono);font-size:12px;color:var(--teal);}
   .drow .dgap{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:52px;text-align:right;}
   .stat{text-align:center;position:relative;}
   .stat + .stat::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:1px;background:var(--hair);}
@@ -135,6 +136,15 @@
   .peakcap{text-align:center;font-size:11px;color:var(--muted);margin:2px 0 20px;}
   .peakcap b{font-family:var(--mono);color:var(--ink-2);font-weight:500;}
   .breakdown{border:1px solid var(--hair);border-radius:14px;padding:2px 14px;background:var(--surface);}
+  .sessioncard{border:1px solid var(--hair);border-radius:14px;padding:14px;background:var(--surface);margin-bottom:14px;}
+  .sessioncard .shead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
+  .sessioncard .sday{font-size:15px;font-weight:700;color:var(--ink);}
+  .sessioncard .sday.open{color:var(--blue);}
+  .sessioncard .srange{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .sessioncard .sstats{border-top:1px solid var(--hair-2);padding-top:4px;margin-bottom:4px;}
+  .sesslog{border-top:1px solid var(--hair-2);margin-top:8px;padding-top:8px;}
+  .sesslog .slrow{display:flex;justify-content:space-between;padding:5px 0;font-family:var(--mono);font-size:12.5px;color:var(--ink-2);}
+  .sesslog .sllabel{color:var(--muted);}
   .brow{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--hair-2);}
   .brow:last-child{border-bottom:none;}
   .brow .bk{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--ink);}
@@ -182,7 +192,7 @@
   .modal-field{margin-bottom:14px;}
   .modal-field[hidden]{display:none;}
   .modal-field label{display:block;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
-  .modal-field input{width:100%;border:1px solid var(--hair);border-radius:11px;padding:11px 13px;font-family:var(--mono);font-size:15px;color:var(--ink);background:var(--app);}
+  .modal-field input,.modal-field select{width:100%;border:1px solid var(--hair);border-radius:11px;padding:11px 13px;font-family:var(--mono);font-size:15px;color:var(--ink);background:var(--app);}
   .modal-field input::-webkit-outer-spin-button,.modal-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .modal-actions{display:flex;gap:10px;margin-top:6px;}
   .modal-actions button{flex:1;height:46px;border-radius:12px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
@@ -206,6 +216,7 @@
       <div class="nav">
         <span class="tab active" data-view="log">Log</span>
         <span class="tab" data-view="history">History</span>
+        <span class="tab" data-view="taper">Taper</span>
         <svg class="gear" data-view="settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
     </div>
@@ -226,7 +237,9 @@
 
       <div class="glabel">Log dose · ml</div>
       <div class="chips ml2">
+        <div class="chip c-blue" id="chipStartDose"><span class="cd bg-blue"></span><span id="startDoseLabel">Start Dose</span></div>
         <div class="chip c-green" id="chipLogDose"><span class="cd bg-green"></span><span id="logDoseLabel">Log Dose</span></div>
+        <div class="chip c-teal" id="chipSleepDose"><span class="cd bg-teal"></span><span id="sleepDoseLabel">Sleep Dose</span></div>
         <div class="chip" id="chipManual">Manual</div>
       </div>
 
@@ -290,9 +303,13 @@
       <div class="breakdown" id="taperCard" hidden>
         <div class="brow"><span class="bk">Target dose this week</span><span class="bv" id="taperTargetVal">—</span></div>
         <div class="brow total"><span class="bk">Total vs ceiling</span><span class="bv" id="taperCeilingVal">—</span></div>
+        <div class="brow" id="taperSleepRow" hidden><span class="bk">Sleep doses</span><span class="bv" id="taperSleepVal">—</span></div>
       </div>
 
-      <div class="glabel">Per <span id="rowUnit">day</span> · total & avg gap</div>
+      <div class="grouprow">
+        <div class="glabel" style="margin-bottom:0">Per <span id="rowUnit">day</span> · total & avg gap</div>
+        <button class="copybtn" id="toggleSleepStat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
+      </div>
       <div class="daylist" id="daylist"></div>
 
       <div class="glabel">Cost breakdown</div>
@@ -302,6 +319,12 @@
         <div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv" id="cRit">₱0</span></div>
         <div class="brow total"><span class="bk">Grand total</span><span class="bv" id="cGrand">₱0</span></div>
       </div>
+    </div>
+
+    <!-- ============ TAPER ============ -->
+    <div class="view" id="view-taper">
+      <div class="glabel">Sessions · Start Dose → Sleep Dose</div>
+      <div id="taperSessions"></div>
     </div>
 
     <!-- ============ SETTINGS ============ -->
@@ -406,6 +429,14 @@
           <label for="manualMl">ML</label>
           <input type="number" id="manualMl" step="0.1" min="0.1" value="1.0">
         </div>
+        <div class="modal-field">
+          <label for="manualType">Type</label>
+          <select id="manualType">
+            <option value="log" selected>Log Dose</option>
+            <option value="start">Start Dose</option>
+            <option value="sleep">Sleep Dose</option>
+          </select>
+        </div>
         <div class="modal-actions">
           <button class="modal-btn-cancel" id="manualCancel">Cancel</button>
           <button class="modal-btn-save" id="manualSave">Log</button>
@@ -439,12 +470,17 @@
   let selectedMonth = new Date();
   let selectedYear = new Date().getFullYear();
   let period = 'weekly';
+  let showSleepStat = false;
 
   let editingTs = null;
   let editingKind = null;
 
-  const isDoseEntry = (e) => !e.type || e.type === 'dose';
+  const isDoseEntry = (e) => !e.type || e.type === 'dose' || e.type === 'start' || e.type === 'log' || e.type === 'sleep';
   const isMedEntry = (e) => e.type === 'med';
+  // Legacy dose entries (written before Start/Sleep existed) have no type at all —
+  // treat those as 'log' so old data keeps counting toward taper adherence as before.
+  const doseKind = (e) => (e.type === 'start' || e.type === 'sleep') ? e.type : 'log';
+  const SESSION_KEY = 'sessionActive';
 
   function escapeHtml(str) {
     if (str == null) return '';
@@ -641,6 +677,8 @@
       const taperTarget = getTaperTargetForDate(new Date());
       const doseAmt = taperTarget != null ? taperTarget : taperPlan.startDose;
       doseLabel.textContent = `Log Dose · ${doseAmt.toFixed(1)}ml`;
+      document.getElementById('startDoseLabel').textContent = `Start Dose · ${doseAmt.toFixed(1)}ml`;
+      document.getElementById('sleepDoseLabel').textContent = `Sleep Dose · ${doseAmt.toFixed(1)}ml`;
     }
 
     const doseData = (await getAllData()).filter(isDoseEntry);
@@ -684,15 +722,21 @@
   }
 
   // ===== Logging =====
-  async function logDose(ml, ts) {
+  // kind: 'start' | 'log' | 'sleep' — see doseKind(). Defaults to 'log' so
+  // existing call sites (chip, manual entry) keep working unchanged.
+  async function logDose(ml, ts, kind) {
     if (!(ml > 0)) { showToast('Enter a valid ml amount'); return; }
+    kind = kind || 'log';
     const resolvedTs = ts || Date.now();
     const data = await getAllData();
-    data.push({ timestamp: resolvedTs, ml });
+    data.push({ timestamp: resolvedTs, ml, type: kind });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
-    notifyN8nDoseLogged(resolvedTs);
-    showToast(`✓ ${ml.toFixed(1)} ml logged`);
+    if (kind === 'start') localStorage.setItem(SESSION_KEY, 'true');
+    if (kind === 'sleep') localStorage.setItem(SESSION_KEY, 'false');
+    notifyN8nDoseLogged(resolvedTs, kind);
+    const labelByKind = { start: '☀️ Start dose', log: '✓', sleep: '🌙 Sleep dose' };
+    showToast(`${labelByKind[kind]} ${ml.toFixed(1)} ml logged`);
     await paintRing();
     await renderLog();
   }
@@ -702,16 +746,25 @@
   // background. `wait` is minutes remaining until the target interval is up,
   // computed here so a backdated manual entry still schedules correctly
   // (and old/overdue entries are skipped rather than firing immediately).
-  function notifyN8nDoseLogged(ts) {
+  //
+  // A 'sleep' ping carries no `wait` — its only job is to become the
+  // newest known dose timestamp on the n8n side, which makes any earlier
+  // pending reminder (from the last Start/Log dose) self-cancel via the
+  // same staleness check used for redoses. See g-tracker-dose-reminder.json.
+  function notifyN8nDoseLogged(ts, kind) {
     const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
     if (!webhookUrl) return;
+    const sep = webhookUrl.includes('?') ? '&' : '?';
+    if (kind === 'sleep') {
+      fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&type=sleep`).catch(() => {});
+      return;
+    }
     const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
     if (targetMinutes <= 0) return;
     const elapsedMin = Math.floor((Date.now() - ts) / 60000);
     const waitMinutes = targetMinutes - elapsedMin;
     if (waitMinutes <= 0) return;
-    const sep = webhookUrl.includes('?') ? '&' : '?';
-    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&wait=${encodeURIComponent(waitMinutes)}`).catch(() => {});
+    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&wait=${encodeURIComponent(waitMinutes)}&type=${kind}`).catch(() => {});
   }
 
   async function logMed(name) {
@@ -768,10 +821,12 @@
 
     document.getElementById('doseLog').innerHTML = dosesDesc.length ? dosesDesc.map(e => {
       const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      const cl = e.ml <= 0.6 ? 'blue' : e.ml <= 0.8 ? 'green' : 'teal';
+      const kind = doseKind(e);
+      const cl = kind === 'start' ? 'blue' : kind === 'sleep' ? 'teal' : 'green';
+      const kindTag = kind === 'start' ? ' · Start' : kind === 'sleep' ? ' · Sleep' : '';
       const gap = d.gapByTs.get(e.timestamp);
       const gapHtml = gap != null ? `<span class="gap">+${fmtGap(gap)}</span>` : '';
-      return `<div class="entry" data-ts="${e.timestamp}" data-kind="dose"><span class="cd bg-${cl}"></span><div class="body"><div class="lead">${e.ml.toFixed(1)} ml</div><div class="meta"><span class="mono">${fmtPeso(e.ml * costPerMl)}</span></div></div><div class="time">${time}${gapHtml}</div></div>`;
+      return `<div class="entry" data-ts="${e.timestamp}" data-kind="dose"><span class="cd bg-${cl}"></span><div class="body"><div class="lead">${e.ml.toFixed(1)} ml</div><div class="meta"><span class="mono">${fmtPeso(e.ml * costPerMl)}</span>${kindTag}</div></div><div class="time">${time}${gapHtml}</div></div>`;
     }).join('') : `<div class="empty">No doses logged.</div>`;
 
     document.getElementById('medLog').innerHTML = medsDesc.length ? medsDesc.map(e => {
@@ -792,6 +847,7 @@
     document.getElementById('manualDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     document.getElementById('manualTime').value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     document.getElementById('manualMl').value = '1.0';
+    document.getElementById('manualType').value = 'log';
     document.getElementById('manualEntryModal').hidden = false;
   }
 
@@ -806,8 +862,9 @@
     if (!dateStr || !timeStr) { showToast('Date and time required'); return; }
     const ts = new Date(`${dateStr}T${timeStr}`).getTime();
     if (isNaN(ts)) { showToast('Invalid date/time'); return; }
+    const kind = document.getElementById('manualType').value || 'log';
     closeManualEntry();
-    logDose(ml, ts);
+    logDose(ml, ts, kind);
   }
 
   // ===== Entry edit / delete (tap a row) =====
@@ -951,14 +1008,21 @@
     const rows = [];
     let totalMl = 0, totalMg = 0, doseCostSum = 0, concCostSum = 0, ritCostSum = 0;
     let totalDiffMin = 0, diffPeriods = 0;
+    let totalAdherenceMl = 0, totalSleepMl = 0;
 
     ranges.forEach(r => {
       const dDoses = doseData.filter(e => e.timestamp >= r.start && e.timestamp < r.end);
       const dMeds = medData.filter(e => e.timestamp >= r.start && e.timestamp < r.end);
       const ml = dDoses.reduce((s, e) => s + e.ml, 0);
+      // Sleep doses follow their own rule, not the 2.5hr taper schedule — keep
+      // them in totals/cost/chart (they're real ml taken, matters for safety)
+      // but exclude them from anything measuring taper-schedule adherence.
+      const adherenceMl = dDoses.filter(e => doseKind(e) !== 'sleep').reduce((s, e) => s + e.ml, 0);
+      const sleepMl = ml - adherenceMl;
       const mg = dMeds.reduce((s, e) => s + (e.mg || 0), 0);
       mlVals.push(ml);
       totalMl += ml; totalMg += mg;
+      totalAdherenceMl += adherenceMl; totalSleepMl += sleepMl;
       doseCostSum += ml * costPerMl;
       dMeds.forEach(e => {
         if (e.name === 'Concerta 27' || e.name === 'Concerta 36') concCostSum += (e.cost || 0);
@@ -978,9 +1042,9 @@
       let rowOver = null;
       if (unit === 'day') {
         const rowTarget = getTaperTargetForDate(new Date(r.start));
-        if (rowTarget != null) rowOver = ml > Math.round(rowTarget * 9.6 * 100) / 100;
+        if (rowTarget != null) rowOver = adherenceMl > Math.round(rowTarget * 9.6 * 100) / 100;
       }
-      if (ml > 0) rows.push({ label: r.full, ml, count: dDoses.length, avgGapText: rangeAvgText, over: rowOver });
+      if (ml > 0) rows.push({ label: r.full, ml, sleepMl, count: dDoses.length, avgGapText: rangeAvgText, over: rowOver });
     });
 
     const max = Math.max(...mlVals, 0.001);
@@ -991,6 +1055,7 @@
     return {
       ranges, mlVals, rows, unit, perLabel, max, peakIdx,
       totalMl, totalMg, avgAll,
+      totalAdherenceMl, totalSleepMl,
       doseCostSum, concCostSum, ritCostSum,
       grandTotal: doseCostSum + concCostSum + ritCostSum,
       taperTarget, taperCeiling
@@ -1023,7 +1088,8 @@
 
     document.getElementById('daylist').innerHTML = h.rows.length ? h.rows.map(r => {
       const overClass = r.over === true ? ' over' : r.over === false ? ' under' : '';
-      return `<div class="drow"><span class="dd">${escapeHtml(r.label)}</span><span class="dv"><span class="dml${overClass}">${r.count}× · ${r.ml.toFixed(1)} ml</span><span class="dgap">${r.avgGapText}</span></span></div>`;
+      const sleepText = showSleepStat && r.sleepMl > 0 ? ` <span class="dsleep">(+${r.sleepMl.toFixed(1)} sleep)</span>` : '';
+      return `<div class="drow"><span class="dd">${escapeHtml(r.label)}</span><span class="dv"><span class="dml${overClass}">${r.count}× · ${r.ml.toFixed(1)} ml</span>${sleepText}<span class="dgap">${r.avgGapText}</span></span></div>`;
     }).join('') : '<div class="empty">No data.</div>';
 
     const taperLabel = document.getElementById('taperLabel');
@@ -1032,10 +1098,13 @@
       taperLabel.hidden = false; taperCard.hidden = false;
       document.getElementById('taperTargetVal').textContent = `${h.taperTarget.toFixed(1)} ml`;
       const ceilingEl = document.getElementById('taperCeilingVal');
-      const over = h.totalMl > h.taperCeiling;
-      ceilingEl.textContent = `${h.totalMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml`;
+      const over = h.totalAdherenceMl > h.taperCeiling;
+      ceilingEl.textContent = `${h.totalAdherenceMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml`;
       ceilingEl.classList.toggle('over', over);
       ceilingEl.classList.toggle('under', !over);
+      const sleepRow = document.getElementById('taperSleepRow');
+      sleepRow.hidden = h.totalSleepMl <= 0;
+      if (h.totalSleepMl > 0) document.getElementById('taperSleepVal').textContent = `${h.totalSleepMl.toFixed(1)} ml (not counted)`;
     } else {
       taperLabel.hidden = true; taperCard.hidden = true;
     }
@@ -1061,6 +1130,7 @@
     closeEntryEdit();
     if (view === 'history') renderHistory();
     if (view === 'log') { selectedDate = new Date(); renderLog(); paintRing(); }
+    if (view === 'taper') renderTaper();
   }
 
   // ===== Init =====
@@ -1121,9 +1191,17 @@
   function setupListeners() {
     document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => show(el.dataset.view)));
 
+    document.getElementById('chipStartDose').addEventListener('click', () => {
+      const target = getTaperTargetForDate(new Date());
+      logDose(target != null ? target : taperPlan.startDose, undefined, 'start');
+    });
     document.getElementById('chipLogDose').addEventListener('click', () => {
       const target = getTaperTargetForDate(new Date());
-      logDose(target != null ? target : taperPlan.startDose);
+      logDose(target != null ? target : taperPlan.startDose, undefined, 'log');
+    });
+    document.getElementById('chipSleepDose').addEventListener('click', () => {
+      const target = getTaperTargetForDate(new Date());
+      logDose(target != null ? target : taperPlan.startDose, undefined, 'sleep');
     });
 
     document.getElementById('chipManual').addEventListener('click', openManualEntry);
@@ -1149,6 +1227,11 @@
     });
     document.getElementById('copyHist').addEventListener('click', async (e) => {
       copyText(await buildHistText(), e.currentTarget);
+    });
+    document.getElementById('toggleSleepStat').addEventListener('click', (e) => {
+      showSleepStat = !showSleepStat;
+      e.currentTarget.classList.toggle('done', showSleepStat);
+      renderHistory();
     });
 
     document.getElementById('doseLog').addEventListener('click', handleEntryClick);
@@ -1253,11 +1336,100 @@
     let out = `G Tracker — ${pname} (${h.perLabel})\nAvg gap ${h.avgAll} · Total ${h.totalMl.toFixed(1)} ml · ${h.totalMg} mg\n\nPer ${h.unit}\n`;
     out += h.rows.length ? h.rows.map(r => `${r.label}   ${r.count}× · ${r.ml.toFixed(1)} ml   ${r.avgGapText}${r.over ? '   over' : ''}`).join('\n') : '—';
     if (h.taperTarget != null) {
-      const status = h.totalMl > h.taperCeiling ? 'over' : 'under/at';
-      out += `\n\nTaper target ${h.taperTarget.toFixed(1)} ml/dose · ${h.totalMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml ceiling (${status})\n`;
+      const status = h.totalAdherenceMl > h.taperCeiling ? 'over' : 'under/at';
+      out += `\n\nTaper target ${h.taperTarget.toFixed(1)} ml/dose · ${h.totalAdherenceMl.toFixed(1)} / ${h.taperCeiling.toFixed(1)} ml ceiling (${status})`;
+      if (h.totalSleepMl > 0) out += ` · +${h.totalSleepMl.toFixed(1)} ml sleep (not counted)`;
+      out += '\n';
     }
     out += `\n\nCost\nDoses · ml   ${fmtPeso(h.doseCostSum)}\nConcerta   ${fmtPeso(h.concCostSum)}\nRitalin   ${fmtPeso(h.ritCostSum)}\nGrand total   ${fmtPeso(h.grandTotal)}\n`;
     return out;
+  }
+
+  // ===== Taper (session-based: Start Dose -> next Sleep Dose) =====
+  // Reconstructed purely from timestamped Start/Log/Sleep entries. Only
+  // meaningful from whenever those types started being logged — there's no
+  // reliable start/sleep boundary in older data to retroactively group.
+  async function computeSessions() {
+    const allData = await getAllData();
+    const doses = allData.filter(isDoseEntry).slice().sort((a, b) => a.timestamp - b.timestamp);
+    const meds = allData.filter(isMedEntry);
+
+    const sessions = [];
+    let current = null;
+    doses.forEach(e => {
+      const kind = doseKind(e);
+      if (kind === 'start') {
+        current = { startTs: e.timestamp, endTs: null, logs: [e], sleeps: [] };
+        sessions.push(current);
+      } else if (kind === 'log') {
+        if (!current) { current = { startTs: e.timestamp, endTs: null, logs: [e], sleeps: [] }; sessions.push(current); }
+        else current.logs.push(e);
+      } else if (kind === 'sleep' && current) {
+        current.sleeps.push(e);
+        current.endTs = e.timestamp;
+        current = null;
+      }
+    });
+
+    const now = Date.now();
+    return sessions.map((s, i) => {
+      const endTs = s.endTs != null ? s.endTs : now;
+      const durationHours = (endTs - s.startTs) / 3600000;
+      const expectedLogDoses = Math.floor(durationHours / 2.5) + 1;
+      const actualLogDoses = s.logs.length;
+      const ghbMl = s.logs.reduce((sum, e) => sum + e.ml, 0);
+      const sleepMl = s.sleeps.reduce((sum, e) => sum + e.ml, 0);
+      const medsInSession = meds.filter(m => m.timestamp >= s.startTs && m.timestamp < endTs + 1);
+      const ritalinMg = medsInSession.filter(m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20').reduce((sum, m) => sum + (m.mg || 0), 0);
+      const concertaMg = medsInSession.filter(m => m.name === 'Concerta 27' || m.name === 'Concerta 36').reduce((sum, m) => sum + (m.mg || 0), 0);
+      return {
+        day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null,
+        durationHours, expectedLogDoses, actualLogDoses, ghbMl, sleepMl, ritalinMg, concertaMg,
+        logs: s.logs
+      };
+    });
+  }
+
+  async function renderTaper() {
+    const sessions = await computeSessions();
+    const container = document.getElementById('taperSessions');
+    if (!sessions.length) {
+      container.innerHTML = '<div class="empty">No sessions yet — press Start Dose to begin one.</div>';
+      return;
+    }
+    const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    container.innerHTML = sessions.slice().reverse().map(s => {
+      const over = s.actualLogDoses > s.expectedLogDoses;
+      const doseClass = over ? 'over' : 'under';
+      const rangeText = s.isOpen
+        ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
+        : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
+      const durationText = fmtGap(Math.round(s.durationHours * 60));
+      const sleepTag = s.sleepMl > 0 ? ` <span class="dsleep">(+${s.sleepMl.toFixed(1)} sleep)</span>` : '';
+      const medRows = (s.ritalinMg > 0 || s.concertaMg > 0)
+        ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg</span></div>
+           <div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg</span></div>`
+        : '';
+      const logsHtml = s.logs.map(e => {
+        const tag = e.type === 'start' ? ' · Start' : '';
+        return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)}${tag}</span><span>${e.ml.toFixed(1)} ml</span></div>`;
+      }).join('');
+      return `<div class="sessioncard">
+        <div class="shead">
+          <span class="sday${s.isOpen ? ' open' : ''}">Day ${s.day}${s.isOpen ? ' · Ongoing' : ''}</span>
+          <span class="srange">${rangeText}</span>
+        </div>
+        <div class="sstats">
+          <div class="brow"><span class="bk">Session length</span><span class="bv">${durationText}</span></div>
+          <div class="brow"><span class="bk">GHB total</span><span class="bv">${s.ghbMl.toFixed(1)} ml${sleepTag}</span></div>
+          <div class="brow total"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.actualLogDoses} / ${s.expectedLogDoses}</span></div>
+          ${medRows}
+        </div>
+        <div class="sesslog">${logsHtml}</div>
+      </div>`;
+    }).join('');
   }
 
   // ===== Data management (Settings) =====
