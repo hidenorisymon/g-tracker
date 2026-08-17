@@ -254,6 +254,15 @@
         <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
       </div>
 
+      <div class="daynav">
+        <div class="navgroup">
+          <div class="arrow" id="prevLogDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+          <div class="lbl" id="logDayLbl">Today</div>
+          <div class="arrow" id="nextLogDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <button class="copybtn" id="copyLogDay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      </div>
+
       <div id="currentSessionWrap"></div>
     </div>
 
@@ -490,6 +499,7 @@
   let histDate = new Date();
   let taperPeriod = 'daily';
   let taperDayIdx = 1;
+  let logDayIdx = null; // null = follow the newest session
   let taperGroupIdx = 1;
 
   let editingTs = null;
@@ -704,9 +714,10 @@
     }
 
     const doseData = (await getAllData()).filter(isDoseEntry);
-    // Rescue doses are excluded from this anchor entirely — they must not
-    // reset the "ready in"/"since last" countdown or the reminder cycle.
-    const anchorData = doseData.filter(e => doseKind(e) !== 'rescue');
+    // Only real scheduled doses anchor the countdown. Wake Up is a session
+    // marker carrying no ml, and Rescue is an off-schedule top-up — neither
+    // may reset "ready in"/"since last" or the reminder cycle.
+    const anchorData = doseData.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
 
     if (anchorData.length === 0) {
       box.classList.remove('ready');
@@ -770,12 +781,14 @@
     saveData(data);
     if (kind === 'wake') localStorage.setItem(SESSION_KEY, 'true');
     if (kind === 'sleep') localStorage.setItem(SESSION_KEY, 'false');
-    // Rescue doses must not touch the reminder schedule at all — no ping,
-    // so the already-scheduled next Log Dose reminder fires unaffected.
-    if (kind !== 'rescue') notifyN8nDoseLogged(resolvedTs, kind);
+    // Wake Up and Rescue must not touch the reminder schedule — Wake Up
+    // isn't a dose, and Rescue is off-schedule, so any already-scheduled
+    // next Log Dose reminder keeps its original anchor.
+    if (kind === 'log' || kind === 'sleep') notifyN8nDoseLogged(resolvedTs, kind);
     if (kind === 'wake') showToast('☀️ Wake up logged');
     else if (kind === 'rescue') showToast(`🆘 Rescue ${ml.toFixed(1)} ml logged`);
     else showToast(`${kind === 'sleep' ? '🌙 Sleep dose' : '✓'} ${ml.toFixed(1)} ml logged`);
+    logDayIdx = null; // jump back to the live session after logging
     await paintRing();
     await renderLog();
   }
@@ -1170,7 +1183,7 @@
     document.querySelector('.nav .gear').style.opacity = view === 'settings' ? '1' : '.5';
     closeEntryEdit();
     if (view === 'history') renderHistory();
-    if (view === 'log') { selectedDate = new Date(); renderLog(); paintRing(); }
+    if (view === 'log') { selectedDate = new Date(); logDayIdx = null; renderLog(); paintRing(); }
     if (view === 'taper') {
       computeSessions().then(sessions => {
         if (taperPeriod === 'daily') taperDayIdx = Math.max(1, sessions.length);
@@ -1258,6 +1271,25 @@
 
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
+
+    document.getElementById('prevLogDay').addEventListener('click', async () => {
+      const sessions = await computeSessions();
+      const cur = logDayIdx == null ? sessions.length - 1 : logDayIdx;
+      if (cur <= 0) return;
+      logDayIdx = cur - 1;
+      renderCurrentSession();
+    });
+    document.getElementById('nextLogDay').addEventListener('click', async () => {
+      const sessions = await computeSessions();
+      const cur = logDayIdx == null ? sessions.length - 1 : logDayIdx;
+      if (cur >= sessions.length - 1) return;
+      // Landing back on the newest session resumes live-follow mode.
+      logDayIdx = (cur + 1 === sessions.length - 1) ? null : cur + 1;
+      renderCurrentSession();
+    });
+    document.getElementById('copyLogDay').addEventListener('click', async (e) => {
+      copyText(await buildSessionText(), e.currentTarget);
+    });
 
     document.getElementById('copyHist').addEventListener('click', async (e) => {
       copyText(await buildHistText(), e.currentTarget);
@@ -1379,6 +1411,35 @@
     setTimeout(() => { btn.classList.remove('done'); btn.innerHTML = original; }, 1500);
   }
 
+  // Copy-text for the session currently shown on the Log tab.
+  async function buildSessionText() {
+    const sessions = await computeSessions();
+    if (!sessions.length) return 'G Tracker — no sessions yet';
+    const idx = logDayIdx == null ? sessions.length - 1 : Math.min(logDayIdx, sessions.length - 1);
+    const s = sessions[idx];
+    const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const range = s.isOpen
+      ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
+      : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
+    let out = `G Tracker — Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n${range}\n`;
+    out += `Session length   ${fmtGap(Math.round(s.durationHours * 60))}\n`;
+    out += `Doses vs schedule   ${s.actualLogDoses} / ${s.expectedLogDoses}\n`;
+    out += `Total ml   ${s.totalDailyMl.toFixed(1)} ml · ${fmtPeso(s.mlCost)}\n`;
+    if (s.sleepMl > 0) out += `  incl. sleep   ${s.sleepMl.toFixed(1)} ml\n`;
+    if (s.rescueCount > 0) out += `Rescue   ${s.rescueCount}× · ${s.rescueMl.toFixed(1)} ml · ${fmtPeso(s.rescueMl * costPerMl)}\n`;
+    if (s.ritalinMg > 0) out += `Ritalin   ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}\n`;
+    if (s.concertaMg > 0) out += `Concerta   ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}\n`;
+    out += `Total cost   ${fmtPeso(s.grandCost)}\n\nTimeline\n`;
+    out += s.timeline.map(e => {
+      if (isMedEntry(e)) return `${fmtTime(e.timestamp)}   ${e.name}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
+      const kind = doseKind(e);
+      const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : 'Dose';
+      return `${fmtTime(e.timestamp)}   ${tag}   ${kind === 'wake' ? '—' : e.ml.toFixed(1) + ' ml'}`;
+    }).join('\n');
+    return out + '\n';
+  }
+
   async function buildDayText(date) {
     const d = await computeDayData(date);
     let out = `G Tracker — ${d.dayLbl}\nAvg gap ${d.avg} · ${fmtPeso(d.cost)} · ${d.totalMl.toFixed(1)} ml · ${d.totalMg} mg\n\nDoses · ml\n`;
@@ -1467,9 +1528,11 @@
       const concertaCost = medsInSession.filter(isConcerta).reduce((sum, m) => sum + (m.cost || 0), 0);
       const totalDailyMl = logMl + sleepMl + rescueMl;
       const mlCost = totalDailyMl * costPerMl;
-      // Bookend entries shown in the per-session log list for context, kept
-      // separate from the type:'log'-only entries used for adherence.
-      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues].sort((a, b) => a.timestamp - b.timestamp);
+      // Bookend entries plus meds, shown in the per-session log list for
+      // context — kept separate from the type:'log'-only entries used for
+      // adherence. Meds are included so their times are visible here too.
+      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession]
+        .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null,
         durationHours, expectedLogDoses, actualLogDoses,
@@ -1490,21 +1553,22 @@
       ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
     const durationText = fmtGap(Math.round(s.durationHours * 60));
-    const extraTags = [
-      s.sleepMl > 0 ? `<span class="dsleep">+${s.sleepMl.toFixed(1)} sleep</span>` : '',
-      s.rescueMl > 0 ? `<span class="drescue">+${s.rescueMl.toFixed(1)} rescue</span>` : ''
-    ].filter(Boolean).join(' ');
-    const extraTag = extraTags ? ` (${extraTags})` : '';
+    const sleepTag = s.sleepMl > 0 ? ` <span class="dsleep">+${s.sleepMl.toFixed(1)} sleep</span>` : '';
     const rescueRow = s.rescueCount > 0
-      ? `<div class="brow"><span class="bk"><span class="cd bg-amber"></span>Rescue doses</span><span class="bv">${s.rescueCount} · ${s.rescueMl.toFixed(1)} ml</span></div>`
+      ? `<div class="brow"><span class="bk"><span class="cd bg-amber"></span>Rescue</span><span class="bv"><span class="drescue">${s.rescueCount}× · ${s.rescueMl.toFixed(1)} ml</span> · ${fmtPeso(s.rescueMl * costPerMl)}</span></div>`
       : '';
-    const medRows = (s.ritalinMg > 0 || s.concertaMg > 0)
-      ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg</span></div>
-         <div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg</span></div>`
+    const ritalinRow = s.ritalinMg > 0
+      ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}</span></div>`
+      : '';
+    const concertaRow = s.concertaMg > 0
+      ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>`
       : '';
     const logsHtml = s.timeline.map(e => {
+      if (isMedEntry(e)) {
+        return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>`;
+      }
       const kind = doseKind(e);
-      const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : '';
+      const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
       const amt = kind === 'wake' ? '—' : `${e.ml.toFixed(1)} ml`;
       return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)}${tag}</span><span>${amt}</span></div>`;
     }).join('');
@@ -1515,31 +1579,41 @@
       </div>
       <div class="sstats">
         <div class="brow"><span class="bk">Session length</span><span class="bv">${durationText}</span></div>
-        <div class="brow"><span class="bk">Total ml</span><span class="bv">${s.totalDailyMl.toFixed(1)} ml${extraTag}</span></div>
-        <div class="brow total"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.actualLogDoses} / ${s.expectedLogDoses}</span></div>
+        <div class="brow"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.actualLogDoses} / ${s.expectedLogDoses}</span></div>
+        <div class="brow"><span class="bk"><span class="cd bg-teal"></span>Total ml</span><span class="bv">${s.totalDailyMl.toFixed(1)} ml${sleepTag} · ${fmtPeso(s.mlCost)}</span></div>
         ${rescueRow}
-        ${medRows}
+        ${ritalinRow}
+        ${concertaRow}
+        <div class="brow total"><span class="bk">Total cost</span><span class="bv">${fmtPeso(s.grandCost)}</span></div>
       </div>
       <div class="sesslog">${logsHtml}</div>
-      <div class="sstats">
-        <div class="brow"><span class="bk"><span class="cd bg-teal"></span>Doses · ml</span><span class="bv">${fmtPeso(s.mlCost)}</span></div>
-        <div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${fmtPeso(s.ritalinCost)}</span></div>
-        <div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${fmtPeso(s.concertaCost)}</span></div>
-        <div class="brow total"><span class="bk">Cost</span><span class="bv">${fmtPeso(s.grandCost)}</span></div>
-      </div>
     </div>`;
   }
 
-  // Shows the current open session (Wake Up pressed, no Sleep Dose yet) on
-  // the Log page — this is the live status that used to live on the
-  // now-removed standalone Taper tab. Hidden entirely when there's no open
-  // session, so it doesn't clutter the Log view most of the time.
+  // Session card on the Log page. Defaults to the newest session (the live
+  // one while a session is open) but can be navigated back through earlier
+  // taper days without leaving the Log tab. logDayIdx === null means
+  // "follow the newest", so a freshly logged dose keeps the view current.
   async function renderCurrentSession() {
     const sessions = await computeSessions();
     const wrap = document.getElementById('currentSessionWrap');
-    const last = sessions[sessions.length - 1];
-    if (!last || !last.isOpen) { wrap.innerHTML = ''; return; }
-    wrap.innerHTML = sessionCardHtml(last);
+    const lbl = document.getElementById('logDayLbl');
+    const nextBtn = document.getElementById('nextLogDay');
+    const prevBtn = document.getElementById('prevLogDay');
+
+    if (!sessions.length) {
+      wrap.innerHTML = '<div class="empty">No sessions yet — press Wake Up to begin one.</div>';
+      lbl.textContent = 'No sessions';
+      nextBtn.classList.add('off'); prevBtn.classList.add('off');
+      return;
+    }
+
+    const idx = logDayIdx == null ? sessions.length - 1 : Math.min(logDayIdx, sessions.length - 1);
+    const s = sessions[idx];
+    lbl.textContent = s.isOpen ? `Day ${s.day} · Today` : `Day ${s.day}`;
+    prevBtn.classList.toggle('off', idx <= 0);
+    nextBtn.classList.toggle('off', idx >= sessions.length - 1);
+    wrap.innerHTML = sessionCardHtml(s);
   }
 
   // ===== Taper tab =====
