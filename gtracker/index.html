@@ -147,6 +147,8 @@
   .sessioncard .sday.open{color:var(--blue);}
   .sessioncard .srange{font-family:var(--mono);font-size:12px;color:var(--muted);}
   .sessioncard .sstats{border-top:1px solid var(--hair-2);padding-top:4px;margin-bottom:4px;}
+  .sessioncard .glabel.sublabel{margin:12px 0 2px;font-size:9.5px;}
+  .sessioncard .grandrow{border-top:none;margin-top:8px;}
   .sesslog{border-top:1px solid var(--hair-2);margin-top:8px;padding-top:8px;}
   .sesslog .slrow{display:flex;justify-content:space-between;padding:5px 0;font-family:var(--mono);font-size:12.5px;color:var(--ink-2);}
   .sesslog .sllabel{color:var(--muted);}
@@ -1510,7 +1512,15 @@
     return sessions.map((s, i) => {
       const endTs = s.endTs != null ? s.endTs : now;
       const durationHours = (endTs - s.startTs) / 3600000;
-      const expectedLogDoses = Math.floor(durationHours / 2.5);
+      // The schedule is anchored to the FIRST REAL DOSE, not to Wake Up —
+      // waking up doesn't start the clock (same rule the countdown uses).
+      // That first dose is itself scheduled, hence the +1: over a window of
+      // D hours starting at a dose, the 2.5hr schedule allows
+      // floor(D / 2.5) + 1 doses. Anchoring at Wake Up instead made a
+      // perfectly-spaced day read as "over" by one.
+      const firstLogTs = s.logs.length ? s.logs[0].timestamp : null;
+      const scheduleHours = firstLogTs != null ? (endTs - firstLogTs) / 3600000 : 0;
+      const expectedLogDoses = firstLogTs != null ? Math.floor(scheduleHours / 2.5) + 1 : 0;
       // Only type:'log' counts toward adherence — rescue doses are tracked
       // as a separate tally so schedule-adherence and rescue frequency read
       // as two distinct numbers, not conflated into one.
@@ -1544,7 +1554,10 @@
     });
   }
 
-  function sessionCardHtml(s) {
+  // newestFirst flips the timeline order — the Log tab wants the latest
+  // entry at the top (no scrolling to find it), History/Taper keep
+  // chronological order for reading a finished day top-to-bottom.
+  function sessionCardHtml(s, newestFirst) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const over = s.actualLogDoses > s.expectedLogDoses;
@@ -1557,13 +1570,17 @@
     const rescueRow = s.rescueCount > 0
       ? `<div class="brow"><span class="bk"><span class="cd bg-amber"></span>Rescue</span><span class="bv"><span class="drescue">${s.rescueCount}× · ${s.rescueMl.toFixed(1)} ml</span> · ${fmtPeso(s.rescueMl * costPerMl)}</span></div>`
       : '';
-    const ritalinRow = s.ritalinMg > 0
-      ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}</span></div>`
-      : '';
-    const concertaRow = s.concertaMg > 0
-      ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>`
-      : '';
-    const logsHtml = s.timeline.map(e => {
+    const medsMg = s.ritalinMg + s.concertaMg;
+    const medsCost = s.ritalinCost + s.concertaCost;
+    const medsBlock = medsMg > 0 ? `
+      <div class="glabel sublabel">Medication</div>
+      <div class="sstats">
+        ${s.ritalinMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}</span></div>` : ''}
+        ${s.concertaMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>` : ''}
+        <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} mg · ${fmtPeso(medsCost)}</span></div>
+      </div>` : '';
+    const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
+    const logsHtml = rows.map(e => {
       if (isMedEntry(e)) {
         return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>`;
       }
@@ -1580,10 +1597,16 @@
       <div class="sstats">
         <div class="brow"><span class="bk">Session length</span><span class="bv">${durationText}</span></div>
         <div class="brow"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.actualLogDoses} / ${s.expectedLogDoses}</span></div>
+      </div>
+
+      <div class="glabel sublabel">G · ml</div>
+      <div class="sstats">
         <div class="brow"><span class="bk"><span class="cd bg-teal"></span>Total ml</span><span class="bv">${s.totalDailyMl.toFixed(1)} ml${sleepTag} · ${fmtPeso(s.mlCost)}</span></div>
         ${rescueRow}
-        ${ritalinRow}
-        ${concertaRow}
+      </div>
+      ${medsBlock}
+
+      <div class="sstats grandrow">
         <div class="brow total"><span class="bk">Total cost</span><span class="bv">${fmtPeso(s.grandCost)}</span></div>
       </div>
       <div class="sesslog">${logsHtml}</div>
@@ -1613,7 +1636,7 @@
     lbl.textContent = s.isOpen ? `Day ${s.day} · Today` : `Day ${s.day}`;
     prevBtn.classList.toggle('off', idx <= 0);
     nextBtn.classList.toggle('off', idx >= sessions.length - 1);
-    wrap.innerHTML = sessionCardHtml(s);
+    wrap.innerHTML = sessionCardHtml(s, true); // Log tab: newest entry first
   }
 
   // ===== Taper tab =====
