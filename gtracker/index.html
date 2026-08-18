@@ -1209,7 +1209,7 @@
     await paintRing();
     setupListeners();
 
-    // Auto-backup to GitHub every 1 hour (only if token + gistId already set)
+    // Auto-backup to GitHub every 30 min (only if token + gistId already set)
     setInterval(async () => {
       const token = localStorage.getItem('githubToken');
       const savedGistId = localStorage.getItem('gistId');
@@ -1225,9 +1225,9 @@
           showToast('✓ Auto-backup saved');
         } catch (e) {}
       }
-    }, 1 * 60 * 60 * 1000);
+    }, 30 * 60 * 1000);
 
-    // Auto-load from GitHub every 1 hour (viewer mode: gistId saved, no token)
+    // Auto-load from GitHub every 30 min (viewer mode: gistId saved, no token)
     setInterval(async () => {
       const savedGistId = localStorage.getItem('gistId');
       const token = localStorage.getItem('githubToken');
@@ -1250,7 +1250,7 @@
           }
         } catch (e) {}
       }
-    }, 1 * 60 * 60 * 1000);
+    }, 30 * 60 * 1000);
   }
 
   function setupListeners() {
