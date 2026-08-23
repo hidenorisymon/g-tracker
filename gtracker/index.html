@@ -411,6 +411,8 @@
         <div class="glabel">Taper plan</div>
         <div class="setrow"><div class="sk">Current dose<small id="taperCurrentHint">Steps down automatically each week</small></div>
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
+        <div class="setrow"><div class="sk">Rescue dose<small id="rescueHint">Off-schedule top-up — doesn't reset the timer</small></div>
+          <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
           <div class="field cost"><input type="date" id="setTaperStart"></div></div>
       </div>
@@ -498,7 +500,7 @@
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }]. The taper
   // steps down on its own; typing a different Current dose in Settings records
   // one of these instead of rewriting the plan, so past weeks keep their targets.
-  let taperPlan = { start: null, startDose: 0.8, adjustments: [] };
+  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, adjustments: [] };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -545,6 +547,22 @@
   function fmtMl(n) {
     const c = Math.round((Number(n) || 0) * 100);
     return (c % 10 === 0) ? (c / 100).toFixed(1) : (c / 100).toFixed(2);
+  }
+
+  // Rescue is a fixed amount, so it does NOT follow the taper down on its own.
+  // If it drifts above the scheduled dose the hint says so, since that's the
+  // point where a "top-up" is quietly the larger of the two.
+  function refreshRescueSetting(setValue) {
+    const input = document.getElementById('setRescueDose');
+    const hint = document.getElementById('rescueHint');
+    if (!input || !hint) return;
+    const rescue = getRescueDose();
+    if (setValue) input.value = rescue;
+    const target = getTaperTargetForDate(new Date());
+    const base = target != null ? target : taperPlan.startDose;
+    hint.textContent = rescue >= base
+      ? `Off-schedule top-up — doesn't reset the timer. Note this is not below your ${fmtMl(base)} ml dose`
+      : `Off-schedule top-up — doesn't reset the timer. Stays fixed as the taper steps down`;
   }
 
   function fmtPeso(n) { return '₱' + Math.round(n).toLocaleString('en-US'); }
@@ -609,6 +627,17 @@
     adj.push({ from: weekStr, dose });
     adj.sort((a, b2) => a.from < b2.from ? -1 : 1);
     taperPlan.adjustments = adj;
+  }
+
+  // What the Rescue button logs. This used to be a hardcoded 50% of the taper
+  // dose, so the button showed a number that appeared nowhere in Settings and
+  // couldn't be changed. It's an explicit setting now; the 50% is only the
+  // seed value shown before it has ever been saved.
+  function getRescueDose() {
+    if (taperPlan.rescueDose > 0) return Math.round(taperPlan.rescueDose * 100) / 100;
+    const target = getTaperTargetForDate(new Date());
+    const base = target != null ? target : taperPlan.startDose;
+    return Math.round(base * 0.5 * 100) / 100;
   }
 
   // Keeps the Settings "Current dose" field and its one-line hint in sync
@@ -728,6 +757,7 @@
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
     refreshTaperCurrent(true);
+    refreshRescueSetting(true);
   }
 
   async function saveSettings() {
@@ -757,6 +787,7 @@
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
       startDose: taperPlan.startDose || 0.8,
+      rescueDose: parseFloat(document.getElementById('setRescueDose').value) || null,
       adjustments: taperPlan.adjustments || [],
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
@@ -764,6 +795,7 @@
     applyCurrentDoseOverride(parseFloat(document.getElementById('setTaperCurrent').value));
     localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
     refreshTaperCurrent(true);
+    refreshRescueSetting(true);
     silentBackupToGitHub();
 
     showToast('✓ Settings saved');
@@ -801,7 +833,7 @@
       const doseAmt = taperTarget != null ? taperTarget : taperPlan.startDose;
       doseLabel.textContent = `Log Dose · ${fmtMl(doseAmt)}ml`;
       document.getElementById('sleepDoseLabel').textContent = `Sleep Dose · ${fmtMl(doseAmt)}ml`;
-      document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl((doseAmt * 0.5))}ml`;
+      document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl(getRescueDose())}ml`;
     }
 
     const doseData = (await getAllData()).filter(isDoseEntry);
@@ -862,8 +894,7 @@
     kind = kind || 'log';
     if (kind === 'wake') ml = 0;
     else if (kind === 'rescue') {
-      const target = getTaperTargetForDate(new Date());
-      ml = Math.round((target != null ? target : taperPlan.startDose) * 0.5 * 100) / 100;
+      ml = getRescueDose();
     } else if (!(ml > 0)) { showToast('Enter a valid ml amount'); return; }
     const resolvedTs = ts || Date.now();
     const data = await getAllData();
