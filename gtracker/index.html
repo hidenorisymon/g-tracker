@@ -413,14 +413,6 @@
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
           <div class="field cost"><input type="date" id="setTaperStart"></div></div>
-        <div class="setrow"><div class="sk">Starting dose</div>
-          <div class="field cost"><input type="number" id="setTaperStartDose" step="0.1" min="0.1" value="0.8"><span class="cur">ml</span></div></div>
-        <div class="setrow"><div class="sk">Step down</div>
-          <div class="field cost"><input type="number" id="setTaperStep" step="0.1" min="0" value="0.1"><span class="cur">ml</span></div></div>
-        <div class="setrow"><div class="sk">Every</div>
-          <div class="field cost"><input type="number" id="setTaperDays" step="1" min="1" value="7"><span class="cur">days</span></div></div>
-        <div class="setrow"><div class="sk">Floor<small>Won't step down past this</small></div>
-          <div class="field cost"><input type="number" id="setTaperFloor" step="0.1" min="0" value="0.1"><span class="cur">ml</span></div></div>
       </div>
 
       <div class="setgroup">
@@ -497,10 +489,16 @@
 
   let costPerMl = 50;
   let medCost = { 'Concerta 36':55, 'Ritalin 5':20 };
+  // The taper shape is fixed: 0.1 ml off every 7 days, stopping at 0.1 ml.
+  // These were editable settings once; Current dose replaced them, because
+  // typing the number you actually want beats describing a formula.
+  const TAPER_STEP = 0.1;
+  const TAPER_EVERY_DAYS = 7;
+  const TAPER_FLOOR = 0.1;
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }]. The taper
   // steps down on its own; typing a different Current dose in Settings records
   // one of these instead of rewriting the plan, so past weeks keep their targets.
-  let taperPlan = { start: null, startDose: 0.8, step: 0.1, everyDays: 7, floor: 0.1, adjustments: [] };
+  let taperPlan = { start: null, startDose: 0.8, adjustments: [] };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -576,14 +574,14 @@
     const baseDate = new Date(baseStr + 'T00:00:00');
     const diffDays = Math.round((dayStart - baseDate) / 86400000);
     if (diffDays < 0) return null;
-    const every = taperPlan.everyDays > 0 ? taperPlan.everyDays : 7;
+    const every = TAPER_EVERY_DAYS;
     const steps = Math.floor(diffDays / every);
     const weekStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + steps * every);
     // Week number counts from the plan start, not from the override, so
     // "Week 3" still means the third week of the taper.
     const planStart = new Date(taperPlan.start + 'T00:00:00');
     const weekIndex = Math.floor(Math.round((dayStart - planStart) / 86400000) / every) + 1;
-    const dose = Math.max(baseDose - steps * taperPlan.step, taperPlan.floor);
+    const dose = Math.max(baseDose - steps * TAPER_STEP, TAPER_FLOOR);
     return { baseStr, baseDose, steps, every, weekStart, weekIndex, dose: Math.round(dose * 100) / 100 };
   }
 
@@ -604,8 +602,10 @@
     if (!b) { taperPlan.startDose = dose; return; }
     if (Math.abs(b.dose - dose) < 0.001) return; // already what the plan says
     const weekStr = ymdLocal(b.weekStart);
-    if (weekStr === taperPlan.start) { taperPlan.startDose = dose; return; }
     const adj = (taperPlan.adjustments || []).filter(a => a && a.from !== weekStr);
+    // An adjustment stamped on the plan's own start date out-ranks startDose,
+    // so it has to be cleared — otherwise the new value is stored but never wins.
+    if (weekStr === taperPlan.start) { taperPlan.startDose = dose; taperPlan.adjustments = adj; return; }
     adj.push({ from: weekStr, dose });
     adj.sort((a, b2) => a.from < b2.from ? -1 : 1);
     taperPlan.adjustments = adj;
@@ -624,12 +624,12 @@
       return;
     }
     if (setValue) input.value = b.dose;
-    const next = Math.max(Math.round((b.dose - taperPlan.step) * 100) / 100, taperPlan.floor);
+    const next = Math.max(Math.round((b.dose - TAPER_STEP) * 100) / 100, TAPER_FLOOR);
     const nextDate = new Date(b.weekStart.getFullYear(), b.weekStart.getMonth(), b.weekStart.getDate() + b.every);
     const when = nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     hint.textContent = next < b.dose - 0.001
       ? `Week ${b.weekIndex} · drops to ${fmtMl(next)} ml on ${when} by itself — type here to override`
-      : `Week ${b.weekIndex} · holding at the ${fmtMl(taperPlan.floor)} ml floor — type here to override`;
+      : `Week ${b.weekIndex} · holding at the ${fmtMl(TAPER_FLOOR)} ml floor — type here to override`;
   }
 
   function dayLabel(d) {
@@ -727,10 +727,6 @@
     const savedTaper = localStorage.getItem(TAPER_KEY);
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
-    document.getElementById('setTaperStartDose').value = taperPlan.startDose;
-    document.getElementById('setTaperStep').value = taperPlan.step;
-    document.getElementById('setTaperDays').value = taperPlan.everyDays;
-    document.getElementById('setTaperFloor').value = taperPlan.floor;
     refreshTaperCurrent(true);
   }
 
@@ -755,12 +751,12 @@
     if (webhookUrl) localStorage.setItem(WEBHOOK_KEY, webhookUrl);
     else localStorage.removeItem(WEBHOOK_KEY);
 
+    // Only start date and Current dose are editable now; step/interval/floor
+    // are constants, and startDose is carried forward (Current dose writes it
+    // when the override lands on the plan's own first week).
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
-      startDose: parseFloat(document.getElementById('setTaperStartDose').value) || 0.8,
-      step: parseFloat(document.getElementById('setTaperStep').value) || 0,
-      everyDays: parseInt(document.getElementById('setTaperDays').value) || 7,
-      floor: parseFloat(document.getElementById('setTaperFloor').value) || 0,
+      startDose: taperPlan.startDose || 0.8,
       adjustments: taperPlan.adjustments || [],
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
