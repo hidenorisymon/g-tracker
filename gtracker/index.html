@@ -903,10 +903,10 @@
     saveData(data);
     if (kind === 'wake') localStorage.setItem(SESSION_KEY, 'true');
     if (kind === 'sleep') localStorage.setItem(SESSION_KEY, 'false');
-    // Wake Up and Rescue must not touch the reminder schedule — Wake Up
-    // isn't a dose, and Rescue is off-schedule, so any already-scheduled
-    // next Log Dose reminder keeps its original anchor.
+    // Rescue must not touch the reminder schedule — it's off-schedule, so the
+    // already-scheduled next Log Dose reminder keeps its original anchor.
     if (kind === 'log' || kind === 'sleep') notifyN8nDoseLogged(resolvedTs, kind);
+    else if (kind === 'wake') notifyN8nWake(resolvedTs, data);
     if (kind === 'wake') showToast('☀️ Wake up logged');
     else if (kind === 'rescue') showToast(`🆘 Rescue ${fmtMl(ml)} ml logged`);
     else showToast(`${kind === 'sleep' ? '🌙 Sleep dose' : '✓'} ${fmtMl(ml)} ml logged`);
@@ -924,6 +924,30 @@
   // newest known dose timestamp on the n8n side, which makes any earlier
   // pending reminder (from the last Start/Log dose) self-cancel via the
   // same staleness check used for redoses. See g-tracker-dose-reminder.json.
+  // A Sleep Dose suspends reminders until the next Wake Up — but nothing used
+  // to restart them, so the first stretch of a new session ran unwatched. Wake
+  // Up now re-arms the cycle. It still does NOT re-anchor the schedule: the
+  // countdown keeps running from the last real dose, so the wait is whatever
+  // is left of that interval, floored at a short grace period so the phone
+  // doesn't buzz in your hand the moment you press the button.
+  const WAKE_GRACE_MIN = 10;
+  function notifyN8nWake(wakeTs, data) {
+    const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
+    if (!webhookUrl) return;
+    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
+    if (targetMinutes <= 0) return;
+    const anchors = data.filter(e => isDoseEntry(e) && (doseKind(e) === 'log' || doseKind(e) === 'sleep'));
+    const lastAnchor = anchors.length ? anchors[anchors.length - 1] : null;
+    // Only re-arm when the cycle was actually suspended, i.e. the last real
+    // entry was a Sleep Dose. Waking mid-session leaves the pending reminder
+    // from the last Log Dose alone, so it can't end up firing twice.
+    if (lastAnchor && doseKind(lastAnchor) !== 'sleep') return;
+    const dueTs = (lastAnchor ? lastAnchor.timestamp : wakeTs) + targetMinutes * 60000;
+    const waitMinutes = Math.max(WAKE_GRACE_MIN, Math.round((dueTs - Date.now()) / 60000));
+    const sep = webhookUrl.includes('?') ? '&' : '?';
+    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(wakeTs)}&wait=${encodeURIComponent(waitMinutes)}&type=wake`).catch(() => {});
+  }
+
   function notifyN8nDoseLogged(ts, kind) {
     const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
     if (!webhookUrl) return;
