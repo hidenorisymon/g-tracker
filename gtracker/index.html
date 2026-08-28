@@ -146,6 +146,7 @@
   .sessioncard .sday{font-size:15px;font-weight:700;color:var(--ink);}
   .sessioncard .sday.open{color:var(--blue);}
   .sessioncard .srange{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .sessioncard .snowake{display:inline-block;margin-left:7px;padding:2px 6px;border-radius:5px;background:var(--amber-bg,#fdf1dc);color:var(--amber,#b26b00);font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;}
   .sessioncard .sstats{border-top:1px solid var(--hair-2);padding-top:4px;margin-bottom:4px;}
   .sessioncard .glabel.sublabel{margin:12px 0 2px;font-size:9.5px;}
   .sessioncard .grandrow{border-top:none;margin-top:8px;}
@@ -1646,19 +1647,38 @@
 
     const sessions = [];
     let current = null;
-    // Only entries at/after a real Wake Up belong to a session — anything
-    // logged before the first Wake Up (e.g. imported pre-feature history)
-    // is simply not part of any session, not folded into Day 1.
     doses.forEach(e => {
       const kind = doseKind(e);
       if (kind === 'wake') {
-        current = { startTs: e.timestamp, endTs: null, wake: e, logs: [], sleeps: [], rescues: [] };
+        current = { startTs: e.timestamp, endTs: null, wake: e, logs: [], sleeps: [], rescues: [], implicit: false };
         sessions.push(current);
-      } else if (kind === 'log') {
-        if (current) current.logs.push(e);
-      } else if (kind === 'rescue') {
-        if (current) current.rescues.push(e);
-      } else if (kind === 'sleep' && current) {
+        return;
+      }
+      if (!current) {
+        // Nothing open. Before the first-ever Wake Up this is imported
+        // pre-feature history, which stays out of the day count entirely.
+        if (!sessions.length) return;
+        if (kind !== 'log') {
+          // Rescues and extra sleep doses between sessions belong to the
+          // sleep period that just ended — a top-up taken while still down
+          // does not start a waking day, and letting one do so would insert
+          // a bogus day and renumber every day after it. They count toward
+          // that day's totals but must NOT move its end time: adherence is
+          // measured to the moment the session closed, and stretching it
+          // would invent hours of expected doses.
+          const prev = sessions[sessions.length - 1];
+          if (kind === 'sleep') prev.sleeps.push(e); else prev.rescues.push(e);
+          return;
+        }
+        // A Log Dose with no session open means Wake Up was never pressed.
+        // Start the day at that dose rather than dropping it — a whole night
+        // of doses used to vanish from Log, Taper and adherence entirely.
+        current = { startTs: e.timestamp, endTs: null, wake: null, logs: [], sleeps: [], rescues: [], implicit: true };
+        sessions.push(current);
+      }
+      if (kind === 'log') current.logs.push(e);
+      else if (kind === 'rescue') current.rescues.push(e);
+      else if (kind === 'sleep') {
         current.sleeps.push(e);
         current.endTs = e.timestamp;
         current = null;
@@ -1666,18 +1686,23 @@
     });
 
     const now = Date.now();
+    // Adherence is measured against the Target interval in Settings. This was
+    // hardcoded to 2.5hr, so changing the interval to 2:00 left every day
+    // scored against a schedule that was no longer being followed.
+    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
+    const intervalHours = targetMinutes > 0 ? targetMinutes / 60 : 2.5;
     return sessions.map((s, i) => {
       const endTs = s.endTs != null ? s.endTs : now;
       const durationHours = (endTs - s.startTs) / 3600000;
       // The schedule is anchored to the FIRST REAL DOSE, not to Wake Up —
       // waking up doesn't start the clock (same rule the countdown uses).
       // That first dose is itself scheduled, hence the +1: over a window of
-      // D hours starting at a dose, the 2.5hr schedule allows
-      // floor(D / 2.5) + 1 doses. Anchoring at Wake Up instead made a
+      // D hours starting at a dose, the schedule allows
+      // floor(D / interval) + 1 doses. Anchoring at Wake Up instead made a
       // perfectly-spaced day read as "over" by one.
       const firstLogTs = s.logs.length ? s.logs[0].timestamp : null;
       const scheduleHours = firstLogTs != null ? (endTs - firstLogTs) / 3600000 : 0;
-      const expectedLogDoses = firstLogTs != null ? Math.floor(scheduleHours / 2.5) + 1 : 0;
+      const expectedLogDoses = firstLogTs != null ? Math.floor(scheduleHours / intervalHours) + 1 : 0;
       // Only type:'log' counts toward adherence — rescue doses are tracked
       // as a separate tally so schedule-adherence and rescue frequency read
       // as two distinct numbers, not conflated into one.
@@ -1701,7 +1726,7 @@
       const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
-        day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null,
+        day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
         durationHours, expectedLogDoses, actualLogDoses,
         logMl, sleepMl, rescueCount, rescueMl, totalDailyMl,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
@@ -1750,7 +1775,7 @@
     }).join('');
     return `<div class="sessioncard">
       <div class="shead">
-        <span class="sday${s.isOpen ? ' open' : ''}">Day ${s.day}${s.isOpen ? ' · Ongoing' : ''}</span>
+        <span class="sday${s.isOpen ? ' open' : ''}">Day ${s.day}${s.isOpen ? ' · Ongoing' : ''}${s.implicit ? '<span class="snowake">no Wake Up</span>' : ''}</span>
         <span class="srange">${rangeText}</span>
       </div>
       <div class="sstats">
