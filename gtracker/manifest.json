@@ -1,7 +1,7 @@
 {
   "name": "G Tracker",
   "short_name": "G Tracker",
-  "start_url": "/",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3a3a3a",

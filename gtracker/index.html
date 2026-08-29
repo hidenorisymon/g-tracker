@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="G Tracker">
 <meta name="theme-color" content="#FBFBF9">
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="manifest.json">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1367,44 +1367,36 @@
     setInterval(async () => {
       const token = localStorage.getItem('githubToken');
       const savedGistId = localStorage.getItem('gistId');
-      if (token && savedGistId) {
-        try {
-          const data = await getAllData();
-          const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
-          await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: { 'g-tracker-data.json': { content } } })
-          });
-          showToast('✓ Auto-backup saved');
-        } catch (e) {}
-      }
+      if (!token || !savedGistId) return;
+      await silentBackupToGitHub();
+      showToast('✓ Auto-backup saved');
     }, 30 * 60 * 1000);
 
     // Auto-load from GitHub every 30 min (viewer mode: gistId saved, no token)
-    setInterval(async () => {
-      const savedGistId = localStorage.getItem('gistId');
-      const token = localStorage.getItem('githubToken');
-      if (savedGistId && !token) {
-        try {
-          const response = await fetch(`https://api.github.com/gists/${savedGistId}`);
-          const gist = await response.json();
-          if (gist.files && gist.files['g-tracker-data.json']) {
-            const data = JSON.parse(gist.files['g-tracker-data.json'].content);
-            localStorage.setItem(dataKey, JSON.stringify(data.entries));
-            localStorage.setItem(costKey, data.costPerMl);
-            costPerMl = data.costPerMl;
-            if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
-            if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
-            if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
-            loadSettings();
-            await renderLog();
-            await paintRing();
-            showToast('✓ Auto-synced from Gist');
-          }
-        } catch (e) {}
+    setInterval(autoLoadFromGitHub, 30 * 60 * 1000);
+  }
+
+  async function autoLoadFromGitHub() {
+    const savedGistId = localStorage.getItem('gistId');
+    const token = localStorage.getItem('githubToken');
+    if (!savedGistId || token) return;
+    try {
+      const response = await fetch(`https://api.github.com/gists/${savedGistId}`);
+      const gist = await response.json();
+      if (gist.files && gist.files['g-tracker-data.json']) {
+        const data = JSON.parse(gist.files['g-tracker-data.json'].content);
+        localStorage.setItem(dataKey, JSON.stringify(data.entries));
+        localStorage.setItem(costKey, data.costPerMl);
+        costPerMl = data.costPerMl;
+        if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
+        if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
+        if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
+        loadSettings();
+        await renderLog();
+        await paintRing();
+        showToast('✓ Auto-synced from Gist');
       }
-    }, 30 * 60 * 1000);
+    } catch (e) {}
   }
 
   function setupListeners() {
@@ -2120,8 +2112,25 @@
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    // Relative path — an absolute "/sw.js" 404'd on GitHub Pages, since this
+    // repo is served under /g-tracker/, not the domain root. That silent
+    // 404 (caught by .catch below) is why nothing was ever cached and the
+    // app couldn't open at all with no connection.
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+
+  // Reconnecting doesn't wait for the 30-min auto-sync timer — it fires the
+  // same push/pull immediately, so anything logged offline reaches the
+  // backup right away instead of sitting for up to half an hour.
+  window.addEventListener('online', async () => {
+    showToast('📶 Back online — syncing…');
+    const token = localStorage.getItem('githubToken');
+    if (token && localStorage.getItem('gistId')) await silentBackupToGitHub();
+    else await autoLoadFromGitHub();
+  });
+  window.addEventListener('offline', () => {
+    showToast('📴 Offline — timer still runs, will sync when back');
+  });
 </script>
 </body>
 </html>
