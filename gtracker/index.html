@@ -156,6 +156,20 @@
   .sesslog .slrow.tap:active{opacity:.5;background:var(--hair-2);}
   .sesslog .sllabel{color:var(--muted);}
   .sesslog .slwear{padding:0 0 5px;margin-top:-3px;font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+  #activeMedsWrap{display:flex;flex-direction:column;gap:8px;margin:14px 0;}
+  .medstatus{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--hair);background:var(--surface);border-left:4px solid var(--muted);}
+  .medstatus.st-green{border-left-color:var(--green);}
+  .medstatus.st-yellow{border-left-color:var(--amber);}
+  .medstatus.st-red{border-left-color:var(--wait);}
+  .medstatus .mtext{font-size:12.5px;color:var(--ink-2);min-width:0;}
+  .medstatus .mtext b{color:var(--ink);font-weight:700;}
+  .medstatus .mtime{font-family:var(--mono);color:var(--muted);}
+  .medstatus.st-green .mstate{color:var(--green);}
+  .medstatus.st-yellow .mstate{color:var(--amber);}
+  .medstatus.st-red .mstate{color:var(--wait);}
+  .medstatus .mdismiss{flex:none;width:24px;height:24px;border-radius:50%;border:none;background:var(--hair-2);color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .medstatus .mdismiss:active{opacity:.6;}
   /* With a "Timeline" label above it the list supplies its own separator,
      so the log block drops the rule it normally draws for itself. */
   .sessioncard .glabel.sublabel.tl{border-top:1px solid var(--hair-2);padding-top:10px;}
@@ -249,6 +263,8 @@
         </div>
         <div class="ibar"><div class="ifill" id="ifill"></div></div>
       </div>
+
+      <div id="activeMedsWrap" hidden></div>
 
       <div class="glabel">Log dose · ml</div>
       <div class="chips ml2">
@@ -492,6 +508,7 @@
   const costKey = 'costPerMl';
   const MED_COST_KEY = 'medCostSettings';
   const WEAR_OFF_KEY = 'medWearOffMinutes';
+  const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
   const TARGET_KEY = 'targetIntervalMinutes';
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
@@ -864,6 +881,7 @@
   // ===== Interval gauge =====
   async function paintRing() {
     renderCurrentSession();
+    renderActiveMeds();
     const box = document.getElementById('interval');
     const eyebrow = document.getElementById('eyebrow');
     const readout = document.getElementById('readout');
@@ -1018,6 +1036,61 @@
     saveData(data);
     showToast(`💊 ${name} logged`);
     await renderLog();
+    await renderActiveMeds();
+  }
+
+  // Dismissed doses are remembered by timestamp so an X'd card doesn't come
+  // back on the next render or reload. Pruned to "today" on every read —
+  // that's also what makes a dismissal naturally expire at midnight instead
+  // of needing separate cleanup logic.
+  function getDismissedMedSet() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(DISMISSED_MEDS_KEY) || '[]'); } catch (e) {}
+    const kept = list.filter(ts => isToday(new Date(ts)));
+    if (kept.length !== list.length) localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify(kept));
+    return new Set(kept);
+  }
+
+  async function dismissMedDose(ts) {
+    const set = getDismissedMedSet();
+    set.add(ts);
+    localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify([...set]));
+    await renderActiveMeds();
+  }
+
+  // Live status card for each med dose taken today, shown under the interval
+  // bar so "is this still active" never needs mental math. Only doses with a
+  // wear-off time set in Settings can show one — there is no "End" to
+  // compute otherwise. Stays up all day once shown; the only way to drop one
+  // before midnight is the X button.
+  async function renderActiveMeds() {
+    const wrap = document.getElementById('activeMedsWrap');
+    if (!wrap) return;
+    const data = await getAllData();
+    const dismissed = getDismissedMedSet();
+    const now = Date.now();
+    const rows = data
+      .filter(isMedEntry)
+      .filter(e => isToday(new Date(e.timestamp)))
+      .filter(e => wearOffMinutesFor(e.name) > 0)
+      .filter(e => !dismissed.has(e.timestamp))
+      .sort((a, b) => b.timestamp - a.timestamp); // newest taken first, same as the Log timeline
+
+    if (!rows.length) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+    wrap.hidden = false;
+
+    const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    wrap.innerHTML = rows.map(e => {
+      const endTs = e.timestamp + wearOffMinutesFor(e.name) * 60000;
+      const remainMin = (endTs - now) / 60000;
+      const status = remainMin < 0 ? 'red' : remainMin <= 30 ? 'yellow' : 'green';
+      const stateText = status === 'red' ? 'Lapsed' : status === 'yellow' ? 'Ending soon' : 'Active';
+      return `<div class="medstatus st-${status}" data-ts="${e.timestamp}">
+        <div class="mtext"><b>${escapeHtml(e.name)}</b> · <span class="mstate">${stateText}</span><br>
+        <span class="mtime">Taken ${fmtT(e.timestamp)} – End ${fmtT(endTs)}</span></div>
+        <button class="mdismiss" data-dismiss="${e.timestamp}" aria-label="Dismiss">✕</button>
+      </div>`;
+    }).join('');
   }
 
   // ===== Log page render =====
@@ -1503,6 +1576,10 @@
     // wrapper rather than the rows.
     document.getElementById('currentSessionWrap').addEventListener('click', handleEntryClick);
     document.getElementById('taperDailyWrap').addEventListener('click', handleEntryClick);
+    document.getElementById('activeMedsWrap').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dismiss]');
+      if (btn) dismissMedDose(parseInt(btn.dataset.dismiss));
+    });
     document.getElementById('editCancel').addEventListener('click', closeEntryEdit);
     document.getElementById('editSave').addEventListener('click', saveEntryEdit);
     document.getElementById('editDeleteBtn').addEventListener('click', handleDeleteClick);
