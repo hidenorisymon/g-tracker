@@ -155,6 +155,7 @@
   .sesslog .slrow.tap{cursor:pointer;border-radius:6px;margin:0 -6px;padding-left:6px;padding-right:6px;}
   .sesslog .slrow.tap:active{opacity:.5;background:var(--hair-2);}
   .sesslog .sllabel{color:var(--muted);}
+  .sesslog .slwear{padding:0 0 5px;margin-top:-3px;font-family:var(--mono);font-size:11px;color:var(--muted);}
   /* With a "Timeline" label above it the list supplies its own separator,
      so the log block drops the rule it normally draws for itself. */
   .sessioncard .glabel.sublabel.tl{border-top:1px solid var(--hair-2);padding-top:10px;}
@@ -427,6 +428,14 @@
       </div>
 
       <div class="setgroup">
+        <div class="glabel">Medication wear-off</div>
+        <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log</small></div>
+          <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
+        <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log</small></div>
+          <div class="field cost wide"><input type="text" id="setRitalinWearOff" placeholder="04:00" maxlength="5"></div></div>
+      </div>
+
+      <div class="setgroup">
         <div class="setbtns"><button class="sbtn ink" id="btnSave">Save settings</button></div>
       </div>
 
@@ -482,6 +491,7 @@
   const dataKey = 'intakeTrackerData';
   const costKey = 'costPerMl';
   const MED_COST_KEY = 'medCostSettings';
+  const WEAR_OFF_KEY = 'medWearOffMinutes';
   const TARGET_KEY = 'targetIntervalMinutes';
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
@@ -492,6 +502,25 @@
 
   let costPerMl = 50;
   let medCost = { 'Concerta 36':55, 'Ritalin 5':20 };
+  // Grouped by drug family, not exact product name, so it still applies if a
+  // different strength (e.g. a future "Ritalin 10" button) gets added later.
+  let medWearOff = { ritalin: 0, concerta: 0 };
+
+  function wearOffMinutesFor(name) {
+    if (/ritalin/i.test(name)) return medWearOff.ritalin || 0;
+    if (/concerta/i.test(name)) return medWearOff.concerta || 0;
+    return 0;
+  }
+
+  function parseHM(str) {
+    const m = (str || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+  }
+
+  function fmtHM(totalMinutes) {
+    if (!(totalMinutes > 0)) return '';
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+  }
   // The taper shape is fixed: 0.1 ml off every 7 days, stopping at 0.1 ml.
   // These were editable settings once; Current dose replaced them, because
   // typing the number you actually want beats describing a formula.
@@ -754,6 +783,11 @@
 
     document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
 
+    const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
+    if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
+    document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
+    document.getElementById('setRitalinWearOff').value = fmtHM(medWearOff.ritalin);
+
     const savedTaper = localStorage.getItem(TAPER_KEY);
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
@@ -781,6 +815,12 @@
     const webhookUrl = (document.getElementById('setWebhookUrl').value || '').trim();
     if (webhookUrl) localStorage.setItem(WEBHOOK_KEY, webhookUrl);
     else localStorage.removeItem(WEBHOOK_KEY);
+
+    medWearOff = {
+      concerta: parseHM(document.getElementById('setConcertaWearOff').value),
+      ritalin: parseHM(document.getElementById('setRitalinWearOff').value),
+    };
+    localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff));
 
     // Only start date and Current dose are editable now; step/interval/floor
     // are constants, and startDose is carried forward (Current dose writes it
@@ -1758,7 +1798,11 @@
       // data-ts/data-kind make each row tappable — same edit sheet History
       // already uses, so a wrong time or ml can be fixed without leaving Log.
       if (isMedEntry(e)) {
-        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>`;
+        const wearOffMin = wearOffMinutesFor(e.name);
+        const wearOffLine = wearOffMin > 0
+          ? `<div class="slwear">Wears off ${fmtTime(e.timestamp + wearOffMin * 60000)}</div>`
+          : '';
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
       }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
