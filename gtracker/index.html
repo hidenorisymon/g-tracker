@@ -513,8 +513,13 @@
   }
 
   function parseHM(str) {
-    const m = (str || '').trim().match(/^(\d{1,2}):(\d{2})$/);
-    return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+    const t = (str || '').trim();
+    const hm = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (hm) return parseInt(hm[1]) * 60 + parseInt(hm[2]);
+    // Bare number ("4", "4.5") is read as hours, so typing what you'd
+    // actually say out loud ("4 hours") works, not just "04:00".
+    const hrs = parseFloat(t);
+    return hrs > 0 ? Math.round(hrs * 60) : 0;
   }
 
   function fmtHM(totalMinutes) {
@@ -736,7 +741,7 @@
     try {
       const data = JSON.parse(localStorage.getItem(dataKey) || '[]');
       const content = JSON.stringify({
-        entries: data, costPerMl, medCost, taperPlan,
+        entries: data, costPerMl, medCost, taperPlan, medWearOff,
         targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null
       }, null, 2);
       await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
@@ -1430,6 +1435,7 @@
         costPerMl = data.costPerMl;
         if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
         if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
+        if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
         if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
         loadSettings();
         await renderLog();
@@ -2037,7 +2043,7 @@
 
   async function exportAsJSON() {
     const data = await getAllData();
-    const exportData = { entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
+    const exportData = { entries: data, costPerMl, medCost, taperPlan, medWearOff, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2064,7 +2070,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -2140,6 +2146,7 @@
       costPerMl = data.costPerMl;
       if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
       if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
+      if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
       if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
       loadSettings();
 
