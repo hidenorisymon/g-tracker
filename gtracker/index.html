@@ -1040,38 +1040,56 @@
   }
 
   // Dismissed doses are remembered by timestamp so an X'd card doesn't come
-  // back on the next render or reload. Pruned to "today" on every read —
-  // that's also what makes a dismissal naturally expire at midnight instead
-  // of needing separate cleanup logic.
-  function getDismissedMedSet() {
+  // back on the next render or reload. cutoffTs drops anything from before
+  // the currently open session — that's what lets a dismissal expire on its
+  // own once the session it belonged to ends, no separate cleanup needed.
+  function getDismissedMedSet(cutoffTs) {
     let list = [];
     try { list = JSON.parse(localStorage.getItem(DISMISSED_MEDS_KEY) || '[]'); } catch (e) {}
-    const kept = list.filter(ts => isToday(new Date(ts)));
+    const kept = cutoffTs != null ? list.filter(ts => ts >= cutoffTs) : [];
     if (kept.length !== list.length) localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify(kept));
     return new Set(kept);
   }
 
   async function dismissMedDose(ts) {
-    const set = getDismissedMedSet();
-    set.add(ts);
-    localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify([...set]));
+    // Appended raw, no pruning here — the next renderActiveMeds() read
+    // prunes against whatever session is open at that point.
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(DISMISSED_MEDS_KEY) || '[]'); } catch (e) {}
+    if (!list.includes(ts)) list.push(ts);
+    localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify(list));
     await renderActiveMeds();
   }
 
-  // Live status card for each med dose taken today, shown under the interval
-  // bar so "is this still active" never needs mental math. Only doses with a
-  // wear-off time set in Settings can show one — there is no "End" to
-  // compute otherwise. Stays up all day once shown; the only way to drop one
-  // before midnight is the X button.
+  // Live status card for each med dose taken during the CURRENT SESSION, shown
+  // under the interval bar so "is this still active" never needs mental math.
+  //
+  // This used to mean calendar day (isToday()), which broke exactly the
+  // doses it was built for: dose a Concerta at 8:46 PM, cross midnight still
+  // awake in the same session, and the card vanished at 12:00 AM with nothing
+  // dismissed and hours still left on it. "Current day" in this app has
+  // always meant the waking session (Day 1, Day 2 elsewhere use the same
+  // boundary, not the calendar) — this now matches that everywhere else.
+  //
+  // Only doses with a wear-off time set in Settings can show one — there is
+  // no "End" to compute otherwise. A card clears itself the moment its
+  // session ends (Sleep Dose), same as adherence and every other per-day
+  // stat in this app; before that, the only way to drop one is the X button.
   async function renderActiveMeds() {
     const wrap = document.getElementById('activeMedsWrap');
     if (!wrap) return;
+    const sessions = await computeSessions();
+    const openSession = sessions.length && sessions[sessions.length - 1].isOpen
+      ? sessions[sessions.length - 1] : null;
+
+    if (!openSession) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+
     const data = await getAllData();
-    const dismissed = getDismissedMedSet();
+    const dismissed = getDismissedMedSet(openSession.startTs);
     const now = Date.now();
     const rows = data
       .filter(isMedEntry)
-      .filter(e => isToday(new Date(e.timestamp)))
+      .filter(e => e.timestamp >= openSession.startTs)
       .filter(e => wearOffMinutesFor(e.name) > 0)
       .filter(e => !dismissed.has(e.timestamp))
       .sort((a, b) => b.timestamp - a.timestamp); // newest taken first, same as the Log timeline
