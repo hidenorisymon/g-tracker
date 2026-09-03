@@ -164,10 +164,11 @@
   .medstatus.st-red{border-left-color:var(--wait);}
   .medstatus .mtext{font-size:12.5px;color:var(--ink-2);min-width:0;}
   .medstatus .mtext b{color:var(--ink);font-weight:700;}
-  .medstatus .mtime{font-family:var(--mono);color:var(--muted);}
-  .medstatus.st-green .mstate{color:var(--green);}
-  .medstatus.st-yellow .mstate{color:var(--amber);}
-  .medstatus.st-red .mstate{color:var(--wait);}
+  .medstatus .mpart{font-family:var(--mono);color:var(--muted);margin-top:2px;}
+  .medstatus .mstate{font-family:var(--sans);font-weight:600;}
+  .medstatus .mstate.st-green{color:var(--green);}
+  .medstatus .mstate.st-yellow{color:var(--amber);}
+  .medstatus .mstate.st-red{color:var(--wait);}
   .medstatus .mdismiss{flex:none;width:24px;height:24px;border-radius:50%;border:none;background:var(--hair-2);color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .medstatus .mdismiss:active{opacity:.6;}
   /* With a "Timeline" label above it the list supplies its own separator,
@@ -278,6 +279,7 @@
       <div class="chips meds">
         <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
         <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
+        <div class="chip c-purple" id="chipRitalin20"><span class="cd bg-purple"></span>Ritalin 20 LA</div>
       </div>
 
       <div class="daynav">
@@ -441,6 +443,8 @@
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 36" value="55" min="0" step="1"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 5</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 5" value="20" min="0" step="1"></div></div>
+        <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 20 LA</div>
+          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 20" value="0" min="0" step="1"></div></div>
       </div>
 
       <div class="setgroup">
@@ -449,6 +453,10 @@
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log</small></div>
           <div class="field cost wide"><input type="text" id="setRitalinWearOff" placeholder="04:00" maxlength="5"></div></div>
+        <div class="setrow"><div class="sk">Ritalin 20 LA · Part 1<small>Immediate-release pulse</small></div>
+          <div class="field cost wide"><input type="text" id="setRitalin20Part1" placeholder="04:00" maxlength="5"></div></div>
+        <div class="setrow"><div class="sk">Ritalin 20 LA · Part 2<small>Delayed-release pulse</small></div>
+          <div class="field cost wide"><input type="text" id="setRitalin20Part2" placeholder="08:00" maxlength="5"></div></div>
       </div>
 
       <div class="setgroup">
@@ -514,19 +522,32 @@
   const WEBHOOK_KEY = 'n8nWebhookUrl';
   const GITHUB_API = 'https://api.github.com';
 
-  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5 };
-  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple' };
+  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
+  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 20':'purple' };
 
   let costPerMl = 50;
-  let medCost = { 'Concerta 36':55, 'Ritalin 5':20 };
+  let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':0 };
   // Grouped by drug family, not exact product name, so it still applies if a
   // different strength (e.g. a future "Ritalin 10" button) gets added later.
-  let medWearOff = { ritalin: 0, concerta: 0 };
+  let medWearOff = { ritalin: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
 
   function wearOffMinutesFor(name) {
     if (/ritalin/i.test(name)) return medWearOff.ritalin || 0;
     if (/concerta/i.test(name)) return medWearOff.concerta || 0;
     return 0;
+  }
+
+  // Ritalin 20 is the LA (long-acting) capsule — immediate-release beads plus
+  // a second, delayed-release pulse, not one flat window like Ritalin 5 or
+  // Concerta. Returns one wear-off duration per pulse: length 2 for Ritalin
+  // 20 once both parts are set, length 1 for every other med, length 0 when
+  // nothing's configured yet (no window to show).
+  function wearOffPartsFor(name) {
+    if (name === 'Ritalin 20') {
+      return [medWearOff.ritalin20Part1, medWearOff.ritalin20Part2].filter(m => m > 0);
+    }
+    const single = wearOffMinutesFor(name);
+    return single > 0 ? [single] : [];
   }
 
   function parseHM(str) {
@@ -809,6 +830,8 @@
     if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
     document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
     document.getElementById('setRitalinWearOff').value = fmtHM(medWearOff.ritalin);
+    document.getElementById('setRitalin20Part1').value = fmtHM(medWearOff.ritalin20Part1);
+    document.getElementById('setRitalin20Part2').value = fmtHM(medWearOff.ritalin20Part2);
 
     const savedTaper = localStorage.getItem(TAPER_KEY);
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
@@ -841,6 +864,8 @@
     medWearOff = {
       concerta: parseHM(document.getElementById('setConcertaWearOff').value),
       ritalin: parseHM(document.getElementById('setRitalinWearOff').value),
+      ritalin20Part1: parseHM(document.getElementById('setRitalin20Part1').value),
+      ritalin20Part2: parseHM(document.getElementById('setRitalin20Part2').value),
     };
     localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff));
 
@@ -1090,7 +1115,7 @@
     const rows = data
       .filter(isMedEntry)
       .filter(e => e.timestamp >= openSession.startTs)
-      .filter(e => wearOffMinutesFor(e.name) > 0)
+      .filter(e => wearOffPartsFor(e.name).length > 0)
       .filter(e => !dismissed.has(e.timestamp))
       .sort((a, b) => b.timestamp - a.timestamp); // newest taken first, same as the Log timeline
 
@@ -1098,14 +1123,28 @@
     wrap.hidden = false;
 
     const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    wrap.innerHTML = rows.map(e => {
-      const endTs = e.timestamp + wearOffMinutesFor(e.name) * 60000;
+    const statusFor = (endTs) => {
       const remainMin = (endTs - now) / 60000;
-      const status = remainMin < 0 ? 'red' : remainMin <= 30 ? 'yellow' : 'green';
-      const stateText = status === 'red' ? 'Lapsed' : status === 'yellow' ? 'Ending soon' : 'Active';
-      return `<div class="medstatus st-${status}" data-ts="${e.timestamp}">
-        <div class="mtext"><b>${escapeHtml(e.name)}</b> · <span class="mstate">${stateText}</span><br>
-        <span class="mtime">Taken ${fmtT(e.timestamp)} – End ${fmtT(endTs)}</span></div>
+      return remainMin < 0 ? 'red' : remainMin <= 30 ? 'yellow' : 'green';
+    };
+    const stateText = (status) => status === 'red' ? 'Lapsed' : status === 'yellow' ? 'Ending soon' : 'Active';
+    const RANK = { green: 0, yellow: 1, red: 2 };
+
+    wrap.innerHTML = rows.map(e => {
+      const parts = wearOffPartsFor(e.name).map((min, i) => {
+        const endTs = e.timestamp + min * 60000;
+        return { endTs, status: statusFor(endTs) };
+      });
+      // One pulse: same layout as before. Two pulses (Ritalin 20 LA): the
+      // card's own left border takes the worse of the two, so a glance at
+      // the edge still says "does this need attention" even before reading
+      // which part.
+      const cardStatus = parts.reduce((worst, p) => RANK[p.status] > RANK[worst] ? p.status : worst, 'green');
+      const body = parts.length > 1
+        ? parts.map((p, i) => `<div class="mpart"><span class="mstate st-${p.status}">${stateText(p.status)}</span> Part ${i + 1} · Taken ${fmtT(e.timestamp)} – End ${fmtT(p.endTs)}</div>`).join('')
+        : `<div class="mpart"><span class="mstate st-${parts[0].status}">${stateText(parts[0].status)}</span> Taken ${fmtT(e.timestamp)} – End ${fmtT(parts[0].endTs)}</div>`;
+      return `<div class="medstatus st-${cardStatus}" data-ts="${e.timestamp}">
+        <div class="mtext"><b>${escapeHtml(e.name)}</b>${body}</div>
         <button class="mdismiss" data-dismiss="${e.timestamp}" aria-label="Dismiss">✕</button>
       </div>`;
     }).join('');
@@ -1556,6 +1595,7 @@
 
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
+    document.getElementById('chipRitalin20').addEventListener('click', () => logMed('Ritalin 20'));
 
     document.getElementById('prevLogDay').addEventListener('click', async () => {
       const sessions = await computeSessions();
@@ -1899,10 +1939,14 @@
       // data-ts/data-kind make each row tappable — same edit sheet History
       // already uses, so a wrong time or ml can be fixed without leaving Log.
       if (isMedEntry(e)) {
-        const wearOffMin = wearOffMinutesFor(e.name);
-        const wearOffLine = wearOffMin > 0
-          ? `<div class="slwear">Wears off ${fmtTime(e.timestamp + wearOffMin * 60000)}</div>`
-          : '';
+        // One part = the old single "Wears off" line. Two parts (Ritalin 20
+        // LA) get one line per pulse, labeled so it's clear they're the same
+        // dose, not two doses.
+        const parts = wearOffPartsFor(e.name);
+        const wearOffLine = parts.map((min, i) => {
+          const label = parts.length > 1 ? `Part ${i + 1} wears off` : 'Wears off';
+          return `<div class="slwear">${label} ${fmtTime(e.timestamp + min * 60000)}</div>`;
+        }).join('');
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
       }
       const kind = doseKind(e);
