@@ -1269,14 +1269,19 @@
   }
 
 
-  // Most recent Rescue ever logged, shown inside the interval box itself —
-  // unscoped by session/day, matching "Since last" right above it in the
-  // same box, which already works the same way. Hidden entirely if no
-  // rescue has ever been logged.
+  // Most recent Rescue since the current anchor (the last real Log/Sleep
+  // dose — same anchor "Since last" above it is measured from). A rescue
+  // taken before that anchor was topping up the PREVIOUS interval, not this
+  // one, so it's cleared the moment a new dose is logged — showing it after
+  // that would read as still-relevant when it no longer is. A new Rescue
+  // still shows immediately; only a fresh Log/Sleep dose clears the slot.
   async function renderLastRescue() {
     const box = document.getElementById('ilastrescue');
     if (!box) return;
-    const rescues = (await getAllData()).filter(e => isDoseEntry(e) && doseKind(e) === 'rescue');
+    const doses = (await getAllData()).filter(isDoseEntry);
+    const anchors = doses.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
+    const anchorTs = anchors.length ? anchors[anchors.length - 1].timestamp : -Infinity;
+    const rescues = doses.filter(e => doseKind(e) === 'rescue' && e.timestamp > anchorTs);
     if (!rescues.length) { box.hidden = true; return; }
     const last = rescues[rescues.length - 1]; // getAllData() is timestamp-sorted
     box.hidden = false;
