@@ -1153,12 +1153,22 @@
     wrap.hidden = false;
 
     const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    const statusFor = (endTs) => {
+    // A part isn't just "active until its end" — Part 2 doesn't start
+    // releasing until RITALIN20_PART2_DELAY_MIN after the dose. Before that,
+    // it hasn't begun yet, so it must not read "Active" — that was the real
+    // bug: from dose time to Part 2's real 4h onset, both parts showed
+    // "Active" together, which is exactly what looked like Part 2 behaving
+    // the same as Part 1.
+    const statusFor = (releaseTs, endTs) => {
+      if (now < releaseTs) return 'pending';
       const remainMin = (endTs - now) / 60000;
       return remainMin < 0 ? 'red' : remainMin <= 30 ? 'yellow' : 'green';
     };
-    const stateText = (status) => status === 'red' ? 'Lapsed' : status === 'yellow' ? 'Ending soon' : 'Active';
-    const RANK = { green: 0, yellow: 1, red: 2 };
+    const stateText = (status) => status === 'red' ? 'Lapsed'
+      : status === 'yellow' ? 'Ending soon'
+      : status === 'pending' ? 'Pending'
+      : 'Active';
+    const RANK = { pending: 0, green: 0, yellow: 1, red: 2 };
 
     wrap.innerHTML = rows.map(e => {
       // "Taken" is when the capsule was swallowed — the same instant for
@@ -1166,17 +1176,28 @@
       // (Part 2 doesn't even start until RITALIN20_PART2_DELAY_MIN later),
       // so Part 2 stops lapsing in lockstep with Part 1.
       const parts = wearOffPartsFor(e.name).map((part) => {
-        const endTs = e.timestamp + (part.startOffsetMin + part.durationMin) * 60000;
-        return { endTs, mg: part.mg, status: statusFor(endTs) };
+        const releaseTs = e.timestamp + part.startOffsetMin * 60000;
+        const endTs = releaseTs + part.durationMin * 60000;
+        return { releaseTs, endTs, mg: part.mg, startOffsetMin: part.startOffsetMin, status: statusFor(releaseTs, endTs) };
       });
       // One pulse: same layout as before. Two pulses (Ritalin 20 LA): the
       // card's own left border takes the worse of the two, so a glance at
       // the edge still says "does this need attention" even before reading
       // which part.
       const cardStatus = parts.reduce((worst, p) => RANK[p.status] > RANK[worst] ? p.status : worst, 'green');
+      // Part 1 releases with the dose, so "Taken" is its own effect start.
+      // A delayed part (Part 2) hasn't started at dose time — "Taken" would
+      // be misleading there, so it reads "Effect <release time>" instead,
+      // per Symon: "instead of taken, is effect: which is 8 PM".
+      const partLine = (p, label) => {
+        const whenLabel = p.startOffsetMin > 0 ? 'Effect' : 'Taken';
+        const whenTs = p.startOffsetMin > 0 ? p.releaseTs : e.timestamp;
+        const prefix = label ? `${label}${p.mg ? ` (${p.mg}mg)` : ''} · ` : '';
+        return `<div class="mpart"><span class="mstate st-${p.status}">${stateText(p.status)}</span> ${prefix}${whenLabel} ${fmtT(whenTs)} – End ${fmtT(p.endTs)}</div>`;
+      };
       const body = parts.length > 1
-        ? parts.map((p, i) => `<div class="mpart"><span class="mstate st-${p.status}">${stateText(p.status)}</span> Part ${i + 1}${p.mg ? ` (${p.mg}mg)` : ''} · Taken ${fmtT(e.timestamp)} – End ${fmtT(p.endTs)}</div>`).join('')
-        : `<div class="mpart"><span class="mstate st-${parts[0].status}">${stateText(parts[0].status)}</span> Taken ${fmtT(e.timestamp)} – End ${fmtT(parts[0].endTs)}</div>`;
+        ? parts.map((p, i) => partLine(p, `Part ${i + 1}`)).join('')
+        : partLine(parts[0], '');
       return `<div class="medstatus st-${cardStatus}" data-ts="${e.timestamp}">
         <div class="mtext"><b>${escapeHtml(e.name)}</b>${body}</div>
         <button class="mdismiss" data-dismiss="${e.timestamp}" aria-label="Dismiss">✕</button>
