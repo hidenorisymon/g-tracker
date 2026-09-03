@@ -1109,12 +1109,25 @@
 
     if (!openSession) { wrap.hidden = true; wrap.innerHTML = ''; return; }
 
-    const data = await getAllData();
-    const dismissed = getDismissedMedSet(openSession.startTs);
+    // Reads openSession.timeline rather than re-filtering getAllData() by
+    // e.timestamp >= openSession.startTs — that independent boundary is what
+    // silently dropped a med edited to a time just before Wake Up. timeline
+    // already carries the corrected, single-source-of-truth assignment from
+    // computeSessions(), so this can't drift out of sync with it again.
+    // Same lower bound computeSessions() uses for this session: the
+    // previous session's end when there is one (so a dismissal made in the
+    // pre-Wake-Up gap doesn't get pruned away and quietly resurrect that
+    // card), otherwise this session's own startTs — matching the "first
+    // session keeps the strict bound" rule so old dismissals don't linger
+    // forever unpruned.
+    const prevSession = sessions.length > 1 ? sessions[sessions.length - 2] : null;
+    const dismissCutoff = prevSession
+      ? (prevSession.endTs != null ? prevSession.endTs : -Infinity)
+      : openSession.startTs;
+    const dismissed = getDismissedMedSet(dismissCutoff);
     const now = Date.now();
-    const rows = data
+    const rows = openSession.timeline
       .filter(isMedEntry)
-      .filter(e => e.timestamp >= openSession.startTs)
       .filter(e => wearOffPartsFor(e.name).length > 0)
       .filter(e => !dismissed.has(e.timestamp))
       .sort((a, b) => b.timestamp - a.timestamp); // newest taken first, same as the Log timeline
@@ -1884,7 +1897,18 @@
       const sleepMl = s.sleeps.reduce((sum, e) => sum + e.ml, 0);
       const rescueCount = s.rescues.length;
       const rescueMl = s.rescues.reduce((sum, e) => sum + e.ml, 0);
-      const medsInSession = meds.filter(m => m.timestamp >= s.startTs && m.timestamp < endTs + 1);
+      // A med strictly before s.startTs used to be dropped from every
+      // session — invisible in Log/Taper, still sitting in storage. Real
+      // case: Wake Up logged at 4:01 PM, a Ritalin dose corrected to 4:00 PM
+      // (one minute earlier, same "getting up" moment) fell in the gap and
+      // vanished. For every session but the first, the lower bound is now
+      // the PREVIOUS session's own end — meds taken while getting ready for
+      // the day belong to the day that's starting. The first session keeps
+      // the original strict startTs bound: there is no previous session to
+      // measure that gap from, and widening it to -Infinity would sweep in
+      // arbitrary pre-feature history instead of just "getting ready" time.
+      const prevEndTs = i > 0 ? (sessions[i - 1].endTs != null ? sessions[i - 1].endTs : -Infinity) : null;
+      const medsInSession = meds.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
       const isRitalin = m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20';
       const isConcerta = m => m.name === 'Concerta 27' || m.name === 'Concerta 36';
       const ritalinMg = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.mg || 0), 0);
