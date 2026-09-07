@@ -232,6 +232,11 @@
   .modal-btn-save{background:var(--ink);color:#fff;}
   .modal-btn-delete{width:100%;margin-top:10px;height:42px;border-radius:12px;background:none;cursor:pointer;border:1px solid var(--orange);color:var(--orange);font-size:13px;font-weight:600;font-family:var(--sans);}
   .modal-btn-delete.confirm{background:var(--orange);color:#fff;}
+  .trigger-sub{font-size:12.5px;color:var(--muted);margin:-10px 0 16px;}
+  .trigger-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .trigger-opt{padding:14px 10px;border-radius:12px;border:1px solid var(--hair);background:var(--app);color:var(--ink);font-size:13.5px;font-weight:600;font-family:var(--sans);cursor:pointer;text-align:center;}
+  .trigger-opt:active{opacity:.6;background:var(--hair-2);}
+  .trigger-opt.wide{grid-column:1 / -1;}
 
   .bg-blue{background:var(--blue);} .bg-green{background:var(--green);} .bg-teal{background:var(--teal);}
   .bg-amber{background:var(--amber);} .bg-orange{background:var(--orange);} .bg-purple{background:var(--purple);} .bg-grey{background:var(--grey);}
@@ -513,6 +518,23 @@
       </div>
     </div>
 
+    <!-- ============ TRIGGER PROMPT ============ -->
+    <div class="modal-overlay" id="triggerModal" hidden>
+      <div class="modal-sheet">
+        <div class="modal-title">What led to this dose?</div>
+        <div class="trigger-sub">Tap one — you can skip this</div>
+        <div class="trigger-grid">
+          <button class="trigger-opt" data-trigger="stress">Stress</button>
+          <button class="trigger-opt" data-trigger="cognitive_load">Cognitive load</button>
+          <button class="trigger-opt" data-trigger="call">Call</button>
+          <button class="trigger-opt" data-trigger="socialization">Socialization</button>
+          <button class="trigger-opt" data-trigger="physical_exertion">Physical exertion</button>
+          <button class="trigger-opt wide" data-trigger="none">None / unclear</button>
+        </div>
+        <button class="modal-btn-cancel" id="triggerSkip" style="width:100%">Skip</button>
+      </div>
+    </div>
+
     <div class="toast" id="toast"></div>
   </div>
 
@@ -524,6 +546,10 @@
   const WEAR_OFF_KEY = 'medWearOffMinutes';
   const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
   const TARGET_KEY = 'targetIntervalMinutes';
+  const TRIGGER_LABELS = {
+    stress: 'Stress', cognitive_load: 'Cognitive load', call: 'Call',
+    socialization: 'Socialization', physical_exertion: 'Physical exertion', none: 'None / unclear',
+  };
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
   const GITHUB_API = 'https://api.github.com';
@@ -1004,7 +1030,21 @@
     } else if (!(ml > 0)) { showToast('Enter a valid ml amount'); return; }
     const resolvedTs = ts || Date.now();
     const data = await getAllData();
-    data.push({ timestamp: resolvedTs, ml, type: kind });
+
+    // A Log Dose counts as "early" if it lands before the scheduled interval
+    // since the last real dose (log/sleep) has elapsed — checked against the
+    // data as it stood BEFORE this entry, i.e. the schedule this dose is
+    // either keeping or breaking. Rescue is always off-schedule by
+    // definition, so it always qualifies regardless of timing.
+    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
+    const priorAnchors = data.filter(e => isDoseEntry(e) && (doseKind(e) === 'log' || doseKind(e) === 'sleep') && e.timestamp < resolvedTs);
+    const priorAnchorTs = priorAnchors.length ? priorAnchors[priorAnchors.length - 1].timestamp : null;
+    const isEarly = targetMinutes > 0 && priorAnchorTs != null && (resolvedTs - priorAnchorTs) < targetMinutes * 60000;
+    const needsTrigger = kind === 'rescue' || (kind === 'log' && isEarly);
+
+    const entry = { timestamp: resolvedTs, ml, type: kind };
+    if (kind === 'log' || kind === 'rescue') entry.trigger = null;
+    data.push(entry);
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     if (kind === 'wake') localStorage.setItem(SESSION_KEY, 'true');
@@ -1017,7 +1057,35 @@
     else if (kind === 'rescue') showToast(`🆘 Rescue ${fmtMl(ml)} ml logged`);
     else showToast(`${kind === 'sleep' ? '🌙 Sleep dose' : '✓'} ${fmtMl(ml)} ml logged`);
     logDayIdx = null; // jump back to the live session after logging
+    // The dose is already saved above — the trigger prompt only annotates it
+    // afterward and never gates or delays the save itself.
     await paintRing();
+    await renderLog();
+    if (needsTrigger) openTriggerModal(resolvedTs);
+  }
+
+  // ===== Trigger prompt (Rescue, or an early Log Dose) =====
+  let triggerModalTs = null;
+
+  function openTriggerModal(ts) {
+    triggerModalTs = ts;
+    document.getElementById('triggerModal').hidden = false;
+  }
+
+  function closeTriggerModal() {
+    document.getElementById('triggerModal').hidden = true;
+    triggerModalTs = null;
+  }
+
+  async function saveTriggerSelection(trigger) {
+    const ts = triggerModalTs;
+    closeTriggerModal();
+    if (ts == null) return;
+    const data = await getAllData();
+    const entry = data.find(e => e.timestamp === ts);
+    if (!entry) return;
+    entry.trigger = trigger;
+    saveData(data);
     await renderLog();
   }
 
@@ -1718,6 +1786,12 @@
     document.getElementById('editDeleteBtn').addEventListener('click', handleDeleteClick);
     document.getElementById('entryEditModal').addEventListener('click', (e) => { if (e.target.id === 'entryEditModal') closeEntryEdit(); });
 
+    document.querySelectorAll('.trigger-opt').forEach(btn => {
+      btn.addEventListener('click', () => saveTriggerSelection(btn.dataset.trigger));
+    });
+    document.getElementById('triggerSkip').addEventListener('click', closeTriggerModal);
+    document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') closeTriggerModal(); });
+
     document.querySelectorAll('#periodSeg button').forEach(b => b.addEventListener('click', () => {
       document.querySelectorAll('#periodSeg button').forEach(x => x.classList.remove('on'));
       b.classList.add('on');
@@ -1979,6 +2053,15 @@
       const concertaCost = medsInSession.filter(isConcerta).reduce((sum, m) => sum + (m.cost || 0), 0);
       const totalDailyMl = logMl + sleepMl + rescueMl;
       const mlCost = totalDailyMl * costPerMl;
+      // Counts per trigger category across every Rescue and Log entry this
+      // session that got answered — an entry with trigger:null (skipped
+      // prompt) or no trigger field at all (pre-feature history, or a
+      // legacy import) contributes nothing, so the breakdown only ever
+      // reflects what was actually answered.
+      const triggerCounts = {};
+      [...s.logs, ...s.rescues].forEach(e => {
+        if (e.trigger) triggerCounts[e.trigger] = (triggerCounts[e.trigger] || 0) + 1;
+      });
       // Bookend entries plus meds, shown in the per-session log list for
       // context — kept separate from the type:'log'-only entries used for
       // adherence. Meds are included so their times are visible here too.
@@ -1990,6 +2073,7 @@
         logMl, sleepMl, rescueCount, rescueMl, totalDailyMl,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
+        triggerCounts,
         timeline
       };
     });
@@ -2019,6 +2103,15 @@
         ${s.ritalinMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}</span></div>` : ''}
         ${s.concertaMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>` : ''}
         <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} mg · ${fmtPeso(medsCost)}</span></div>
+      </div>` : '';
+    // Counts, not a list of entries — the point is spotting a pattern across
+    // days (e.g. "Stress" keeps showing up) without reading every row.
+    // Hidden entirely when nothing was ever answered this session.
+    const triggerEntries = Object.entries(s.triggerCounts || {}).sort((a, b) => b[1] - a[1]);
+    const triggerBlock = triggerEntries.length ? `
+      <div class="glabel sublabel">Triggers</div>
+      <div class="sstats">
+        ${triggerEntries.map(([key, count]) => `<div class="brow"><span class="bk">${TRIGGER_LABELS[key] || key}</span><span class="bv">${count}×</span></div>`).join('')}
       </div>` : '';
     const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
     const logsHtml = rows.map(e => {
@@ -2058,6 +2151,7 @@
         ${rescueRow}
       </div>
       ${medsBlock}
+      ${triggerBlock}
 
       <div class="sstats grandrow">
         <div class="brow total"><span class="bk">Total cost</span><span class="bv">${fmtPeso(s.grandCost)}</span></div>
