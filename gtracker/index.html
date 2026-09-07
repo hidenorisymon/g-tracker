@@ -2053,18 +2053,11 @@
       const concertaCost = medsInSession.filter(isConcerta).reduce((sum, m) => sum + (m.cost || 0), 0);
       const totalDailyMl = logMl + sleepMl + rescueMl;
       const mlCost = totalDailyMl * costPerMl;
-      // Counts per trigger category across every Rescue and Log entry this
-      // session that got answered — an entry with trigger:null (skipped
-      // prompt) or no trigger field at all (pre-feature history, or a
-      // legacy import) contributes nothing, so the breakdown only ever
-      // reflects what was actually answered.
-      const triggerCounts = {};
-      [...s.logs, ...s.rescues].forEach(e => {
-        if (e.trigger) triggerCounts[e.trigger] = (triggerCounts[e.trigger] || 0) + 1;
-      });
       // Bookend entries plus meds, shown in the per-session log list for
       // context — kept separate from the type:'log'-only entries used for
       // adherence. Meds are included so their times are visible here too.
+      // Each entry's own `trigger` field (if any) rides along here and is
+      // rendered inline on its row in sessionCardHtml — not aggregated.
       const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
@@ -2073,7 +2066,6 @@
         logMl, sleepMl, rescueCount, rescueMl, totalDailyMl,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
-        triggerCounts,
         timeline
       };
     });
@@ -2104,15 +2096,6 @@
         ${s.concertaMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>` : ''}
         <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} mg · ${fmtPeso(medsCost)}</span></div>
       </div>` : '';
-    // Counts, not a list of entries — the point is spotting a pattern across
-    // days (e.g. "Stress" keeps showing up) without reading every row.
-    // Hidden entirely when nothing was ever answered this session.
-    const triggerEntries = Object.entries(s.triggerCounts || {}).sort((a, b) => b[1] - a[1]);
-    const triggerBlock = triggerEntries.length ? `
-      <div class="glabel sublabel">Triggers</div>
-      <div class="sstats">
-        ${triggerEntries.map(([key, count]) => `<div class="brow"><span class="bk">${TRIGGER_LABELS[key] || key}</span><span class="bv">${count}×</span></div>`).join('')}
-      </div>` : '';
     const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
     const logsHtml = rows.map(e => {
       // data-ts/data-kind make each row tappable — same edit sheet History
@@ -2132,8 +2115,11 @@
       }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
+      // The trigger answer rides on its own dose row as a normal part of the
+      // log line — not a separate summary elsewhere on the card.
+      const triggerTag = e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '';
       const amt = kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`;
-      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}</span><span>${amt}</span></div>`;
+      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}${triggerTag}</span><span>${amt}</span></div>`;
     }).join('');
     return `<div class="sessioncard">
       <div class="shead">
@@ -2151,7 +2137,6 @@
         ${rescueRow}
       </div>
       ${medsBlock}
-      ${triggerBlock}
 
       <div class="sstats grandrow">
         <div class="brow total"><span class="bk">Total cost</span><span class="bv">${fmtPeso(s.grandCost)}</span></div>
