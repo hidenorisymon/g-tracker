@@ -526,8 +526,8 @@
         <div class="trigger-grid">
           <button class="trigger-opt" data-trigger="stress">Stress</button>
           <button class="trigger-opt" data-trigger="cognitive_load">Cognitive load</button>
-          <button class="trigger-opt" data-trigger="call">Call</button>
-          <button class="trigger-opt" data-trigger="socialization">Socialization</button>
+          <button class="trigger-opt" data-trigger="call_socialization">Call / Socialization</button>
+          <button class="trigger-opt" data-trigger="pre_post_eat">Pre/Post Eat</button>
           <button class="trigger-opt" data-trigger="physical_exertion">Physical exertion</button>
           <button class="trigger-opt" data-trigger="none">None / unclear</button>
         </div>
@@ -547,8 +547,13 @@
   const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
   const TARGET_KEY = 'targetIntervalMinutes';
   const TRIGGER_LABELS = {
-    stress: 'Stress', cognitive_load: 'Cognitive load', call: 'Call',
-    socialization: 'Socialization', physical_exertion: 'Physical exertion', none: 'None / unclear',
+    stress: 'Stress', cognitive_load: 'Cognitive load',
+    call_socialization: 'Call / Socialization', pre_post_eat: 'Pre/Post Eat',
+    physical_exertion: 'Physical exertion', none: 'None / unclear',
+    // Legacy keys from before Call and Socialization were merged into one
+    // option — kept so any entry already tagged that way still shows a real
+    // label instead of the raw stored key.
+    call: 'Call', socialization: 'Socialization',
   };
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
