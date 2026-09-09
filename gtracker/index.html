@@ -32,6 +32,8 @@
   html{touch-action:pan-y;-webkit-text-size-adjust:100%;}
   body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:pan-y;}
   .phone{width:100%;max-width:432px;margin:0 auto;background:var(--app);min-height:100vh;display:flex;flex-direction:column;}
+  .updatebar{display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 14px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:500;}
+  .updatebar button{background:#fff;color:var(--ink);border:none;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;font-family:var(--sans);cursor:pointer;}
   .scroll{padding:14px 24px 40px;}
 
   .top{display:flex;align-items:center;justify-content:space-between;flex:none;
@@ -209,6 +211,7 @@
   .sbtn.ink{background:var(--ink);color:#fff;border-color:var(--ink);justify-content:center;}
   .sbtn.ink:hover{background:#000;}
   .sbtn.danger{color:var(--warning,#C4611E);} .sbtn.danger svg{color:inherit;}
+  .sbtn.danger.confirm{background:var(--warning,#C4611E);color:#fff;border-color:var(--warning,#C4611E);}
   .setnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin:8px 2px 0;}
 
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
@@ -245,8 +248,14 @@
   @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
 </style>
 </head>
+<!-- APP_VERSION: 2026-09-10T0053 -->
 <body>
   <div class="phone">
+
+    <div class="updatebar" id="updateBar" hidden>
+      <span>Update available</span>
+      <button id="updateBarBtn">Tap to refresh</button>
+    </div>
 
     <div class="top">
       <div class="brand"><span class="dot"></span>G&nbsp;Tracker</div>
@@ -480,6 +489,7 @@
           <button class="sbtn" data-act="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Bulk import entries</button>
           <button class="sbtn" data-act="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export as JSON</button>
         </div>
+        <button class="sbtn danger" id="btnFixMondayEntries" data-act="fixmonday" hidden style="margin-top:10px;width:100%;">Fix 16 Monday step-down entries (0.7→0.8 ml)</button>
       </div>
 
       <div class="setgroup">
@@ -885,6 +895,7 @@
     document.getElementById('setTaperStart').value = taperPlan.start || '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
+    refreshMondayFixButton();
   }
 
   async function saveSettings() {
@@ -1676,6 +1687,29 @@
   }
 
   // ===== Init =====
+  // Detects a stale open tab — the recurring cause of "I fixed it but it's
+  // still not showing" reports. Fetches the live index.html bypassing every
+  // cache (browser HTTP cache AND the service worker both key off this same
+  // network request, so a plain cache:'no-store' fetch skips both) and
+  // compares its APP_VERSION comment to this page's own. A mismatch means a
+  // newer deploy exists that this tab hasn't loaded — reload picks it up.
+  const CURRENT_APP_VERSION = (() => {
+    const m = document.documentElement.outerHTML.match(/APP_VERSION:\s*([\d\-T]+)\s*-->/);
+    return m ? m[1] : null;
+  })();
+
+  async function checkForUpdate() {
+    if (!CURRENT_APP_VERSION) return;
+    try {
+      const res = await fetch(location.href, { cache: 'no-store' });
+      const html = await res.text();
+      const m = html.match(/APP_VERSION:\s*([\d\-T]+)\s*-->/);
+      if (m && m[1] !== CURRENT_APP_VERSION) {
+        document.getElementById('updateBar').hidden = false;
+      }
+    } catch (e) {}
+  }
+
   async function init() {
     loadSettings();
     updateStamp();
@@ -1685,6 +1719,11 @@
     await renderLog();
     await paintRing();
     setupListeners();
+
+    checkForUpdate();
+    setInterval(checkForUpdate, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+    document.getElementById('updateBarBtn').addEventListener('click', () => location.reload());
 
     // Auto-backup to GitHub every 30 min (only if token + gistId already set)
     setInterval(async () => {
@@ -1866,11 +1905,57 @@
           gistId = null;
           showToast('GitHub token cleared');
         }
+        else if (act === 'fixmonday') fixMondayStepdownEntries();
       });
     });
   }
 
   // ===== Copy log to clipboard =====
+  // One-time correction for a real, identified data artifact: the automatic
+  // weekly step-down (Current dose, every Monday) landed several doses at
+  // 0.7 ml before Symon got to manually override it back to 0.8 that same
+  // day — confirmed against his real history (Aug 24, Aug 31, Sep 7). Fixed
+  // by exact timestamp, not by a generic "any 0.7 ml entry" rule, so a
+  // deliberate half-step dose he takes on purpose is never touched.
+  const MONDAY_STEPDOWN_TS = [
+    1787523905664, 1788105838486, 1788115090826, 1788122432034, 1788131073511,
+    1788136844421, 1788144708968, 1788156767123, 1788164411500, 1788714163745,
+    1788720429221, 1788727225554, 1788731528279, 1788735316080, 1788740930824,
+    1788746586193,
+  ];
+  const MONDAY_FIX_DONE_KEY = 'mondayStepdownFixApplied';
+
+  function refreshMondayFixButton() {
+    const btn = document.getElementById('btnFixMondayEntries');
+    if (!btn) return;
+    btn.hidden = !!localStorage.getItem(MONDAY_FIX_DONE_KEY);
+    btn.textContent = 'Fix 16 Monday step-down entries (0.7→0.8 ml)';
+    btn.classList.remove('confirm');
+  }
+
+  async function fixMondayStepdownEntries() {
+    const btn = document.getElementById('btnFixMondayEntries');
+    if (!btn.classList.contains('confirm')) {
+      btn.classList.add('confirm');
+      btn.textContent = 'Confirm — change these 16 to 0.8 ml?';
+      return;
+    }
+    const data = await getAllData();
+    let fixed = 0;
+    data.forEach(e => {
+      if (e.type === 'log' && MONDAY_STEPDOWN_TS.includes(e.timestamp) && Math.abs(e.ml - 0.7) < 0.001) {
+        e.ml = 0.8;
+        fixed++;
+      }
+    });
+    saveData(data);
+    localStorage.setItem(MONDAY_FIX_DONE_KEY, 'true');
+    refreshMondayFixButton();
+    showToast(`✓ Fixed ${fixed} entr${fixed === 1 ? 'y' : 'ies'} to 0.8 ml`);
+    await paintRing();
+    await renderLog();
+  }
+
   function fallbackCopy(text) {
     const ta = document.createElement('textarea');
     ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
