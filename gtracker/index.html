@@ -821,7 +821,15 @@
   // Fire-and-forget gist push so external tools (e.g. an n8n "ready to dose"
   // notifier) see the latest dose within seconds, not just on the hourly
   // auto-backup. No-ops silently if backup was never set up.
-  async function silentBackupToGitHub() {
+  // The dose reminder workflow trusts this backup completely — it has no
+  // other way to know a dose was logged. A single dropped request (a phone
+  // locking mid-upload right after dosing, a network blip) used to fail
+  // silently and leave the reminder blind to a real dose for however long
+  // until the next 30-min auto-backup, nagging the whole time. Confirmed
+  // against a real gap: a 4:36 AM dose that never reached the backup, still
+  // missing an hour later. Retries a couple of times before giving up.
+  async function silentBackupToGitHub(attempt) {
+    attempt = attempt || 1;
     const token = localStorage.getItem('githubToken');
     const savedGistId = localStorage.getItem('gistId');
     if (!token || !savedGistId) return;
@@ -831,12 +839,15 @@
         entries: data, costPerMl, medCost, taperPlan, medWearOff,
         targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null
       }, null, 2);
-      await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
+      const res = await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
         method: 'PATCH',
         headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: { 'g-tracker-data.json': { content } } })
       });
-    } catch (e) {}
+      if (!res.ok && attempt < 3) setTimeout(() => silentBackupToGitHub(attempt + 1), 3000);
+    } catch (e) {
+      if (attempt < 3) setTimeout(() => silentBackupToGitHub(attempt + 1), 3000);
+    }
   }
 
   async function getDataForDate(date) {
@@ -1688,6 +1699,13 @@
     await renderLog();
     await paintRing();
     setupListeners();
+
+    // A phone locking or the app backgrounding right after logging a dose
+    // can kill that dose's backup mid-upload — the exact failure that left
+    // the reminder workflow nagging over an undelivered dose. Reopening the
+    // app is the natural moment to catch that up, well before the 30-min
+    // auto-backup timer would.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) silentBackupToGitHub(); });
 
     // Auto-backup to GitHub every 30 min (only if token + gistId already set)
     setInterval(async () => {
