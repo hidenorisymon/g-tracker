@@ -483,7 +483,6 @@
           <button class="sbtn" data-act="import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Bulk import entries</button>
           <button class="sbtn" data-act="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export as JSON</button>
         </div>
-        <button class="sbtn danger" id="btnFixMondayEntries" data-act="fixmonday" hidden style="margin-top:10px;width:100%;">Fix 16 Monday step-down entries (0.7→0.8 ml)</button>
       </div>
 
       <div class="setgroup">
@@ -902,7 +901,6 @@
     document.getElementById('setTaperStart').value = taperPlan.start || '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
-    refreshMondayFixButton();
   }
 
   async function saveSettings() {
@@ -1919,56 +1917,11 @@
           localStorage.removeItem('githubToken');
           showToast('GitHub token cleared — next backup will ask for a new one');
         }
-        else if (act === 'fixmonday') fixMondayStepdownEntries();
       });
     });
   }
 
   // ===== Copy log to clipboard =====
-  // One-time correction for a real, identified data artifact: the automatic
-  // weekly step-down (Current dose, every Monday) landed several doses at
-  // 0.7 ml before Symon got to manually override it back to 0.8 that same
-  // day — confirmed against his real history (Aug 24, Aug 31, Sep 7). Fixed
-  // by exact timestamp, not by a generic "any 0.7 ml entry" rule, so a
-  // deliberate half-step dose he takes on purpose is never touched.
-  const MONDAY_STEPDOWN_TS = [
-    1787523905664, 1788105838486, 1788115090826, 1788122432034, 1788131073511,
-    1788136844421, 1788144708968, 1788156767123, 1788164411500, 1788714163745,
-    1788720429221, 1788727225554, 1788731528279, 1788735316080, 1788740930824,
-    1788746586193,
-  ];
-  const MONDAY_FIX_DONE_KEY = 'mondayStepdownFixApplied';
-
-  function refreshMondayFixButton() {
-    const btn = document.getElementById('btnFixMondayEntries');
-    if (!btn) return;
-    btn.hidden = !!localStorage.getItem(MONDAY_FIX_DONE_KEY);
-    btn.textContent = 'Fix 16 Monday step-down entries (0.7→0.8 ml)';
-    btn.classList.remove('confirm');
-  }
-
-  async function fixMondayStepdownEntries() {
-    const btn = document.getElementById('btnFixMondayEntries');
-    if (!btn.classList.contains('confirm')) {
-      btn.classList.add('confirm');
-      btn.textContent = 'Confirm — change these 16 to 0.8 ml?';
-      return;
-    }
-    const data = await getAllData();
-    let fixed = 0;
-    data.forEach(e => {
-      if (e.type === 'log' && MONDAY_STEPDOWN_TS.includes(e.timestamp) && Math.abs(e.ml - 0.7) < 0.001) {
-        e.ml = 0.8;
-        fixed++;
-      }
-    });
-    saveData(data);
-    localStorage.setItem(MONDAY_FIX_DONE_KEY, 'true');
-    refreshMondayFixButton();
-    showToast(`✓ Fixed ${fixed} entr${fixed === 1 ? 'y' : 'ies'} to 0.8 ml`);
-    await paintRing();
-    await renderLog();
-  }
 
   function fallbackCopy(text) {
     const ta = document.createElement('textarea');
