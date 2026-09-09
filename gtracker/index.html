@@ -7,24 +7,32 @@
 
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="G Tracker">
-<meta name="theme-color" content="#FBFBF9">
+<meta name="theme-color" content="#101113">
 <link rel="manifest" href="manifest.json">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- No web fonts on purpose: PH mobile networks block fonts.googleapis.com
+     often enough that the app used to render in a fallback font anyway, after
+     a delay. System stacks below look native and can never fail to load. -->
 <style>
+  /* Dark theme. Each colour is listed twice on purpose: the short names
+     (--card, --line, --txt, --amb …) are what the redesigned Log screen uses,
+     the long ones (--surface, --hair, --ink, --amber …) are what History,
+     Taper and Settings already reference. Both point at the same value, so
+     the whole app re-themes from this one block. */
   :root{
-    --bg:#EDEDEA; --app:#FBFBF9; --surface:#FFFFFF;
-    --ink:#141414; --ink-2:#5C5C58; --muted:#9A9A94;
-    --hair:#ECECE8; --hair-2:#F3F3EF;
-    --blue:#2F6BFF; --green:#12A67B; --teal:#0E7C8B;
-    --amber:#D8912E; --orange:#C4611E; --purple:#7A5AF8; --grey:#9A9A94;
-    --wait:#DC2626; --ready:#12A67B;
-    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    --mono:'JetBrains Mono',ui-monospace,'SF Mono',monospace;
+    --bg:#101113; --app:#101113; --surface:#1a1c1f; --card:#1a1c1f;
+    --ink:#ececec; --txt:#ececec;
+    --ink-2:#c9ccd1; --txt2:#c9ccd1;
+    --muted:#8b8e94; --mut:#8b8e94; --mut2:#7a7d82; --neutral:#5a5e66;
+    --hair:#26282c; --line:#26282c; --hair-2:#1e2023; --line2:#1e2023;
+    --blue:#6f8fd8; --green:#34d399; --grn:#34d399; --teal:#5fb3c4;
+    --amber:#f0b35e; --amb:#f0b35e; --orange:#e0956b; --org:#e0956b;
+    --purple:#a78bfa; --pur:#a78bfa; --grey:#8b8e94;
+    --wait:#e05c5c; --red:#e05c5c; --ready:#34d399;
+    --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
+    --mono:'SF Mono',ui-monospace,Menlo,monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;}
@@ -47,33 +55,79 @@
 
   .view{display:none;} .view.on{display:block;}
 
-  /* interval */
-  .interval{padding:15px 18px 16px;border:1px solid var(--hair);border-radius:16px;background:var(--surface);margin-bottom:22px;}
-  .irow{display:flex;align-items:stretch;}
-  .istat{flex:1;}
-  .ieyebrow{font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--wait);margin-bottom:4px;transition:color .5s;}
-  .ieyebrow.neutral{color:var(--muted);}
-  .ireadout{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.01em;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;}
-  .idiv{width:1px;background:var(--hair);margin:2px 18px;}
-  .ibar{height:5px;border-radius:3px;background:var(--hair-2);margin-top:15px;overflow:hidden;}
-  .ifill{height:100%;width:0;background:var(--wait);border-radius:3px;transition:width .9s cubic-bezier(.4,0,.2,1),background .5s ease;}
-  .ilastrescue{display:flex;align-items:baseline;justify-content:space-between;margin-top:13px;padding-top:13px;border-top:1px solid var(--hair-2);}
-  .ilastrescue .ireadout.small{font-size:14px;color:var(--amber);}
-  .ready .ieyebrow:not(.neutral){color:var(--ready);}
-  .ready .ifill{background:var(--ready);}
-  #readout{color:var(--wait);transition:color .4s;}
-  .ready #readout{color:var(--ready);}
+  /* ===== HERO: stats + Log Dose on the left, countdown dial on the right ===== */
+  .hero{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+  .heroL{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
+  .hstat{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:8px 11px;}
+  .hstat .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:2px;}
+  .hstat .v{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .hstat .v.amb{color:var(--amb);}
+  .primary{width:100%;height:40px;border-radius:11px;border:none;background:#ececec;color:#101113;
+    font-size:13px;font-weight:700;font-family:var(--sans);cursor:pointer;transition:.16s;}
+  .primary:active{opacity:.85;}
+
+  /* r=70 → circumference 2πr = 439.82, which is the dasharray every offset
+     below is a fraction of. Rotated -90° so the arc starts at 12 o'clock. */
+  .dial{position:relative;width:152px;height:152px;flex:none;}
+  .dial svg{transform:rotate(-90deg);}
+  .dial .track{fill:none;stroke:var(--line);stroke-width:8;}
+  .dial .fill{fill:none;stroke:var(--neutral);stroke-width:8;stroke-linecap:round;
+    stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
+  .dial .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .dial .in .lbl{font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:2px;}
+  .dial .in .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;}
+  #dial.ready .fill{stroke:var(--grn);}
+  #dial.ready .lbl,#dial.ready .big{color:var(--grn);}
   @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
   #readout .bl,#since .bl{animation:blink 1s infinite;}
-  .ready #readout .bl{animation:none;opacity:1;}
+  #dial.ready #readout .bl{animation:none;opacity:1;}
+
+  /* ===== ACTIVE MEDICATION ROWS ===== */
+  /* Outer .amed only clips; the sliding .body carries the visible card, so a
+     swipe reveals the Remove action underneath it. */
+  .ameds{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .ameds[hidden]{display:none;}
+  .amed{position:relative;border-radius:11px;overflow:hidden;}
+  .amed .remove{position:absolute;top:0;right:0;bottom:0;width:104px;display:flex;align-items:center;justify-content:flex-end;
+    padding-right:16px;background:var(--red);color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;}
+  .amed .body{position:relative;background:var(--card);border:1px solid var(--line);border-radius:11px;
+    border-left:3px solid var(--neutral);padding:8px 11px 9px;transition:transform .2s ease;touch-action:pan-y;}
+  .amed.revealed .body{transform:translateX(-84px);}
+  /* Only the drug name may be clipped. The status word and the "ends … left"
+     readout are the two things worth reading at a glance, so both are flex:none. */
+  .amed .row1{display:flex;align-items:baseline;margin-bottom:6px;flex-wrap:nowrap;}
+  .amed .nm{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .amed .nm .part{color:var(--mut);font-weight:500;}
+  .amed .st{font-size:10px;font-weight:700;letter-spacing:.6px;margin-left:6px;flex:none;text-transform:uppercase;}
+  .amed .off{font-size:11px;color:var(--mut);text-align:right;white-space:nowrap;flex:none;margin-left:auto;padding-left:8px;}
+  .amed .off b{font-family:var(--mono);color:var(--txt2);font-weight:600;}
+  .amed .pbar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;}
+  .amed .pbar i{display:block;height:100%;border-radius:2px;background:var(--neutral);transition:width 1s linear;}
+  .amed.ok .body{border-left-color:var(--grn);}
+  .amed.ok .st{color:var(--grn);} .amed.ok .pbar i{background:var(--grn);opacity:.75;}
+  .amed.soon .body{border-left-color:var(--amb);}
+  .amed.soon .st{color:var(--amb);} .amed.soon .pbar i{background:var(--amb);opacity:.8;}
+  .amed.lapsed .body{border-left-color:var(--red);}
+  /* Dim the CONTENT, never the body: the body's background is what hides the
+     Remove action sitting underneath it. */
+  .amed.lapsed .row1{opacity:.75;}
+  .amed.lapsed .st{color:var(--red);} .amed.lapsed .pbar i{background:var(--red);opacity:.7;}
+  .amed.pending .st{color:var(--mut);}
+  .amed.leaving{opacity:0;transition:opacity .3s ease;}
+
+  /* ===== SECONDARY ACTIONS + MEDICATION PILLS ===== */
+  .btnrow{display:flex;gap:8px;margin-bottom:8px;}
+  .btnrow button{height:38px;border-radius:11px;font-family:var(--sans);cursor:pointer;transition:.16s;}
+  .btnrow button:active{opacity:.65;}
+  .btnrow .rescue{flex:1.2;background:transparent;border:1.5px solid var(--amb);color:var(--amb);font-size:12.5px;font-weight:600;}
+  .btnrow .sec{flex:1;background:var(--card);border:1px solid var(--line);color:var(--txt2);font-size:12.5px;font-weight:500;}
 
   .glabel{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 2px 9px;}
-  .chips{display:grid;gap:8px;margin-bottom:20px;}
-  .chips.ml2{grid-template-columns:1fr 1fr;} .chips.meds{grid-template-columns:1fr 1fr;}
-  .chip{height:50px;border-radius:14px;background:var(--surface);border:1px solid var(--hair);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600;color:var(--ink);transition:.16s;font-family:var(--sans);}
-  .chip:hover{border-color:currentColor;} .chip:active{transform:scale(.98);}
-  .chip .cd{width:7px;height:7px;border-radius:50%;flex:none;}
-  .chip.on{border-color:var(--ink);}
+  .chips{display:flex;gap:7px;margin-bottom:16px;}
+  .chip{flex:1;padding:8px 0;text-align:center;border-radius:18px;background:var(--card);border:1px solid var(--line);
+    font-size:11.5px;font-weight:500;color:var(--txt2);cursor:pointer;transition:.16s;font-family:var(--sans);}
+  .chip:active{opacity:.65;}
+  .chip.pur{color:var(--pur);} .chip.org{color:var(--org);}
 
   .daynav{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
   .navgroup{flex:1;display:flex;align-items:center;justify-content:center;gap:20px;min-width:0;}
@@ -159,20 +213,37 @@
   .sesslog .sllabel{color:var(--muted);}
   .sesslog .slwear{padding:0 0 5px;margin-top:-3px;font-family:var(--mono);font-size:11px;color:var(--muted);}
 
-  #activeMedsWrap{display:flex;flex-direction:column;gap:8px;margin:14px 0;}
-  .medstatus{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--hair);background:var(--surface);border-left:4px solid var(--muted);}
-  .medstatus.st-green{border-left-color:var(--green);}
-  .medstatus.st-yellow{border-left-color:var(--amber);}
-  .medstatus.st-red{border-left-color:var(--wait);}
-  .medstatus .mtext{font-size:12.5px;color:var(--ink-2);min-width:0;}
-  .medstatus .mtext b{color:var(--ink);font-weight:700;}
-  .medstatus .mpart{font-family:var(--mono);color:var(--muted);margin-top:2px;}
-  .medstatus .mstate{font-family:var(--sans);font-weight:600;}
-  .medstatus .mstate.st-green{color:var(--green);}
-  .medstatus .mstate.st-yellow{color:var(--amber);}
-  .medstatus .mstate.st-red{color:var(--wait);}
-  .medstatus .mdismiss{flex:none;width:24px;height:24px;border-radius:50%;border:none;background:var(--hair-2);color:var(--muted);font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .medstatus .mdismiss:active{opacity:.6;}
+  /* ===== LOG TAB: day summary card + timeline =====
+     Deliberately its own classes rather than reusing .sessioncard/.brow — the
+     Taper tab still renders those, and this layout is Log-only. */
+  .sum{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;}
+  .sum .stop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px;}
+  .sum .sst{font-size:13.5px;font-weight:700;}
+  .sum .srng{font-family:var(--mono);font-size:11px;color:var(--mut);text-align:right;}
+  .sum .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .sum .g{background:var(--bg);border:1px solid var(--line2);border-radius:11px;padding:9px 11px;}
+  .sum .g .k{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:3px;}
+  .sum .g .v{font-family:var(--mono);font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .sum .g .v small{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;}
+  .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);}
+  .sum .grow{display:flex;align-items:baseline;gap:8px;margin-top:10px;}
+  .sum .grow .k{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;}
+  .sum .grow .v{font-family:var(--mono);font-size:12.5px;font-weight:600;}
+  .sum .grow .sub{font-family:var(--mono);font-size:11px;color:var(--mut);margin-left:auto;}
+  .sum .stotal{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:11px;}
+  .sum .stotal .k{font-size:12.5px;font-weight:600;color:var(--txt2);}
+  .sum .stotal .v{font-family:var(--mono);font-size:16px;font-weight:700;}
+
+  .tlhead{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);font-weight:600;margin:16px 2px 4px;}
+  .tlrow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line2);cursor:pointer;}
+  .tlrow:last-child{border-bottom:none;}
+  .tlrow:active{opacity:.55;}
+  .tldot{width:6px;height:6px;border-radius:50%;flex:none;}
+  .tltime{width:60px;flex:none;font-family:var(--mono);font-size:12px;color:var(--mut);}
+  .tlbody{flex:1;min-width:0;}
+  .tltext{font-size:13.5px;color:#d7dade;}
+  .tlwear{font-size:10.5px;color:var(--mut2);margin-top:2px;}
+  .tlamt{font-family:var(--mono);font-size:12.5px;color:var(--mut);flex:none;}
   /* With a "Timeline" label above it the list supplies its own separator,
      so the log block drops the rule it normally draws for itself. */
   .sessioncard .glabel.sublabel.tl{border-top:1px solid var(--hair-2);padding-top:10px;}
@@ -206,14 +277,14 @@
     display:flex;align-items:center;gap:11px;padding:0 16px;font-size:14px;font-weight:500;color:var(--ink);transition:.16s;font-family:var(--sans);text-align:left;}
   .sbtn:hover{border-color:#DADAD4;} .sbtn:active{transform:scale(.99);}
   .sbtn svg{width:17px;height:17px;color:var(--ink-2);flex:none;}
-  .sbtn.ink{background:var(--ink);color:#fff;border-color:var(--ink);justify-content:center;}
-  .sbtn.ink:hover{background:#000;}
+  .sbtn.ink{background:#ececec;color:#101113;border-color:#ececec;justify-content:center;font-weight:700;}
+  .sbtn.ink:hover{background:#dcdcdc;}
   .sbtn.danger{color:var(--warning,#C4611E);} .sbtn.danger svg{color:inherit;}
   .sbtn.danger.confirm{background:var(--warning,#C4611E);color:#fff;border-color:var(--warning,#C4611E);}
   .setnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin:8px 2px 0;}
 
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
-    background:var(--ink);color:#fff;font-size:13px;font-weight:500;padding:10px 18px;border-radius:11px;
+    background:#2a2d32;border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:500;padding:10px 18px;border-radius:11px;
     opacity:0;pointer-events:none;transition:.25s;white-space:nowrap;z-index:2100;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -230,14 +301,26 @@
   .modal-actions{display:flex;gap:10px;margin-top:6px;}
   .modal-actions button{flex:1;height:46px;border-radius:12px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
   .modal-btn-cancel{background:var(--hair-2);color:var(--ink);}
-  .modal-btn-save{background:var(--ink);color:#fff;}
+  .modal-btn-save{background:#ececec;color:#101113;}
   .modal-btn-delete{width:100%;margin-top:10px;height:42px;border-radius:12px;background:none;cursor:pointer;border:1px solid var(--orange);color:var(--orange);font-size:13px;font-weight:600;font-family:var(--sans);}
   .modal-btn-delete.confirm{background:var(--orange);color:#fff;}
-  .trigger-sub{font-size:12.5px;color:var(--muted);margin:-10px 0 16px;}
-  .trigger-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
-  .trigger-opt{padding:14px 10px;border-radius:12px;border:1px solid var(--hair);background:var(--app);color:var(--ink);font-size:13.5px;font-weight:600;font-family:var(--sans);cursor:pointer;text-align:center;}
-  .trigger-opt:active{opacity:.6;background:var(--hair-2);}
+  /* ===== TRIGGER SHEET ===== */
+  #triggerModal{background:rgba(0,0,0,.55);}
+  .sheet{background:#191b1e;border-top:1px solid var(--line);border-radius:24px 24px 0 0;padding:10px 18px 24px;}
+  .sheet .handle{width:36px;height:4px;border-radius:2px;background:#3a3d42;margin:0 auto 14px;}
+  .trigger-sub{font-size:12px;color:var(--mut);margin:-12px 0 12px;}
+  /* Informational only — it never blocks or adds a step to logging. */
+  .early{display:flex;align-items:center;gap:7px;background:rgba(240,179,94,.1);border:1px solid rgba(240,179,94,.35);
+    color:var(--amb);font-size:11.5px;font-weight:600;border-radius:10px;padding:8px 11px;margin-bottom:12px;}
+  .early[hidden]{display:none;}
+  .early b{font-family:var(--mono);font-weight:700;}
+  .trigger-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  .trigger-opt{height:42px;padding:0 8px;border-radius:11px;border:1px solid #2c2f34;background:#212327;color:var(--txt2);
+    font-size:13px;font-weight:500;font-family:var(--sans);cursor:pointer;text-align:center;}
+  .trigger-opt:active{opacity:.6;}
   .trigger-opt.wide{grid-column:1 / -1;}
+  .skip{width:100%;height:40px;border-radius:11px;background:transparent;border:none;color:var(--mut);
+    font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;}
 
   .bg-blue{background:var(--blue);} .bg-green{background:var(--green);} .bg-teal{background:var(--teal);}
   .bg-amber{background:var(--amber);} .bg-orange{background:var(--orange);} .bg-purple{background:var(--purple);} .bg-grey{background:var(--grey);}
@@ -264,34 +347,36 @@
 
     <!-- ============ LOG ============ -->
     <div class="view on" id="view-log">
-      <div class="interval" id="interval">
-        <div class="irow">
-          <div class="istat"><div class="ieyebrow" id="eyebrow">Ready in</div><div class="ireadout" id="readout">--:--</div></div>
-          <div class="idiv"></div>
-          <div class="istat"><div class="ieyebrow neutral">Since last</div><div class="ireadout" id="since">--:--</div></div>
+      <div class="hero">
+        <div class="heroL">
+          <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--:--</div></div>
+          <div class="hstat" id="ilastrescue" hidden><div class="k">Last rescue</div><div class="v amb" id="ilastrescueVal">—</div></div>
+          <button class="primary" id="chipLogDose"><span id="logDoseLabel">Log Dose</span></button>
         </div>
-        <div class="ibar"><div class="ifill" id="ifill"></div></div>
-        <div class="ilastrescue" id="ilastrescue" hidden>
-          <span class="ieyebrow neutral">Last rescue</span>
-          <span class="ireadout small" id="ilastrescueVal">—</span>
+        <div class="dial" id="dial">
+          <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
+            <circle class="track" cx="76" cy="76" r="70"/>
+            <circle class="fill" id="dialFill" cx="76" cy="76" r="70"/>
+          </svg>
+          <div class="in">
+            <div class="lbl" id="eyebrow">Ready in</div>
+            <div class="big" id="readout">--:--:--</div>
+          </div>
         </div>
       </div>
 
-      <div id="activeMedsWrap" hidden></div>
+      <div class="ameds" id="activeMedsWrap" hidden></div>
 
-      <div class="glabel">Log dose · ml</div>
-      <div class="chips ml2">
-        <div class="chip c-blue" id="chipWakeUp"><span class="cd bg-blue"></span>Wake Up</div>
-        <div class="chip c-green" id="chipLogDose"><span class="cd bg-green"></span><span id="logDoseLabel">Log Dose</span></div>
-        <div class="chip c-teal" id="chipSleepDose"><span class="cd bg-teal"></span><span id="sleepDoseLabel">Sleep Dose</span></div>
-        <div class="chip c-amber" id="chipRescue"><span class="cd bg-amber"></span><span id="rescueLabel">Rescue</span></div>
+      <div class="btnrow">
+        <button class="rescue" id="chipRescue"><span id="rescueLabel">Rescue</span></button>
+        <button class="sec" id="chipSleepDose"><span id="sleepDoseLabel">Sleep</span></button>
+        <button class="sec" id="chipWakeUp">Wake Up</button>
       </div>
 
-      <div class="glabel">Medication</div>
-      <div class="chips meds">
-        <div class="chip c-purple" id="chipRitalin5"><span class="cd bg-purple"></span>Ritalin 5</div>
-        <div class="chip c-orange" id="chipConcerta36"><span class="cd bg-orange"></span>Concerta 36</div>
-        <div class="chip c-purple" id="chipRitalin20"><span class="cd bg-purple"></span>Ritalin 20 LA</div>
+      <div class="chips">
+        <div class="chip pur" id="chipRitalin5">Ritalin 5</div>
+        <div class="chip pur" id="chipRitalin20">Ritalin 20 LA</div>
+        <div class="chip org" id="chipConcerta36">Concerta 36</div>
       </div>
 
       <div class="daynav">
@@ -523,9 +608,11 @@
 
     <!-- ============ TRIGGER PROMPT ============ -->
     <div class="modal-overlay" id="triggerModal" hidden>
-      <div class="modal-sheet">
+      <div class="modal-sheet sheet">
+        <div class="handle"></div>
         <div class="modal-title">What led to this dose?</div>
-        <div class="trigger-sub">Tap one — you can skip this</div>
+        <div class="trigger-sub">Tap one, or skip</div>
+        <div class="early" id="triggerEarly" hidden>⚠ <span><b id="triggerEarlyVal">—</b> before ready</span></div>
         <div class="trigger-grid">
           <button class="trigger-opt" data-trigger="stress">Stress</button>
           <button class="trigger-opt" data-trigger="cognitive_load">Cognitive load</button>
@@ -534,7 +621,7 @@
           <button class="trigger-opt" data-trigger="physical_exertion">Physical exertion</button>
           <button class="trigger-opt" data-trigger="none">None / unclear</button>
         </div>
-        <button class="modal-btn-cancel" id="triggerSkip" style="width:100%">Skip</button>
+        <button class="skip" id="triggerSkip">Skip</button>
       </div>
     </div>
 
@@ -970,27 +1057,41 @@
     document.getElementById('stamp').textContent = `${dayName}, ${month} ${day} · ${h}:${m} ${ap}`;
   }
 
-  // ===== Interval gauge =====
+  // ===== Countdown dial =====
+  // 2π × r, r=70 — the ring's full circumference, and the dasharray the SVG
+  // is set up with. Offset counts DOWN from it as the elapsed fraction grows,
+  // so the arc fills clockwise from 12 o'clock.
+  const DIAL_CIRCUMFERENCE = 439.82;
+
   async function paintRing() {
     renderCurrentSession();
     renderActiveMeds();
     renderLastRescue();
-    const box = document.getElementById('interval');
+    const dial = document.getElementById('dial');
+    const dialFill = document.getElementById('dialFill');
     const eyebrow = document.getElementById('eyebrow');
     const readout = document.getElementById('readout');
     const since = document.getElementById('since');
-    const ifill = document.getElementById('ifill');
     const target = parseInt(localStorage.getItem(TARGET_KEY) || '0');
     const col = '<span class="bl">:</span>';
     const p = n => String(n).padStart(2, '0');
+
+    // An arc that's a sliver of a percent renders as nothing at all, which
+    // reads as "no dose logged" rather than "just dosed" — so any progress at
+    // all shows at least a dot.
+    const setDial = (frac, ready) => {
+      const shown = frac <= 0 ? 0 : Math.min(1, Math.max(0.01, frac));
+      dialFill.style.strokeDashoffset = (DIAL_CIRCUMFERENCE * (1 - shown)).toFixed(2);
+      dial.classList.toggle('ready', !!ready);
+    };
 
     const doseLabel = document.getElementById('logDoseLabel');
     if (doseLabel) {
       const taperTarget = getTaperTargetForDate(new Date());
       const doseAmt = taperTarget != null ? taperTarget : taperPlan.startDose;
-      doseLabel.textContent = `Log Dose · ${fmtMl(doseAmt)}ml`;
-      document.getElementById('sleepDoseLabel').textContent = `Sleep Dose · ${fmtMl(doseAmt)}ml`;
-      document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl(getRescueDose())}ml`;
+      doseLabel.textContent = `Log Dose · ${fmtMl(doseAmt)} ml`;
+      document.getElementById('sleepDoseLabel').textContent = `Sleep · ${fmtMl(doseAmt)}`;
+      document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl(getRescueDose())}`;
     }
 
     const doseData = (await getAllData()).filter(isDoseEntry);
@@ -1000,9 +1101,7 @@
     const anchorData = doseData.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
 
     if (anchorData.length === 0) {
-      box.classList.remove('ready');
-      ifill.style.width = '0%';
-      ifill.style.background = 'var(--hair)';
+      setDial(0, false);
       eyebrow.textContent = 'No dose yet';
       readout.innerHTML = '--:--:--';
       since.innerHTML = '--:--:--';
@@ -1016,25 +1115,24 @@
     since.innerHTML = hms(elapsedSec);
 
     if (target <= 0) {
-      box.classList.remove('ready');
-      ifill.style.width = '0%';
-      ifill.style.background = 'var(--muted)';
+      setDial(0, false);
       eyebrow.textContent = 'No target set';
       readout.innerHTML = '--:--:--';
       return;
     }
 
-    ifill.style.background = '';
     const targetSec = target * 60;
     const remainSec = targetSec - elapsedSec;
-    ifill.style.width = (Math.min(elapsedSec / targetSec, 1) * 100) + '%';
 
     if (remainSec <= 0) {
-      box.classList.add('ready');
+      // Full green ring, and the number counts UP — how long it's been ready,
+      // which is the thing worth knowing once the countdown is spent. A ring
+      // sitting empty at 00:00:00 read as "nothing logged".
+      setDial(1, true);
       eyebrow.textContent = 'Ready';
-      readout.innerHTML = hms(0);
+      readout.innerHTML = hms(-remainSec);
     } else {
-      box.classList.remove('ready');
+      setDial(elapsedSec / targetSec, false);
       eyebrow.textContent = 'Ready in';
       readout.innerHTML = hms(remainSec);
     }
@@ -1064,7 +1162,9 @@
     const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
     const priorAnchors = data.filter(e => isDoseEntry(e) && (doseKind(e) === 'log' || doseKind(e) === 'sleep') && e.timestamp < resolvedTs);
     const priorAnchorTs = priorAnchors.length ? priorAnchors[priorAnchors.length - 1].timestamp : null;
-    const isEarly = targetMinutes > 0 && priorAnchorTs != null && (resolvedTs - priorAnchorTs) < targetMinutes * 60000;
+    const earlyByMs = targetMinutes > 0 && priorAnchorTs != null
+      ? (priorAnchorTs + targetMinutes * 60000) - resolvedTs : 0;
+    const isEarly = earlyByMs > 0;
     const needsTrigger = kind === 'rescue' || (kind === 'log' && isEarly);
 
     const entry = { timestamp: resolvedTs, ml, type: kind };
@@ -1086,14 +1186,25 @@
     // afterward and never gates or delays the save itself.
     await paintRing();
     await renderLog();
-    if (needsTrigger) openTriggerModal(resolvedTs);
+    if (needsTrigger) openTriggerModal(resolvedTs, isEarly ? earlyByMs : 0);
   }
 
   // ===== Trigger prompt (Rescue, or an early Log Dose) =====
   let triggerModalTs = null;
 
-  function openTriggerModal(ts) {
+  // earlyMs = how far ahead of the ready time this dose landed, or null when
+  // the dose was on schedule (a Rescue is always off-schedule but never
+  // "early" — nothing was due). The strip is informational only: the dose is
+  // already saved, and nothing here blocks or delays it.
+  function openTriggerModal(ts, earlyMs) {
     triggerModalTs = ts;
+    const strip = document.getElementById('triggerEarly');
+    if (earlyMs > 0) {
+      document.getElementById('triggerEarlyVal').textContent = fmtGap(Math.round(earlyMs / 60000));
+      strip.hidden = false;
+    } else {
+      strip.hidden = true;
+    }
     document.getElementById('triggerModal').hidden = false;
   }
 
@@ -1216,106 +1327,167 @@
     await renderActiveMeds();
   }
 
-  // Live status card for each med dose taken during the CURRENT SESSION, shown
-  // under the interval bar so "is this still active" never needs mental math.
+  // One slim row per medication PART taken during the CURRENT SESSION, newest
+  // dose first, so "is this still working" never needs mental math.
   //
-  // This used to mean calendar day (isToday()), which broke exactly the
-  // doses it was built for: dose a Concerta at 8:46 PM, cross midnight still
-  // awake in the same session, and the card vanished at 12:00 AM with nothing
-  // dismissed and hours still left on it. "Current day" in this app has
-  // always meant the waking session (Day 1, Day 2 elsewhere use the same
-  // boundary, not the calendar) — this now matches that everywhere else.
+  // Rows run their own lifecycle: they appear when the med is logged, walk
+  // Active → Wearing off → Lapsed as the window runs out, and then remove
+  // themselves AMED_LINGER_MIN minutes later. That replaced the X button —
+  // a card you had to dismiss by hand was one more thing to remember.
+  // A left-swipe still reveals Remove, for a med logged by mistake.
   //
-  // Only doses with a wear-off time set in Settings can show one — there is
-  // no "End" to compute otherwise. A card clears itself the moment its
-  // session ends (Sleep Dose), same as adherence and every other per-day
-  // stat in this app; before that, the only way to drop one is the X button.
+  // Session scoping is unchanged from the card version this replaced: rows
+  // come from openSession.timeline (the single source of truth for which
+  // session an entry belongs to — re-filtering getAllData() by startTs once
+  // silently dropped a med edited to just before Wake Up), and only meds with
+  // a wear-off time set in Settings can appear, since without one there is no
+  // window to draw. Everything clears when the session ends (Sleep Dose).
+  const AMED_SOON_MIN = 30;   // "Wearing off" starts this close to the end
+  const AMED_LINGER_MIN = 3;  // how long a lapsed row stays before self-removing
+  const AMED_SWIPE_PX = 60;   // horizontal travel that counts as a swipe
+  const AMED_STATE = {
+    ok: 'Active', soon: 'Wearing off', lapsed: 'Lapsed', pending: 'Pending',
+  };
+  // key ("<doseTs>:<partIndex>") -> live DOM row. Rows are updated in place
+  // rather than re-rendered wholesale so a swipe-open row survives the
+  // once-a-second tick, and so a leaving row can actually animate out.
+  const amedEls = new Map();
+  let amedRevealedKey = null;
+
+  function setAmedRevealed(key) {
+    amedRevealedKey = key;
+    amedEls.forEach((entry, k) => entry.el.classList.toggle('revealed', k === key));
+  }
+
+  // A part isn't just "active until its end" — Ritalin 20 LA's Part 2 doesn't
+  // start releasing until RITALIN20_PART2_DELAY_MIN after the dose, so before
+  // that it must not read Active. That was a real bug once: both parts showed
+  // Active from the moment of dosing, which is exactly what made Part 2 look
+  // like it behaved the same as Part 1.
+  function amedStatus(r, now) {
+    if (now < r.releaseTs) return 'pending';
+    const remainMin = (r.endTs - now) / 60000;
+    if (remainMin < 0) return 'lapsed';
+    return remainMin <= AMED_SOON_MIN ? 'soon' : 'ok';
+  }
+
+  function amedBodyHtml(r, status, now) {
+    const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const partTag = r.partCount > 1 ? `<span class="part"> · part ${r.partIdx + 1}</span>` : '';
+    let right;
+    if (status === 'lapsed') right = `ended <b>${fmtT(r.endTs)}</b>`;
+    else if (status === 'pending') right = `starts <b>${fmtT(r.releaseTs)}</b>`;
+    // A "· part 2" tag costs about as much width as the clock time, and on a
+    // 375px screen keeping both clips the drug name. The countdown is the part
+    // worth reading, so multi-part rows drop the end clock instead.
+    else right = r.partCount > 1
+      ? `<b>${fmtGap(Math.round((r.endTs - now) / 60000))}</b> left`
+      : `ends <b>${fmtT(r.endTs)}</b> · <b>${fmtGap(Math.round((r.endTs - now) / 60000))}</b> left`;
+    const span = r.endTs - r.releaseTs;
+    const frac = span > 0 ? Math.min(1, Math.max(0, (now - r.releaseTs) / span)) : 0;
+    return `<div class="row1">
+        <span class="nm">${escapeHtml(r.name)}${partTag}</span>
+        <span class="st">${AMED_STATE[status]}</span>
+        <span class="off">${right}</span>
+      </div>
+      <div class="pbar"><i style="width:${(frac * 100).toFixed(1)}%"></i></div>`;
+  }
+
+  // No confirm() anywhere: it's blocked in standalone PWA mode on Android.
+  // The revealed Remove button IS the confirmation.
+  function attachAmedSwipe(row, body) {
+    let x0 = null, y0 = null, horizontal = false;
+    body.addEventListener('touchstart', (e) => {
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; horizontal = false;
+    }, { passive: true });
+    body.addEventListener('touchmove', (e) => {
+      if (x0 == null) return;
+      const dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0;
+      if (!horizontal && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) horizontal = true;
+    }, { passive: true });
+    body.addEventListener('touchend', (e) => {
+      if (x0 == null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      x0 = null;
+      if (!horizontal) return;
+      if (dx < -AMED_SWIPE_PX) setAmedRevealed(row.dataset.key);
+      else if (dx > AMED_SWIPE_PX) setAmedRevealed(null);
+    }, { passive: true });
+    // Tapping an already-open row closes it, so a mis-swipe isn't a dead end.
+    body.addEventListener('click', () => {
+      if (amedRevealedKey === row.dataset.key) setAmedRevealed(null);
+    });
+  }
+
   async function renderActiveMeds() {
     const wrap = document.getElementById('activeMedsWrap');
     if (!wrap) return;
     const sessions = await computeSessions();
     const openSession = sessions.length && sessions[sessions.length - 1].isOpen
       ? sessions[sessions.length - 1] : null;
-
-    if (!openSession) { wrap.hidden = true; wrap.innerHTML = ''; return; }
-
-    // Reads openSession.timeline rather than re-filtering getAllData() by
-    // e.timestamp >= openSession.startTs — that independent boundary is what
-    // silently dropped a med edited to a time just before Wake Up. timeline
-    // already carries the corrected, single-source-of-truth assignment from
-    // computeSessions(), so this can't drift out of sync with it again.
-    // Same lower bound computeSessions() uses for this session: the
-    // previous session's end when there is one (so a dismissal made in the
-    // pre-Wake-Up gap doesn't get pruned away and quietly resurrect that
-    // card), otherwise this session's own startTs — matching the "first
-    // session keeps the strict bound" rule so old dismissals don't linger
-    // forever unpruned.
-    const prevSession = sessions.length > 1 ? sessions[sessions.length - 2] : null;
-    const dismissCutoff = prevSession
-      ? (prevSession.endTs != null ? prevSession.endTs : -Infinity)
-      : openSession.startTs;
-    const dismissed = getDismissedMedSet(dismissCutoff);
     const now = Date.now();
-    const rows = openSession.timeline
-      .filter(isMedEntry)
-      .filter(e => wearOffPartsFor(e.name).length > 0)
-      .filter(e => !dismissed.has(e.timestamp))
-      .sort((a, b) => b.timestamp - a.timestamp); // newest taken first, same as the Log timeline
 
-    if (!rows.length) { wrap.hidden = true; wrap.innerHTML = ''; return; }
-    wrap.hidden = false;
+    const rows = [];
+    if (openSession) {
+      // Same lower bound computeSessions() uses for this session: the previous
+      // session's end when there is one (so a dismissal made in the
+      // pre-Wake-Up gap isn't pruned away and quietly resurrect a row),
+      // otherwise this session's own startTs.
+      const prevSession = sessions.length > 1 ? sessions[sessions.length - 2] : null;
+      const dismissCutoff = prevSession
+        ? (prevSession.endTs != null ? prevSession.endTs : -Infinity)
+        : openSession.startTs;
+      const dismissed = getDismissedMedSet(dismissCutoff);
+      openSession.timeline
+        .filter(isMedEntry)
+        .filter(e => !dismissed.has(e.timestamp))
+        .sort((a, b) => b.timestamp - a.timestamp) // newest taken first
+        .forEach(e => {
+          const parts = wearOffPartsFor(e.name);
+          parts.forEach((part, i) => {
+            const releaseTs = e.timestamp + part.startOffsetMin * 60000;
+            const endTs = releaseTs + part.durationMin * 60000;
+            if (now >= endTs + AMED_LINGER_MIN * 60000) return; // aged out on its own
+            rows.push({
+              key: `${e.timestamp}:${i}`, ts: e.timestamp, name: e.name,
+              partIdx: i, partCount: parts.length, releaseTs, endTs,
+            });
+          });
+        });
+    }
 
-    const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    // A part isn't just "active until its end" — Part 2 doesn't start
-    // releasing until RITALIN20_PART2_DELAY_MIN after the dose. Before that,
-    // it hasn't begun yet, so it must not read "Active" — that was the real
-    // bug: from dose time to Part 2's real 4h onset, both parts showed
-    // "Active" together, which is exactly what looked like Part 2 behaving
-    // the same as Part 1.
-    const statusFor = (releaseTs, endTs) => {
-      if (now < releaseTs) return 'pending';
-      const remainMin = (endTs - now) / 60000;
-      return remainMin < 0 ? 'red' : remainMin <= 30 ? 'yellow' : 'green';
-    };
-    const stateText = (status) => status === 'red' ? 'Lapsed'
-      : status === 'yellow' ? 'Ending soon'
-      : status === 'pending' ? 'Pending'
-      : 'Active';
-    const RANK = { pending: 0, green: 0, yellow: 1, red: 2 };
+    const live = new Set(rows.map(r => r.key));
+    amedEls.forEach((entry, key) => {
+      if (live.has(key) || entry.leaving) return;
+      entry.leaving = true;
+      entry.el.classList.add('leaving');
+      if (amedRevealedKey === key) amedRevealedKey = null;
+      setTimeout(() => { entry.el.remove(); amedEls.delete(key); }, 320);
+    });
 
-    wrap.innerHTML = rows.map(e => {
-      // "Taken" is when the capsule was swallowed — the same instant for
-      // every pulse. "End" is offset by each pulse's own release delay
-      // (Part 2 doesn't even start until RITALIN20_PART2_DELAY_MIN later),
-      // so Part 2 stops lapsing in lockstep with Part 1.
-      const parts = wearOffPartsFor(e.name).map((part) => {
-        const releaseTs = e.timestamp + part.startOffsetMin * 60000;
-        const endTs = releaseTs + part.durationMin * 60000;
-        return { releaseTs, endTs, mg: part.mg, startOffsetMin: part.startOffsetMin, status: statusFor(releaseTs, endTs) };
-      });
-      // One pulse: same layout as before. Two pulses (Ritalin 20 LA): the
-      // card's own left border takes the worse of the two, so a glance at
-      // the edge still says "does this need attention" even before reading
-      // which part.
-      const cardStatus = parts.reduce((worst, p) => RANK[p.status] > RANK[worst] ? p.status : worst, 'green');
-      // Part 1 releases with the dose, so "Taken" is its own effect start.
-      // A delayed part (Part 2) hasn't started at dose time — "Taken" would
-      // be misleading there, so it reads "Effect <release time>" instead,
-      // per Symon: "instead of taken, is effect: which is 8 PM".
-      const partLine = (p, label) => {
-        const whenLabel = p.startOffsetMin > 0 ? 'Effect' : 'Taken';
-        const whenTs = p.startOffsetMin > 0 ? p.releaseTs : e.timestamp;
-        const prefix = label ? `${label}${p.mg ? ` (${p.mg}mg)` : ''} · ` : '';
-        return `<div class="mpart"><span class="mstate st-${p.status}">${stateText(p.status)}</span> ${prefix}${whenLabel} ${fmtT(whenTs)} – End ${fmtT(p.endTs)}</div>`;
-      };
-      const body = parts.length > 1
-        ? parts.map((p, i) => partLine(p, `Part ${i + 1}`)).join('')
-        : partLine(parts[0], '');
-      return `<div class="medstatus st-${cardStatus}" data-ts="${e.timestamp}">
-        <div class="mtext"><b>${escapeHtml(e.name)}</b>${body}</div>
-        <button class="mdismiss" data-dismiss="${e.timestamp}" aria-label="Dismiss">✕</button>
-      </div>`;
-    }).join('');
+    rows.forEach(r => {
+      let entry = amedEls.get(r.key);
+      if (!entry) {
+        const el = document.createElement('div');
+        el.className = 'amed';
+        el.dataset.key = r.key;
+        // data-dismiss keeps working with the existing delegated listener on
+        // the wrapper, and removes the whole dose (both parts) — a mislogged
+        // med is mislogged, not half-mislogged.
+        el.innerHTML = `<div class="remove" data-dismiss="${r.ts}">Remove</div><div class="body"></div>`;
+        const body = el.querySelector('.body');
+        attachAmedSwipe(el, body);
+        wrap.appendChild(el);
+        entry = { el, body, leaving: false };
+        amedEls.set(r.key, entry);
+      }
+      const status = amedStatus(r, now);
+      entry.el.className = `amed ${status}${amedRevealedKey === r.key ? ' revealed' : ''}`;
+      entry.body.innerHTML = amedBodyHtml(r, status, now);
+    });
+
+    rows.forEach(r => { const entry = amedEls.get(r.key); if (entry) wrap.appendChild(entry.el); });
+    wrap.hidden = amedEls.size === 0;
   }
 
   // ===== Log page render =====
@@ -1492,7 +1664,7 @@
   }
 
   function handleEntryClick(e) {
-    const row = e.target.closest('.entry, .slrow.tap');
+    const row = e.target.closest('.entry, .slrow.tap, .tlrow.tap');
     if (!row || !row.dataset.ts) return;
     openEntryEdit(parseInt(row.dataset.ts), row.dataset.kind);
   }
@@ -1731,7 +1903,15 @@
     // the reminder workflow nagging over an undelivered dose. Reopening the
     // app is the natural moment to catch that up, well before the 30-min
     // auto-backup timer would.
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) silentBackupToGitHub(); });
+    // Reopening also has to recompute from stored timestamps rather than trust
+    // accumulated interval ticks: iOS suspends the timers outright while the
+    // PWA is backgrounded, so the ring, countdown and medication states can
+    // all be minutes stale at the moment it comes back.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      silentBackupToGitHub();
+      paintRing();
+    });
 
     // Auto-backup to GitHub every 30 min (only if token + gistId already set)
     setInterval(async () => {
@@ -2203,6 +2383,75 @@
     </div>`;
   }
 
+  // The Log tab's own summary + timeline. Deliberately separate from
+  // sessionCardHtml() above, which the Taper tab still renders unchanged —
+  // same numbers off the same session object, different layout.
+  function logSummaryHtml(s) {
+    const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const rangeText = s.isOpen
+      ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – now`
+      : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
+    // Over the scheduled dose count is the only state worth flagging; on or
+    // under schedule is the goal, so it reads green.
+    const doseCls = s.actualLogDoses > s.expectedLogDoses ? 'amb' : 'grn';
+    const medRows = [
+      ['Ritalin', s.ritalinMg, s.ritalinCost],
+      ['Concerta', s.concertaMg, s.concertaCost],
+    ].filter(([, mg]) => mg > 0).map(([name, mg, cost]) =>
+      `<div class="grow"><span class="k">Meds · ${name}</span><span class="v">${mg} mg</span><span class="sub">${fmtPeso(cost)}</span></div>`
+    ).join('');
+    const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
+    return `<div class="sum">
+      <div class="stop">
+        <div class="sst">Day ${s.day}${s.isOpen ? ' · Ongoing' : ''}</div>
+        <div class="srng">${rangeText}</div>
+      </div>
+      <div class="grid">
+        <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
+        <div class="g"><div class="k">Doses vs schedule</div><div class="v ${doseCls}">${s.actualLogDoses} / ${s.expectedLogDoses}</div></div>
+        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div></div>
+        <div class="g"><div class="k">Rescue</div><div class="v amb">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
+      </div>
+      ${medRows}
+      <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
+    </div>
+    <div class="tlhead"><span>Timeline</span><span>Tap to edit</span></div>
+    <div class="tllist">${rows || '<div class="empty">Nothing logged yet.</div>'}</div>`;
+  }
+
+  // data-ts/data-kind make each row tappable by the same edit sheet History
+  // and Taper use, so a wrong time or ml can be fixed without leaving Log.
+  function timelineRowHtml(e) {
+    const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (isMedEntry(e)) {
+      // One part = one "wears off" note. Two (Ritalin 20 LA) get one each,
+      // and each accounts for its own release delay.
+      const parts = wearOffPartsFor(e.name);
+      const wear = parts.map((part, i) => {
+        const endTs = e.timestamp + (part.startOffsetMin + part.durationMin) * 60000;
+        return `${parts.length > 1 ? `part ${i + 1} off` : 'wears off'} ${fmtTime(endTs)}`;
+      }).join(' · ');
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="med">
+        <span class="tldot" style="background:var(--pur)"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}</div>${wear ? `<div class="tlwear">${wear}</div>` : ''}</div>
+        <span class="tlamt">${e.mg > 0 ? e.mg + ' mg' : '—'}</span>
+      </div>`;
+    }
+    const kind = doseKind(e);
+    const dot = kind === 'rescue' ? 'var(--amb)' : (kind === 'wake' || kind === 'sleep') ? 'var(--neutral)' : '#c9ccd1';
+    const label = kind === 'wake' ? 'Wake Up' : kind === 'sleep' ? 'Sleep dose' : kind === 'rescue' ? 'Rescue' : 'Dose';
+    // The trigger answer rides on its own row as a normal part of the log line.
+    const trigger = e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '';
+    return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="dose">
+      <span class="tldot" style="background:${dot}"></span>
+      <span class="tltime">${fmtTime(e.timestamp)}</span>
+      <div class="tlbody"><div class="tltext">${label}${trigger}</div></div>
+      <span class="tlamt">${kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`}</span>
+    </div>`;
+  }
+
   // Session card on the Log page. Defaults to the newest session (the live
   // one while a session is open) but can be navigated back through earlier
   // taper days without leaving the Log tab. logDayIdx === null means
@@ -2226,7 +2475,7 @@
     lbl.textContent = s.isOpen ? `Day ${s.day} · Today` : `Day ${s.day}`;
     prevBtn.classList.toggle('off', idx <= 0);
     nextBtn.classList.toggle('off', idx >= sessions.length - 1);
-    wrap.innerHTML = sessionCardHtml(s, true); // Log tab: newest entry first
+    wrap.innerHTML = logSummaryHtml(s); // Log tab: newest timeline entry first
   }
 
   // ===== Taper tab =====
