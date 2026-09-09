@@ -437,6 +437,8 @@
         <div class="glabel">Notifications</div>
         <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged when you log a dose, so n8n can alert you when the next one is ready</small></div>
           <div class="field cost wide"><input type="text" id="setWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-dose"></div></div>
+        <div class="setrow"><div class="sk">Medication lapse webhook URL<small>Pinged when you log Ritalin/Concerta — one alert 30 min before it wears off, one when it does</small></div>
+          <div class="field cost wide"><input type="text" id="setMedWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-med-lapse"></div></div>
       </div>
 
       <div class="setgroup">
@@ -559,6 +561,7 @@
   };
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
+  const MED_WEBHOOK_KEY = 'n8nMedWebhookUrl';
   const GITHUB_API = 'https://api.github.com';
 
   const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
@@ -885,6 +888,7 @@
     }
 
     document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
+    document.getElementById('setMedWebhookUrl').value = localStorage.getItem(MED_WEBHOOK_KEY) || '';
 
     const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
     if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
@@ -921,6 +925,10 @@
     const webhookUrl = (document.getElementById('setWebhookUrl').value || '').trim();
     if (webhookUrl) localStorage.setItem(WEBHOOK_KEY, webhookUrl);
     else localStorage.removeItem(WEBHOOK_KEY);
+
+    const medWebhookUrl = (document.getElementById('setMedWebhookUrl').value || '').trim();
+    if (medWebhookUrl) localStorage.setItem(MED_WEBHOOK_KEY, medWebhookUrl);
+    else localStorage.removeItem(MED_WEBHOOK_KEY);
 
     medWearOff = {
       concerta: parseHM(document.getElementById('setConcertaWearOff').value),
@@ -1164,8 +1172,28 @@
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     showToast(`💊 ${name} logged`);
+    notifyN8nMedLapse(name, tm);
     await renderLog();
     await renderActiveMeds();
+  }
+
+  // Pings a SEPARATE webhook from the GHB dose reminder — different topic,
+  // different urgency (one-shot, not a repeating nag). Uses the med's LAST
+  // wear-off part as "when it lapses": for Ritalin 5/Concerta that's the
+  // only part; for Ritalin 20 LA that's Part 2 finishing, since that's when
+  // there's actually no methylphenidate left in you, not when Part 1 alone
+  // ends. n8n does the two waits (T-30, then T-0) and fires once each — no
+  // "still current" check needed here, since a missed med dose isn't the
+  // same safety stakes as a missed G dose.
+  function notifyN8nMedLapse(name, ts) {
+    const medWebhookUrl = localStorage.getItem(MED_WEBHOOK_KEY);
+    if (!medWebhookUrl) return;
+    const parts = wearOffPartsFor(name);
+    if (!parts.length) return;
+    const lapseTs = ts + Math.max(...parts.map(p => p.startOffsetMin + p.durationMin)) * 60000;
+    if (lapseTs <= Date.now()) return;
+    const sep = medWebhookUrl.includes('?') ? '&' : '?';
+    fetch(`${medWebhookUrl}${sep}name=${encodeURIComponent(name)}&ts=${encodeURIComponent(ts)}&lapseTs=${encodeURIComponent(lapseTs)}`).catch(() => {});
   }
 
   // Dismissed doses are remembered by timestamp so an X'd card doesn't come
