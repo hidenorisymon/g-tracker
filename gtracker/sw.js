@@ -50,8 +50,14 @@ self.addEventListener('fetch', (e) => {
   if (!sameOrigin && !CACHEABLE_CROSS_ORIGIN.includes(url.hostname)) return;
 
   if (sameOrigin) {
+    // no-store, not a plain fetch(req) — GitHub Pages sends cache headers
+    // the browser is allowed to honor, so a plain fetch here could silently
+    // resolve from the disk cache instead of hitting the network. That was
+    // the "tap to refresh does nothing" bug: the reload never actually
+    // fetched the new deploy, so the version mismatch (and the banner) never
+    // went away.
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-store' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(req, copy));
