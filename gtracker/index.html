@@ -1882,10 +1882,14 @@
         else if (act === 'backup') backupToGitHub();
         else if (act === 'load') loadFromGitHub();
         else if (act === 'reset') {
+          // Only the token — NOT gistId. Clearing gistId here was the actual
+          // bug behind a real incident: a token reset made the next backup
+          // create a brand new gist instead of reconnecting to the existing
+          // one, silently orphaning it (and the n8n reminder workflow, which
+          // was still reading the old one). This button's job is "get a new
+          // token", not "forget which backup this is."
           localStorage.removeItem('githubToken');
-          localStorage.removeItem('gistId');
-          gistId = null;
-          showToast('GitHub token cleared');
+          showToast('GitHub token cleared — next backup will ask for a new one');
         }
         else if (act === 'fixmonday') fixMondayStepdownEntries();
       });
