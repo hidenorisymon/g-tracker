@@ -282,6 +282,15 @@
   .sbtn.danger{color:var(--warning,#C4611E);} .sbtn.danger svg{color:inherit;}
   .sbtn.danger.confirm{background:var(--warning,#C4611E);color:#fff;border-color:var(--warning,#C4611E);}
   .setnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin:8px 2px 0;}
+  /* The gist link used to appear once, in the toast shown when the backup was
+     first created, and nowhere after — so recovering it meant hunting through
+     GitHub. It lives here now. */
+  .gistrow{border:1px solid var(--hair);border-radius:13px;background:var(--surface);padding:11px 13px;margin-bottom:9px;cursor:pointer;}
+  .gistrow:active{transform:scale(.99);}
+  .gistrow .k{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .gistrow .v{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);word-break:break-all;line-height:1.45;}
+  .gistrow .hint{font-size:11px;color:var(--muted);margin-top:6px;}
+  .gistrow.copied .hint{color:var(--green);}
 
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
     background:#2a2d32;border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:500;padding:10px 18px;border-radius:11px;
@@ -572,6 +581,11 @@
 
       <div class="setgroup">
         <div class="glabel">Backup & restore</div>
+        <div class="gistrow" id="gistRow" hidden>
+          <div class="k">Backup gist</div>
+          <div class="v" id="gistLink">—</div>
+          <div class="hint" id="gistHint">Tap to copy</div>
+        </div>
         <div class="setbtns">
           <button class="sbtn" data-act="backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>Back up to GitHub</button>
           <button class="sbtn" data-act="load"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Load from GitHub</button>
@@ -988,6 +1002,25 @@
     document.getElementById('setTaperStart').value = taperPlan.start || '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
+    renderGistRow();
+  }
+
+  // gist.github.com/<id> resolves without the owner name in the path, which is
+  // just as well — only the id is stored.
+  function gistUrl() {
+    const id = localStorage.getItem('gistId');
+    return id ? `https://gist.github.com/${id}` : null;
+  }
+
+  function renderGistRow() {
+    const row = document.getElementById('gistRow');
+    if (!row) return;
+    const url = gistUrl();
+    row.hidden = !url;
+    if (!url) return;
+    row.classList.remove('copied');
+    document.getElementById('gistLink').textContent = url;
+    document.getElementById('gistHint').textContent = 'Tap to copy';
   }
 
   async function saveSettings() {
@@ -2079,6 +2112,15 @@
       copyText(await buildTaperText(), e.currentTarget);
     });
 
+    document.getElementById('gistRow').addEventListener('click', () => {
+      const url = gistUrl();
+      if (!url) return;
+      copyText(url);
+      document.getElementById('gistRow').classList.add('copied');
+      document.getElementById('gistHint').textContent = 'Copied';
+      setTimeout(renderGistRow, 1600);
+    });
+
     document.getElementById('btnSave').addEventListener('click', saveSettings);
     document.querySelectorAll('.sbtn[data-act]').forEach(b => {
       b.addEventListener('click', () => {
@@ -2708,6 +2750,7 @@
           localStorage.setItem('gistId', gistId);
           const url = `https://gist.github.com/${gist.owner.login}/${gistId}`;
           localStorage.setItem('gistUrl', url);
+          renderGistRow();
           showToast('✓ Backup created!');
           alert('Backup link (save this!):\n' + url);
         } else {
@@ -2732,6 +2775,7 @@
         id = match[1];
         localStorage.setItem('gistId', id);
         gistId = id;
+        renderGistRow();
       }
 
       const token = localStorage.getItem('githubToken');
