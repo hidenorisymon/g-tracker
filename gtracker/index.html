@@ -1376,7 +1376,10 @@
   // a wear-off time set in Settings can appear, since without one there is no
   // window to draw. Everything clears when the session ends (Sleep Dose).
   const AMED_SOON_MIN = 30;   // "Wearing off" starts this close to the end
-  const AMED_LINGER_MIN = 3;  // how long a lapsed row stays before self-removing
+  // A lapsed row is the reminder that a redose is due, so three minutes was far
+  // too short — the row could vanish while the phone was in a pocket. It now
+  // holds for a full hour unless swiped away.
+  const AMED_LINGER_MIN = 60; // how long a lapsed row stays before self-removing
   const AMED_SWIPE_PX = 60;   // horizontal travel that counts as a swipe
   const AMED_STATE = {
     ok: 'Active', soon: 'Wearing off', lapsed: 'Lapsed', pending: 'Pending',
