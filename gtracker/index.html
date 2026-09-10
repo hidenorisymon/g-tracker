@@ -75,11 +75,13 @@
     stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
   .dial .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
   .dial .in .lbl{font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:2px;}
-  .dial .in .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .dial .in .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;transition:color .4s;}
   #dial.ready .fill{stroke:var(--grn);}
   #dial.ready .lbl,#dial.ready .big{color:var(--grn);}
   @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-  #readout .bl,#since .bl{animation:blink 1s infinite;}
+  /* Only the seconds separator pulses, and only in the countdown. Since last
+     is read as "how long ago", not timed to the second, so it holds still. */
+  #readout .bl{animation:blink 1s infinite;}
   #dial.ready #readout .bl{animation:none;opacity:1;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
@@ -1096,6 +1098,20 @@
   // so the arc fills clockwise from 12 o'clock.
   const DIAL_CIRCUMFERENCE = 439.82;
 
+  // Red just after a dose, amber around halfway, green as the wait runs out —
+  // the same three palette colours the medication rows use, so the whole screen
+  // reads the same way. Interpolated rather than stepped, so there is no moment
+  // where the number jumps colour and looks like something happened.
+  const HEAT_STOPS = [[224, 92, 92], [240, 179, 94], [52, 211, 153]]; // --red, --amb, --grn
+  function readyHeat(frac) {
+    const f = Math.min(1, Math.max(0, frac)) * (HEAT_STOPS.length - 1);
+    const i = Math.min(HEAT_STOPS.length - 2, Math.floor(f));
+    const t = f - i;
+    const a = HEAT_STOPS[i], b = HEAT_STOPS[i + 1];
+    const c = a.map((v, k) => Math.round(v + (b[k] - v) * t));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+
   async function paintRing() {
     renderCurrentSession();
     renderActiveMeds();
@@ -1112,10 +1128,17 @@
     // An arc that's a sliver of a percent renders as nothing at all, which
     // reads as "no dose logged" rather than "just dosed" — so any progress at
     // all shows at least a dot.
-    const setDial = (frac, ready) => {
+    // live=false is the '--:--:--' placeholder: no countdown is running, so it
+    // must not pick up the just-dosed red that a fraction of 0 would give it.
+    const setDial = (frac, ready, live = true) => {
       const shown = frac <= 0 ? 0 : Math.min(1, Math.max(0.01, frac));
       dialFill.style.strokeDashoffset = (DIAL_CIRCUMFERENCE * (1 - shown)).toFixed(2);
       dial.classList.toggle('ready', !!ready);
+      // Cleared rather than set to green once ready, so the .ready rule stays
+      // the single place the ready colour is defined.
+      const heat = (ready || !live) ? '' : readyHeat(frac);
+      dialFill.style.stroke = heat;
+      readout.style.color = heat;
     };
 
     const doseLabel = document.getElementById('logDoseLabel');
@@ -1134,21 +1157,24 @@
     const anchorData = doseData.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
 
     if (anchorData.length === 0) {
-      setDial(0, false);
+      setDial(0, false, false);
       eyebrow.textContent = 'No dose yet';
       readout.innerHTML = '--:--:--';
-      since.innerHTML = '--:--:--';
+      since.innerHTML = '--:--';
       return;
     }
 
-    const hms = totalSec => p(Math.floor(totalSec / 3600)) + col + p(Math.floor(totalSec / 60) % 60) + col + p(totalSec % 60);
+    // The colon after the hour used to blink too. Two pulsing separators made
+    // the whole number look unstable, so only the seconds one moves now.
+    const hms = totalSec => p(Math.floor(totalSec / 3600)) + ':' + p(Math.floor(totalSec / 60) % 60) + col + p(totalSec % 60);
+    const hm = totalSec => p(Math.floor(totalSec / 3600)) + ':' + p(Math.floor(totalSec / 60) % 60);
 
     const lastTs = anchorData[anchorData.length - 1].timestamp;
     const elapsedSec = Math.floor((Date.now() - lastTs) / 1000);
-    since.innerHTML = hms(elapsedSec);
+    since.innerHTML = hm(elapsedSec);
 
     if (target <= 0) {
-      setDial(0, false);
+      setDial(0, false, false);
       eyebrow.textContent = 'No target set';
       readout.innerHTML = '--:--:--';
       return;
