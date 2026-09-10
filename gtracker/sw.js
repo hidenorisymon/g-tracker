@@ -6,8 +6,11 @@
 // while online always gets the latest deploy; only a failed network request
 // falls back to the cached copy. That also means there is no version number
 // to remember to bump on future deploys — the cache just keeps refreshing
-// itself whenever the network is reachable.
-const CACHE = 'g-tracker-shell-v1';
+// itself whenever the network is reachable. It is bumped anyway on a visual
+// overhaul: activate deletes every cache that is not the current name, which
+// is the one guaranteed way to drop a stale shell an offline device is still
+// holding. v2 = the light Log screen.
+const CACHE = 'g-tracker-shell-v2';
 const SHELL_URLS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
