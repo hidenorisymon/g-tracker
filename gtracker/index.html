@@ -92,6 +92,16 @@
      swipe reveals the Remove action underneath it. */
   .ameds{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;}
   .ameds[hidden]{display:none;}
+  /* Lives OUTSIDE .ameds on purpose (see renderActiveMeds): if the card just
+     dismissed was the only one showing, .ameds is now empty and hidden, and
+     this still has to be visible to bring it back. Deliberately quiet — a
+     rare recovery action, not another primary button. */
+  .restoreCard{display:block;width:100%;margin:0 0 12px;padding:9px 0;
+    border:none;background:none;border-radius:10px;font-family:var(--sans);
+    font-size:12px;font-weight:600;color:var(--mut);cursor:pointer;text-align:center;}
+  .restoreCard[hidden]{display:none;}
+  .restoreCard:active{opacity:.6;}
+  .restoreCard .rname{color:var(--txt2);}
   .amed{position:relative;border-radius:14px;}
   .amed .remove{position:absolute;top:0;right:0;bottom:0;width:104px;display:flex;align-items:center;justify-content:flex-end;
     padding-right:16px;background:var(--red);color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;
@@ -425,6 +435,7 @@
       </div>
 
       <div class="ameds" id="activeMedsWrap" hidden></div>
+      <button class="restoreCard" id="restoreMedCard" hidden>↺ Restore <span class="rname"></span></button>
 
       <div class="btnrow">
         <button class="b prim" id="chipLogDose"><span id="logDoseLabel">Log Dose</span></button>
@@ -1567,6 +1578,19 @@
     await renderActiveMeds();
   }
 
+  // Undoes dismissMedDose — for an X pressed by mistake, or one that turns
+  // out wrong once you notice the card is gone. Just un-marks the timestamp;
+  // the entry itself was never touched, so the card reappears exactly as it
+  // would have if it had never been dismissed (including "lapsed", if it's
+  // aged into that by now).
+  async function restoreMedDose(ts) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(DISMISSED_MEDS_KEY) || '[]'); } catch (e) {}
+    const kept = list.filter(t => t !== ts);
+    if (kept.length !== list.length) localStorage.setItem(DISMISSED_MEDS_KEY, JSON.stringify(kept));
+    await renderActiveMeds();
+  }
+
   // One slim row per medication PART taken during the CURRENT SESSION, newest
   // dose first, so "is this still working" never needs mental math.
   //
@@ -1678,6 +1702,11 @@
     const now = Date.now();
 
     const rows = [];
+    // Newest dismissed-but-still-alive dose this session, if any — what the
+    // Restore button (outside .ameds, below) offers to bring back. Stays
+    // null whenever there's nothing worth restoring, which also covers "no
+    // open session".
+    let restoreTs = null, restoreName = null;
     if (openSession) {
       // Same lower bound computeSessions() uses for this session: the previous
       // session's end when there is one (so a dismissal made in the
@@ -1690,14 +1719,20 @@
       const dismissed = getDismissedMedSet(dismissCutoff);
       openSession.timeline
         .filter(isMedEntry)
-        .filter(e => !dismissed.has(e.timestamp))
         .sort((a, b) => b.timestamp - a.timestamp) // newest taken first
         .forEach(e => {
           const parts = wearOffPartForEntry(e);
+          const isDismissed = dismissed.has(e.timestamp);
           parts.forEach((part, i) => {
             const releaseTs = e.timestamp + part.startOffsetMin * 60000;
             const endTs = releaseTs + part.durationMin * 60000;
             if (now >= endTs + AMED_LINGER_MIN * 60000) return; // aged out on its own
+            if (isDismissed) {
+              // Newest-first order means the first live dismissed dose hit
+              // here is the most recently dismissed one.
+              if (restoreTs == null) { restoreTs = e.timestamp; restoreName = e.name; }
+              return;
+            }
             rows.push({
               key: `${e.timestamp}:${i}`, ts: e.timestamp, name: e.name,
               partIdx: i, partCount: parts.length, entryPart: e.part, releaseTs, endTs,
@@ -1738,6 +1773,15 @@
 
     rows.forEach(r => { const entry = amedEls.get(r.key); if (entry) wrap.appendChild(entry.el); });
     wrap.hidden = amedEls.size === 0;
+
+    const restoreBtn = document.getElementById('restoreMedCard');
+    if (restoreBtn) {
+      restoreBtn.hidden = restoreTs == null;
+      if (restoreTs != null) {
+        restoreBtn.dataset.ts = restoreTs;
+        restoreBtn.querySelector('.rname').textContent = restoreName;
+      }
+    }
   }
 
   // ===== Log page render =====
@@ -2264,6 +2308,10 @@
     document.getElementById('activeMedsWrap').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-dismiss]');
       if (btn) dismissMedDose(parseInt(btn.dataset.dismiss));
+    });
+    document.getElementById('restoreMedCard').addEventListener('click', (e) => {
+      const ts = parseInt(e.currentTarget.dataset.ts);
+      if (ts) restoreMedDose(ts);
     });
     document.getElementById('editCancel').addEventListener('click', closeEntryEdit);
     document.getElementById('editSave').addEventListener('click', saveEntryEdit);

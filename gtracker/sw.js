@@ -10,7 +10,7 @@
 // overhaul: activate deletes every cache that is not the current name, which
 // is the one guaranteed way to drop a stale shell an offline device is still
 // holding. v2 = the light Log screen.
-const CACHE = 'g-tracker-shell-v3';
+const CACHE = 'g-tracker-shell-v4';
 const SHELL_URLS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
