@@ -137,14 +137,14 @@
      are colour and, on row 3, the pill radius. */
   .btnrow{display:flex;gap:8px;margin-bottom:8px;}
   .btnrow.meds{margin-bottom:16px;}
-  .btnrow .b{flex:1;min-width:0;height:37px;padding:0 6px;position:relative;
-    border:none;border-radius:12px;background:var(--card);box-shadow:var(--sh);
-    font-family:var(--sans);font-size:12px;font-weight:600;color:var(--txt2);
+  .btnrow .b{flex:1;min-width:0;height:44px;padding:0 6px;position:relative;
+    border:none;border-radius:14px;background:var(--card);box-shadow:var(--sh);
+    font-family:var(--sans);font-size:14px;font-weight:600;color:var(--txt2);
     cursor:pointer;transition:.16s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  /* The button stays 37px to the eye; the thing a thumb has to land on is
-     44px. These get pressed half awake, so the hit area grows past the paint
-     rather than the paint growing to meet the thumb. */
-  .btnrow .b::after{content:"";position:absolute;left:0;right:0;top:-3.5px;bottom:-3.5px;}
+  /* The button paints at 44px; the thing a thumb has to land on is 53px. These
+     get pressed half awake, so the hit area grows past the paint rather than
+     the paint growing to meet the thumb. */
+  .btnrow .b::after{content:"";position:absolute;left:0;right:0;top:-4.5px;bottom:-4.5px;}
   .btnrow .b:active{opacity:.6;}
   .btnrow .b.prim{background:var(--grn);color:#fff;font-weight:700;}
   /* Inset ring rather than a border, so the amber outline costs no layout and
@@ -152,7 +152,7 @@
   .btnrow .b.resc{color:var(--amb);box-shadow:var(--sh),inset 0 0 0 1.5px rgba(209,144,42,.45);}
   .btnrow .b.tealt{color:var(--teal);}
   .btnrow .b.bluet{color:var(--blue);}
-  .btnrow .b.pill{border-radius:19px;font-size:10.5px;}
+  .btnrow .b.pill{border-radius:22px;font-size:12.5px;}
   .btnrow .b.pill.pur{color:var(--pur);}
   .btnrow .b.pill.org{color:var(--org);}
 
@@ -259,12 +259,20 @@
   .sum .g .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:3px;}
   .sum .g .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
   .sum .g .v small{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;letter-spacing:0;}
-  .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);} .sum .g .v.pur{color:var(--pur);}
-  /* The rescue cell reads as one line, not a stacked stat: the count matters
-     next to its label, and the peso figure belongs at the far edge. */
-  .sum .g.inline{display:flex;align-items:baseline;gap:8px;}
-  .sum .g.inline .k{margin-bottom:0;}
-  .sum .g.inline .cost{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-left:auto;}
+  .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);}
+  /* Medication rows sit above the grid, one line each. The left indicator and
+     the mg colour come from that ROW's own drug total against the ceiling in
+     Settings, so Ritalin and Concerta can read differently on the same day.
+     With no ceiling set they stay purple and the indicator is a plain
+     hairline. */
+  .sum .grow{display:flex;align-items:baseline;gap:8px;padding:1px 0 1px 10px;margin-bottom:8px;
+    border-left:3px solid var(--line);}
+  .sum .grow .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;}
+  .sum .grow .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;color:var(--pur);}
+  .sum .grow .sub{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-left:auto;}
+  .sum .grow.under{border-left-color:var(--grn);} .sum .grow.under .v{color:var(--grn);}
+  .sum .grow.near{border-left-color:var(--amb);} .sum .grow.near .v{color:var(--amb);}
+  .sum .grow.over{border-left-color:var(--red);} .sum .grow.over .v{color:var(--red);}
   .sum .stotal{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:11px;}
   .sum .stotal .k{font-size:12.5px;font-weight:600;color:var(--txt2);}
   .sum .stotal .v{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.3px;}
@@ -602,6 +610,12 @@
       </div>
 
       <div class="setgroup">
+        <div class="glabel">Medication limit</div>
+        <div class="setrow"><div class="sk">Daily maximum<small>Ceiling in mg for one medication's session total — Ritalin and Concerta are each measured against it separately. Colours the medication rows in Log: green under 50%, amber to 70%, red above. Blank or 0 = no limit</small></div>
+          <div class="field cost"><input type="number" id="setMedMax" min="0" step="1" placeholder="0"><span class="cur">mg</span></div></div>
+      </div>
+
+      <div class="setgroup">
         <div class="glabel">Medication wear-off</div>
         <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log</small></div>
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
@@ -694,6 +708,7 @@
   const costKey = 'costPerMl';
   const MED_COST_KEY = 'medCostSettings';
   const WEAR_OFF_KEY = 'medWearOffMinutes';
+  const MED_MAX_KEY = 'medMaxMg';
   const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
   const TARGET_KEY = 'targetIntervalMinutes';
   const TRIGGER_LABELS = {
@@ -718,6 +733,24 @@
   // Grouped by drug family, not exact product name, so it still applies if a
   // different strength (e.g. a future "Ritalin 10" button) gets added later.
   let medWearOff = { ritalin: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
+  // Ceiling in mg for ONE medication's session total — Ritalin is measured
+  // against it, and Concerta separately against the same number. Not the two
+  // added together: they are different drugs and a shared sum would flag a
+  // normal Concerta day the moment any Ritalin was taken. 0 means no ceiling
+  // set, and every medication row stays its neutral purple.
+  let medMaxMg = parseFloat(localStorage.getItem(MED_MAX_KEY)) || 0;
+
+  // Half the ceiling or less reads as fine, up to 70% as "watch it", above
+  // that as red — deliberately cautious, so the row turns before the ceiling
+  // is anywhere close. Same three colours the dose ring and the medication
+  // cards use, so the whole screen reads one way.
+  const MED_MAX_NEAR_FRAC = 0.50;
+  const MED_MAX_OVER_FRAC = 0.70;
+  function medLoadClass(mg) {
+    if (!(medMaxMg > 0) || !(mg > 0)) return '';
+    const f = mg / medMaxMg;
+    return f > MED_MAX_OVER_FRAC ? 'over' : f > MED_MAX_NEAR_FRAC ? 'near' : 'under';
+  }
 
   function wearOffMinutesFor(name) {
     if (/ritalin/i.test(name)) return medWearOff.ritalin || 0;
@@ -746,6 +779,23 @@
     }
     const single = wearOffMinutesFor(name);
     return single > 0 ? [{ startOffsetMin: 0, durationMin: single, mg: null }] : [];
+  }
+
+  // Per-STORED-ENTRY wear-off window. Ritalin 20 LA is now logged as two
+  // separate 10mg entries (see logRitalin20LA), each tagged e.part = 1 or 2,
+  // so each entry already IS one pulse — this looks up just that one pulse's
+  // window instead of re-synthesizing both from the name. Entries logged
+  // before this change (or already sitting in the Gist backup) have no
+  // e.part and fall back to wearOffPartsFor(name), which still returns the
+  // full two-pulse profile for a single 20mg entry — that's what keeps old
+  // history rendering exactly as it always did.
+  function wearOffPartForEntry(e) {
+    if (e.name === 'Ritalin 20' && (e.part === 1 || e.part === 2)) {
+      return e.part === 1
+        ? (medWearOff.ritalin20Part1 > 0 ? [{ startOffsetMin: 0, durationMin: medWearOff.ritalin20Part1, mg: 10 }] : [])
+        : (medWearOff.ritalin20Part2 > 0 ? [{ startOffsetMin: RITALIN20_PART2_DELAY_MIN, durationMin: medWearOff.ritalin20Part2, mg: 10 }] : []);
+    }
+    return wearOffPartsFor(e.name);
   }
 
   function parseHM(str) {
@@ -1038,9 +1088,12 @@
   // medication), and null means it genuinely had no value before, which on a
   // first-ever Wake Up is not the same thing as 'false'. The n8n reminder has
   // already fired and is not recalled; undo is about the log, not the ping.
+  // ts also accepts an array — Ritalin 20 LA logs as two entries (see
+  // logRitalin20LA) and one tap's Undo has to remove both.
   async function undoLog(ts, prevSession) {
     let data = await getAllData();
-    data = data.filter(e => e.timestamp !== ts);
+    const tsSet = Array.isArray(ts) ? new Set(ts) : new Set([ts]);
+    data = data.filter(e => !tsSet.has(e.timestamp));
     saveData(data);
     if (prevSession !== undefined) {
       if (prevSession === null) localStorage.removeItem(SESSION_KEY);
@@ -1074,6 +1127,9 @@
 
     const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
     if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
+    medMaxMg = parseFloat(localStorage.getItem(MED_MAX_KEY)) || 0;
+    document.getElementById('setMedMax').value = medMaxMg > 0 ? medMaxMg : '';
+
     document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
     document.getElementById('setRitalinWearOff').value = fmtHM(medWearOff.ritalin);
     document.getElementById('setRitalin20Part1').value = fmtHM(medWearOff.ritalin20Part1);
@@ -1137,6 +1193,10 @@
       ritalin20Part2: parseHM(document.getElementById('setRitalin20Part2').value),
     };
     localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff));
+
+    medMaxMg = parseFloat(document.getElementById('setMedMax').value) || 0;
+    if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg);
+    else localStorage.removeItem(MED_MAX_KEY);
 
     // Only start date and Current dose are editable now; step/interval/floor
     // are constants, and startDose is carried forward (Current dose writes it
@@ -1438,6 +1498,34 @@
     await renderActiveMeds();
   }
 
+  // Ritalin 20 LA is one capsule but two physical pulses (see
+  // RITALIN20_PART2_DELAY_MIN) — logged as two 10mg entries instead of one
+  // 20mg entry, so History/Log show and can edit/delete each pulse on its
+  // own row rather than one row standing in for both. Part 2 gets tm+1
+  // (not the same tm as Part 1) purely so it has its own timestamp identity
+  // for edit/delete/find-by-timestamp — the same 1ms-bump idiom
+  // saveEntryEdit already uses to keep entries unique; 1ms is invisible in
+  // every displayed time. Cost splits evenly (any odd peso goes to Part 1);
+  // total mg (10+10) and Undo (removes both timestamps at once) behave
+  // exactly like the old single 20mg entry did.
+  async function logRitalin20LA() {
+    const data = await getAllData();
+    const tm = Date.now();
+    const tm2 = tm + 1;
+    const cost = medCost['Ritalin 20'] || 0;
+    const cost1 = Math.round(cost / 2);
+    const cost2 = cost - cost1;
+    const cl = MED_CL['Ritalin 20'] || 'grey';
+    data.push({ type: 'med', name: 'Ritalin 20', mg: 10, part: 1, cl, cost: cost1, timestamp: tm, durationMin: null });
+    data.push({ type: 'med', name: 'Ritalin 20', mg: 10, part: 2, cl, cost: cost2, timestamp: tm2, durationMin: null });
+    data.sort((a, b) => a.timestamp - b.timestamp);
+    saveData(data);
+    showToast('Logged Ritalin 20 LA', () => undoLog([tm, tm2], undefined));
+    notifyN8nMedLapse('Ritalin 20', tm);
+    await renderLog();
+    await renderActiveMeds();
+  }
+
   // Pings a SEPARATE webhook from the GHB dose reminder — different topic,
   // different urgency (one-shot, not a repeating nag). Uses the med's LAST
   // wear-off part as "when it lapses": for Ritalin 5/Concerta that's the
@@ -1482,10 +1570,12 @@
   // One slim row per medication PART taken during the CURRENT SESSION, newest
   // dose first, so "is this still working" never needs mental math.
   //
-  // Rows run their own lifecycle: they appear when the med is logged, walk
-  // Active → Wearing off → Lapsed as the window runs out, and then remove
-  // themselves AMED_LINGER_MIN minutes later. That replaced the X button —
-  // a card you had to dismiss by hand was one more thing to remember.
+  // Rows run their own lifecycle: they appear when the med is logged and walk
+  // Active → Wearing off → Lapsed as the window runs out. A lapsed row then
+  // STAYS for AMED_LINGER_MIN — six hours, most of a waking session — because
+  // "that one wore off" is the single most useful thing the screen says, and a
+  // card that deletes itself is a card he never saw. The X on each row is the
+  // real way out; the timer is only there so a row cannot outlive its session.
   // A left-swipe still reveals Remove, for a med logged by mistake.
   //
   // Session scoping is unchanged from the card version this replaced: rows
@@ -1495,7 +1585,7 @@
   // a wear-off time set in Settings can appear, since without one there is no
   // window to draw. Everything clears when the session ends (Sleep Dose).
   const AMED_SOON_MIN = 30;   // "Wearing off" starts this close to the end
-  const AMED_LINGER_MIN = 3;  // how long a lapsed row stays before self-removing
+  const AMED_LINGER_MIN = 360; // how long a lapsed row stays before self-removing
   const AMED_SWIPE_PX = 60;   // horizontal travel that counts as a swipe
   const AMED_STATE = {
     ok: 'Active', soon: 'Wearing off', lapsed: 'Lapsed', pending: 'Pending',
@@ -1525,7 +1615,11 @@
 
   function amedBodyHtml(r, status, now) {
     const fmtT = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    const partTag = r.partCount > 1 ? `<span class="part"> · part ${r.partIdx + 1}</span>` : '';
+    // entryPart (new split-format entries) names its own pulse directly;
+    // partCount > 1 is the legacy fallback, where one stored 20mg entry is
+    // still being synthesized into two virtual rows.
+    const partNum = r.entryPart || (r.partCount > 1 ? r.partIdx + 1 : null);
+    const partTag = partNum ? `<span class="part"> · Part ${partNum}</span>` : '';
     let right;
     if (status === 'lapsed') right = `ended <b>${fmtT(r.endTs)}</b>`;
     else if (status === 'pending') right = `starts <b>${fmtT(r.releaseTs)}</b>`;
@@ -1599,14 +1693,14 @@
         .filter(e => !dismissed.has(e.timestamp))
         .sort((a, b) => b.timestamp - a.timestamp) // newest taken first
         .forEach(e => {
-          const parts = wearOffPartsFor(e.name);
+          const parts = wearOffPartForEntry(e);
           parts.forEach((part, i) => {
             const releaseTs = e.timestamp + part.startOffsetMin * 60000;
             const endTs = releaseTs + part.durationMin * 60000;
             if (now >= endTs + AMED_LINGER_MIN * 60000) return; // aged out on its own
             rows.push({
               key: `${e.timestamp}:${i}`, ts: e.timestamp, name: e.name,
-              partIdx: i, partCount: parts.length, releaseTs, endTs,
+              partIdx: i, partCount: parts.length, entryPart: e.part, releaseTs, endTs,
             });
           });
         });
@@ -1699,7 +1793,8 @@
       } else {
         meta = e.endedName ? `ended ${escapeHtml(e.endedName)}` : 'marker';
       }
-      return `<div class="entry" data-ts="${e.timestamp}" data-kind="med"><span class="cd bg-${e.cl}"></span><div class="body"><div class="lead">${escapeHtml(e.name)}</div><div class="meta">${meta}</div></div><div class="time">${time}</div></div>`;
+      const partTag = e.part ? ` · Part ${e.part}` : '';
+      return `<div class="entry" data-ts="${e.timestamp}" data-kind="med"><span class="cd bg-${e.cl}"></span><div class="body"><div class="lead">${escapeHtml(e.name)}${partTag}</div><div class="meta">${meta}</div></div><div class="time">${time}</div></div>`;
     }).join('') : `<div class="empty">No meds logged.</div>`;
   }
 
@@ -2097,6 +2192,7 @@
         if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
         if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
         if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
+        if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
         if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
         loadSettings();
         await renderLog();
@@ -2126,7 +2222,7 @@
 
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
-    document.getElementById('chipRitalin20').addEventListener('click', () => logMed('Ritalin 20'));
+    document.getElementById('chipRitalin20').addEventListener('click', () => logRitalin20LA());
 
     document.getElementById('prevLogDay').addEventListener('click', async () => {
       const sessions = await computeSessions();
@@ -2308,7 +2404,7 @@
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
     let out = `G Tracker — Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n${range}\n`;
     out += `Session length   ${fmtGap(Math.round(s.durationHours * 60))}\n`;
-    out += `Doses vs schedule   ${s.actualLogDoses} / ${s.expectedLogDoses}\n`;
+    out += `Doses vs schedule   ${s.onTimeLogDoses} / ${s.actualLogDoses}\n`;
     out += `Total ml   ${fmtMl(s.totalDailyMl)} ml · ${fmtPeso(s.mlCost)}\n`;
     if (s.sleepMl > 0) out += `  incl. sleep   ${fmtMl(s.sleepMl)} ml\n`;
     if (s.rescueCount > 0) out += `Rescue   ${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml · ${fmtPeso(s.rescueMl * costPerMl)}\n`;
@@ -2316,7 +2412,7 @@
     if (s.concertaMg > 0) out += `Concerta   ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}\n`;
     out += `Total cost   ${fmtPeso(s.grandCost)}\n\nTimeline\n`;
     out += s.timeline.map(e => {
-      if (isMedEntry(e)) return `${fmtTime(e.timestamp)}   ${e.name}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
+      if (isMedEntry(e)) return `${fmtTime(e.timestamp)}   ${e.name}${e.part ? ' · Part ' + e.part : ''}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
       const kind = doseKind(e);
       const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : 'Dose';
       return `${fmtTime(e.timestamp)}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}`;
@@ -2414,23 +2510,39 @@
     // hardcoded to 2.5hr, so changing the interval to 2:00 left every day
     // scored against a schedule that was no longer being followed.
     const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
-    const intervalHours = targetMinutes > 0 ? targetMinutes / 60 : 2.5;
+
+    // "Doses vs schedule" = how many of a session's doses actually landed
+    // on time, not an elapsed-time pace estimate. Computed once, up front,
+    // over ALL doses in chronological order (not scoped to a session) so it
+    // mirrors logDose()'s own early-dose check exactly: a dose is on time
+    // if it landed at/after the target interval since the last real dose
+    // (log or sleep) — the same check that decides whether the early-dose
+    // reason prompt fires. A dose that never triggered that prompt always
+    // counts as on time here too. This replaced a pace estimate (doses
+    // implied by hours elapsed so far) that could read "over" even when
+    // every dose taken was on time, just because a couple of gaps ran long.
+    const onTimeSet = new Set();
+    {
+      let lastAnchorTs = null;
+      doses.forEach(e => {
+        const kind = doseKind(e);
+        if (kind === 'log') {
+          const onTime = !(targetMinutes > 0 && lastAnchorTs != null && e.timestamp < lastAnchorTs + targetMinutes * 60000);
+          if (onTime) onTimeSet.add(e.timestamp);
+          lastAnchorTs = e.timestamp;
+        } else if (kind === 'sleep') {
+          lastAnchorTs = e.timestamp;
+        }
+      });
+    }
     return sessions.map((s, i) => {
       const endTs = s.endTs != null ? s.endTs : now;
       const durationHours = (endTs - s.startTs) / 3600000;
-      // The schedule is anchored to the FIRST REAL DOSE, not to Wake Up —
-      // waking up doesn't start the clock (same rule the countdown uses).
-      // That first dose is itself scheduled, hence the +1: over a window of
-      // D hours starting at a dose, the schedule allows
-      // floor(D / interval) + 1 doses. Anchoring at Wake Up instead made a
-      // perfectly-spaced day read as "over" by one.
-      const firstLogTs = s.logs.length ? s.logs[0].timestamp : null;
-      const scheduleHours = firstLogTs != null ? (endTs - firstLogTs) / 3600000 : 0;
-      const expectedLogDoses = firstLogTs != null ? Math.floor(scheduleHours / intervalHours) + 1 : 0;
       // Only type:'log' counts toward adherence — rescue doses are tracked
       // as a separate tally so schedule-adherence and rescue frequency read
       // as two distinct numbers, not conflated into one.
       const actualLogDoses = s.logs.length;
+      const onTimeLogDoses = s.logs.filter(e => onTimeSet.has(e.timestamp)).length;
       const logMl = s.logs.reduce((sum, e) => sum + e.ml, 0);
       const sleepMl = s.sleeps.reduce((sum, e) => sum + e.ml, 0);
       const rescueCount = s.rescues.length;
@@ -2464,7 +2576,7 @@
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
-        durationHours, expectedLogDoses, actualLogDoses,
+        durationHours, actualLogDoses, onTimeLogDoses,
         logMl, sleepMl, rescueCount, rescueMl, totalDailyMl,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
@@ -2479,7 +2591,7 @@
   function sessionCardHtml(s, newestFirst) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const over = s.actualLogDoses > s.expectedLogDoses;
+    const over = s.onTimeLogDoses < s.actualLogDoses;
     const doseClass = over ? 'over' : 'under';
     const rangeText = s.isOpen
       ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
@@ -2503,17 +2615,20 @@
       // data-ts/data-kind make each row tappable — same edit sheet History
       // already uses, so a wrong time or ml can be fixed without leaving Log.
       if (isMedEntry(e)) {
-        // One part = the old single "Wears off" line. Two parts (Ritalin 20
-        // LA) get one line per pulse, labeled so it's clear they're the same
-        // dose, not two doses. End accounts for each pulse's own release
-        // delay (Part 2 starts RITALIN20_PART2_DELAY_MIN after the dose).
-        const parts = wearOffPartsFor(e.name);
+        // e.part (set on entries logged after the Ritalin 20 LA split) names
+        // which pulse this row is, straight on the row title. Older,
+        // unsplit Ritalin 20 entries have no e.part and fall through
+        // wearOffPartForEntry's legacy path, which still returns both
+        // pulses for one row — same "Part N wears off" per-line label it
+        // always had.
+        const partTag = e.part ? ` · Part ${e.part}` : '';
+        const parts = wearOffPartForEntry(e);
         const wearOffLine = parts.map((part, i) => {
           const label = parts.length > 1 ? `Part ${i + 1} wears off` : 'Wears off';
           const endTs = e.timestamp + (part.startOffsetMin + part.durationMin) * 60000;
           return `<div class="slwear">${label} ${fmtTime(endTs)}</div>`;
         }).join('');
-        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
       }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
@@ -2530,7 +2645,7 @@
       </div>
       <div class="sstats">
         <div class="brow"><span class="bk">Session length</span><span class="bv">${durationText}</span></div>
-        <div class="brow"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.actualLogDoses} / ${s.expectedLogDoses}</span></div>
+        <div class="brow"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.onTimeLogDoses} / ${s.actualLogDoses}</span></div>
       </div>
 
       <div class="glabel sublabel">G · ml</div>
@@ -2559,31 +2674,28 @@
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
     // Over the scheduled dose count is the only state worth flagging; on or
     // under schedule is the goal, so it reads green.
-    const doseCls = s.actualLogDoses > s.expectedLogDoses ? 'amb' : 'grn';
-    // Meds sit ABOVE G total on purpose: the stimulant total is the number
-    // that changes day to day, so it must not be the one you scroll past.
-    const medCells = [
+    const doseCls = s.onTimeLogDoses < s.actualLogDoses ? 'amb' : 'grn';
+    // Meds lead the card: the stimulant total is the number that changes day
+    // to day and the one carrying a ceiling, so it must not be the one you
+    // scroll past. Each row is coloured by its OWN drug's session total.
+    const medHtml = [
       ['Ritalin', s.ritalinMg, s.ritalinCost],
       ['Concerta', s.concertaMg, s.concertaCost],
-    ].filter(([, mg]) => mg > 0);
-    const medHtml = medCells.map(([name, mg, cost]) =>
-      `<div class="g"><div class="k">Meds · ${name}</div><div class="v pur">${mg} mg <small>${fmtPeso(cost)}</small></div></div>`
+    ].filter(([, mg]) => mg > 0).map(([name, mg, cost]) =>
+      `<div class="grow ${medLoadClass(mg)}"><span class="k">Meds · ${name}</span><span class="v">${mg} mg</span><span class="sub">${fmtPeso(cost)}</span></div>`
     ).join('');
-    // Session, Doses and G total are three cells; an even number of med cells
-    // keeps that odd, so G total takes the whole row rather than leaving a gap.
-    const gWide = medCells.length % 2 === 0 ? ' wide' : '';
     const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
       <div class="stop">
         <div class="sst">Day ${s.day}${s.isOpen ? ' · <span class="open">Ongoing</span>' : ''}</div>
         <div class="srng">${rangeText}</div>
       </div>
+      ${medHtml}
       <div class="grid">
         <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
-        <div class="g"><div class="k">Doses vs schedule</div><div class="v ${doseCls}">${s.actualLogDoses} / ${s.expectedLogDoses}</div></div>
-        ${medHtml}
-        <div class="g${gWide}"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div></div>
-        <div class="g wide inline"><div class="k">Rescue</div><div class="v${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml</div><div class="cost">${fmtPeso(s.rescueMl * costPerMl)}</div></div>
+        <div class="g"><div class="k">Doses vs schedule</div><div class="v ${doseCls}">${s.onTimeLogDoses} / ${s.actualLogDoses}</div></div>
+        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div></div>
+        <div class="g"><div class="k">Rescue</div><div class="v${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
       </div>
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
     </div>
@@ -2596,17 +2708,20 @@
   function timelineRowHtml(e) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     if (isMedEntry(e)) {
-      // One part = one "wears off" note. Two (Ritalin 20 LA) get one each,
-      // and each accounts for its own release delay.
-      const parts = wearOffPartsFor(e.name);
+      // e.part (new split-format Ritalin 20 LA entries) names its own pulse
+      // right on the row; older, unsplit entries have no e.part and fall
+      // through wearOffPartForEntry's legacy path — one row, one "Part N
+      // off" note per pulse, exactly as before.
+      const partTag = e.part ? ` · Part ${e.part}` : '';
+      const parts = wearOffPartForEntry(e);
       const wear = parts.map((part, i) => {
         const endTs = e.timestamp + (part.startOffsetMin + part.durationMin) * 60000;
-        return `${parts.length > 1 ? `part ${i + 1} off` : 'wears off'} ${fmtTime(endTs)}`;
+        return `${parts.length > 1 ? `Part ${i + 1} off` : 'wears off'} ${fmtTime(endTs)}`;
       }).join(' · ');
       return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="med">
         <span class="tldot" style="background:var(--pur)"></span>
         <span class="tltime">${fmtTime(e.timestamp)}</span>
-        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}</div>${wear ? `<div class="tlwear">${wear}</div>` : ''}</div>
+        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}${partTag}</div>${wear ? `<div class="tlwear">${wear}</div>` : ''}</div>
         <span class="tlamt">${e.mg > 0 ? e.mg + ' mg' : '—'}</span>
       </div>`;
     }
@@ -2719,24 +2834,24 @@
     document.getElementById('taperPeakVal').textContent = `${fmtMl((mlVals[peakIdx] || 0))} ml`;
     document.getElementById('taperPeakDay').textContent = inGroup[peakIdx] ? `Day ${inGroup[peakIdx].day}` : '—';
 
+    const totOnTime = inGroup.reduce((s, x) => s + x.onTimeLogDoses, 0);
     const totActual = inGroup.reduce((s, x) => s + x.actualLogDoses, 0);
-    const totExpected = inGroup.reduce((s, x) => s + x.expectedLogDoses, 0);
     const totMl = inGroup.reduce((s, x) => s + x.totalDailyMl, 0);
     const totMg = inGroup.reduce((s, x) => s + x.ritalinMg + x.concertaMg, 0);
     const dosesEl = document.getElementById('tpDoses');
-    dosesEl.textContent = `${totActual}/${totExpected}`;
-    dosesEl.classList.toggle('over', totActual > totExpected);
-    dosesEl.classList.toggle('under', totActual <= totExpected);
+    dosesEl.textContent = `${totOnTime}/${totActual}`;
+    dosesEl.classList.toggle('over', totOnTime < totActual);
+    dosesEl.classList.toggle('under', totOnTime >= totActual);
     document.getElementById('tpMl').textContent = fmtMl(totMl);
     document.getElementById('tpMg').textContent = totMg;
 
     document.getElementById('taperDaylist').innerHTML = inGroup.map(s => {
-      const over = s.actualLogDoses > s.expectedLogDoses;
+      const over = s.onTimeLogDoses < s.actualLogDoses;
       const cls = over ? ' over' : ' under';
       const extras = [];
       if (s.sleepMl > 0) extras.push(`<span class="dsleep">+${fmtMl(s.sleepMl)}s</span>`);
       if (s.rescueMl > 0) extras.push(`<span class="drescue">+${fmtMl(s.rescueMl)}r</span>`);
-      return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${s.actualLogDoses}/${s.expectedLogDoses} · ${fmtMl(s.totalDailyMl)} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
+      return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${s.onTimeLogDoses}/${s.actualLogDoses} · ${fmtMl(s.totalDailyMl)} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
     }).join('') || '<div class="empty">No data.</div>';
 
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
@@ -2756,7 +2871,7 @@
     const inGroup = sessions.slice(startIdx, startIdx + groupSize);
     const gLabel = `${taperPeriod === 'weekly' ? 'Week' : 'Month'} ${taperGroupIdx}`;
     let out = `G Tracker — Taper (${gLabel})\n\nPer taper day\n`;
-    out += inGroup.map(s => `Day ${s.day}   ${s.actualLogDoses}/${s.expectedLogDoses} · ${fmtMl(s.totalDailyMl)} ml   ${fmtGap(Math.round(s.durationHours * 60))}`).join('\n');
+    out += inGroup.map(s => `Day ${s.day}   ${s.onTimeLogDoses}/${s.actualLogDoses} · ${fmtMl(s.totalDailyMl)} ml   ${fmtGap(Math.round(s.durationHours * 60))}`).join('\n');
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
     const ritCost = inGroup.reduce((s, x) => s + x.ritalinCost, 0);
     const concCost = inGroup.reduce((s, x) => s + x.concertaCost, 0);
@@ -2826,7 +2941,7 @@
 
   async function exportAsJSON() {
     const data = await getAllData();
-    const exportData = { entries: data, costPerMl, medCost, taperPlan, medWearOff, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
+    const exportData = { entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -2853,7 +2968,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -2932,6 +3047,7 @@
       if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
       if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
       if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
+      if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
       if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
       loadSettings();
 
