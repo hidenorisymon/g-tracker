@@ -602,7 +602,7 @@
 
       <div class="setgroup">
         <div class="glabel">Taper plan</div>
-        <div class="setrow"><div class="sk">Current dose<small id="taperCurrentHint">Steps down automatically each week</small></div>
+        <div class="setrow"><div class="sk">Current dose<small id="taperCurrentHint">What you're taking now</small></div>
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Rescue dose<small id="rescueHint">Off-schedule top-up — doesn't reset the timer</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
@@ -823,15 +823,13 @@
     if (!(totalMinutes > 0)) return '';
     return `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
   }
-  // The taper shape is fixed: 0.1 ml off every 7 days, stopping at 0.1 ml.
-  // These were editable settings once; Current dose replaced them, because
-  // typing the number you actually want beats describing a formula.
-  const TAPER_STEP = 0.1;
+  // Current dose is a flat setting, not a formula — it only changes when you
+  // type a new number in Settings. It used to step itself down 0.1 ml every 7
+  // days; that auto-decrease is gone, TAPER_EVERY_DAYS now just buckets edits
+  // into week boundaries so History/Taper still read "Week N" cleanly.
   const TAPER_EVERY_DAYS = 7;
-  const TAPER_FLOOR = 0.1;
-  // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }]. The taper
-  // steps down on its own; typing a different Current dose in Settings records
-  // one of these instead of rewriting the plan, so past weeks keep their targets.
+  // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }] — one per
+  // edit to Current dose, so past weeks keep showing what was actually taken.
   let taperPlan = { start: null, startDose: 0.8, rescueDose: null, adjustments: [] };
   let gistId = localStorage.getItem('gistId');
 
@@ -881,9 +879,9 @@
     return (c % 10 === 0) ? (c / 100).toFixed(1) : (c / 100).toFixed(2);
   }
 
-  // Rescue is a fixed amount, so it does NOT follow the taper down on its own.
-  // If it drifts above the scheduled dose the hint says so, since that's the
-  // point where a "top-up" is quietly the larger of the two.
+  // Rescue is a fixed amount, so it does NOT follow Current dose when you
+  // lower it. If it drifts above the scheduled dose the hint says so, since
+  // that's the point where a "top-up" is quietly the larger of the two.
   function refreshRescueSetting(setValue) {
     const input = document.getElementById('setRescueDose');
     const hint = document.getElementById('rescueHint');
@@ -894,7 +892,7 @@
     const base = target != null ? target : taperPlan.startDose;
     hint.textContent = rescue >= base
       ? `Off-schedule top-up — doesn't reset the timer. Note this is not below your ${fmtMl(base)} ml dose`
-      : `Off-schedule top-up — doesn't reset the timer. Stays fixed as the taper steps down`;
+      : `Off-schedule top-up — doesn't reset the timer. Stays fixed even if you lower Current dose`;
   }
 
   function fmtPeso(n) { return '₱' + Math.round(n).toLocaleString('en-US'); }
@@ -931,8 +929,7 @@
     // "Week 3" still means the third week of the taper.
     const planStart = new Date(taperPlan.start + 'T00:00:00');
     const weekIndex = Math.floor(Math.round((dayStart - planStart) / 86400000) / every) + 1;
-    const dose = Math.max(baseDose - steps * TAPER_STEP, TAPER_FLOOR);
-    return { baseStr, baseDose, steps, every, weekStart, weekIndex, dose: Math.round(dose * 100) / 100 };
+    return { baseStr, baseDose, steps, every, weekStart, weekIndex, dose: Math.round(baseDose * 100) / 100 };
   }
 
   // Target dose for the week containing `date`, per the taper plan (null if not started yet)
@@ -941,10 +938,10 @@
     return b ? b.dose : null;
   }
 
-  // Typing a Current dose in Settings re-anchors the taper from the start of
-  // the CURRENT week and lets it keep stepping down from there. Recorded as
-  // an adjustment rather than a rewrite of startDose so History and the Taper
-  // tab still show what each past week was actually aiming at.
+  // Typing a Current dose in Settings re-anchors from the start of the CURRENT
+  // week and holds there until you change it again. Recorded as an adjustment
+  // rather than a rewrite of startDose so History and the Taper tab still show
+  // what each past week was actually aiming at.
   function applyCurrentDoseOverride(dose) {
     if (!(dose > 0)) return;
     dose = Math.round(dose * 100) / 100;
@@ -981,16 +978,11 @@
     const b = taperBaseFor(new Date());
     if (!b) {
       if (setValue) input.value = taperPlan.startDose;
-      hint.textContent = 'Set a start date below and this steps down on its own every week';
+      hint.textContent = 'Set a start date below to start tracking weeks';
       return;
     }
     if (setValue) input.value = b.dose;
-    const next = Math.max(Math.round((b.dose - TAPER_STEP) * 100) / 100, TAPER_FLOOR);
-    const nextDate = new Date(b.weekStart.getFullYear(), b.weekStart.getMonth(), b.weekStart.getDate() + b.every);
-    const when = nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    hint.textContent = next < b.dose - 0.001
-      ? `Week ${b.weekIndex} · drops to ${fmtMl(next)} ml on ${when} by itself — type here to override`
-      : `Week ${b.weekIndex} · holding at the ${fmtMl(TAPER_FLOOR)} ml floor — type here to override`;
+    hint.textContent = `Week ${b.weekIndex} · what you're taking now — type here to change it`;
   }
 
   function dayLabel(d) {
@@ -1254,6 +1246,7 @@
   // reads the same way. Interpolated rather than stepped, so there is no moment
   // where the number jumps colour and looks like something happened.
   const HEAT_STOPS = [[212, 80, 80], [209, 144, 42], [26, 160, 111]]; // --red, --amb, --grn
+  const DIAL_READY_SOON_SEC = 15 * 60; // go solid green this close to ready
   function readyHeat(frac) {
     const f = Math.min(1, Math.max(0, frac)) * (HEAT_STOPS.length - 1);
     const i = Math.min(HEAT_STOPS.length - 2, Math.floor(f));
@@ -1342,7 +1335,10 @@
       eyebrow.textContent = 'Ready';
       readout.innerHTML = hms(-remainSec);
     } else {
-      setDial(elapsedSec / targetSec, false);
+      // Inside the last DIAL_READY_SOON_SEC, the ring goes solid green early —
+      // "basically ready" reads better than a still-ambering gradient this
+      // close to the target. The countdown itself keeps running true to zero.
+      setDial(elapsedSec / targetSec, remainSec <= DIAL_READY_SOON_SEC);
       eyebrow.textContent = 'Ready in';
       readout.innerHTML = hms(remainSec);
     }
