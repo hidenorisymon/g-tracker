@@ -664,6 +664,15 @@
         </div>
         <div class="setnote">Syncs a private GitHub Gist. First use asks for a token with gist scope.</div>
       </div>
+
+      <div class="setgroup">
+        <div class="glabel">Heart rate import</div>
+        <div class="setnote">Point a Shortcuts automation at these values — the app checks for a new reading on its own every few minutes, no button to tap. Back up at least once first so a Gist and token exist.</div>
+        <div class="gistrow" id="hrSetupRow" hidden style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px;line-height:1.5">—</div>
+        <div class="setbtns">
+          <button class="sbtn" data-act="copyhr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy Shortcuts setup</button>
+        </div>
+      </div>
     </div>
     </div>
 
@@ -722,6 +731,7 @@
   const MED_MAX_KEY = 'medMaxMg';
   const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
   const TARGET_KEY = 'targetIntervalMinutes';
+  const HR_KEY = 'heartRateLog';
   const TRIGGER_LABELS = {
     stress: 'Stress', cognitive_load: 'Cognitive load',
     call_socialization: 'Call / Socialization', pre_post_eat: 'Pre/Post Eat',
@@ -1020,6 +1030,14 @@
     silentBackupToGitHub();
   }
 
+  // Heart rate lives in its own key, never inside dataKey — it comes from an
+  // external source (Shortcuts), not from anything logged in-app, and
+  // keeping it separate means the med/dose migration logic above never has
+  // to know it exists.
+  function getHeartRateLog() {
+    try { return JSON.parse(localStorage.getItem(HR_KEY) || '[]'); } catch (e) { return []; }
+  }
+
   // Fire-and-forget gist push so external tools (e.g. an n8n "ready to dose"
   // notifier) see the latest dose within seconds, not just on the hourly
   // auto-backup. No-ops silently if backup was never set up.
@@ -1039,6 +1057,7 @@
       const data = JSON.parse(localStorage.getItem(dataKey) || '[]');
       const content = JSON.stringify({
         entries: data, costPerMl, medCost, taperPlan, medWearOff,
+        heartRate: getHeartRateLog(),
         targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null
       }, null, 2);
       const res = await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
@@ -1050,6 +1069,39 @@
     } catch (e) {
       if (attempt < 3) setTimeout(() => silentBackupToGitHub(attempt + 1), 3000);
     }
+  }
+
+  // Shortcuts writes the latest heart rate reading to its OWN file in the
+  // same gist ('heart-rate.json'), blind-overwriting it every time — it
+  // never touches 'g-tracker-data.json', so it can never race with (or get
+  // wiped by) this device's own backup above. This just drains that mailbox:
+  // reads the one reading sitting there, and if it's newer than the last one
+  // already logged, appends it to our own history and re-renders. No token
+  // required — reading a gist, even a secret one, needs no auth.
+  async function checkHeartRateMailbox() {
+    const savedGistId = localStorage.getItem('gistId');
+    if (!savedGistId) return;
+    try {
+      const res = await fetch(`${GITHUB_API}/gists/${savedGistId}`);
+      if (!res.ok) return;
+      const gist = await res.json();
+      const file = gist.files && gist.files['heart-rate.json'];
+      if (!file || !file.content) return;
+      const reading = JSON.parse(file.content);
+      let ts = Number(reading.ts), bpm = Number(reading.bpm);
+      if (!Number.isFinite(ts) || !Number.isFinite(bpm) || bpm <= 0 || bpm > 300) return;
+      // Shortcuts' date-formatting options make it easy to send Unix seconds
+      // instead of milliseconds by mistake — anything under this is almost
+      // certainly seconds, not ms (ms timestamps today are 13 digits).
+      if (ts < 1e12) ts *= 1000;
+
+      const log = getHeartRateLog();
+      if (log.length && log[log.length - 1].ts >= ts) return; // nothing new
+      log.push({ ts, bpm });
+      log.sort((a, b) => a.ts - b.ts);
+      localStorage.setItem(HR_KEY, JSON.stringify(log));
+      await renderLog();
+    } catch (e) {}
   }
 
   async function getDataForDate(date) {
@@ -1144,6 +1196,7 @@
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     renderGistRow();
+    renderHrSetup();
   }
 
   // gist.github.com/<id> resolves without the owner name in the path, which is
@@ -1162,6 +1215,33 @@
     row.classList.remove('copied');
     document.getElementById('gistLink').textContent = url;
     document.getElementById('gistHint').textContent = 'Tap to copy';
+  }
+
+  // Everything Shortcuts needs to write a reading nowhere near the app's own
+  // backup file — filled in with THIS device's own already-saved gist/token,
+  // never sent anywhere, just displayed for copying into the Shortcuts app.
+  function buildHeartRateSetupText() {
+    const id = localStorage.getItem('gistId');
+    const token = localStorage.getItem('githubToken');
+    if (!id || !token) return null;
+    return [
+      `URL: ${GITHUB_API}/gists/${id}`,
+      `Method: PATCH`,
+      `Headers:`,
+      `  Authorization: token ${token}`,
+      `  Content-Type: application/json`,
+      `Body (JSON):`,
+      `  files > heart-rate.json > content =`,
+      `  {"ts": <current time, ms>, "bpm": <heart rate>}`,
+    ].join('\n');
+  }
+
+  function renderHrSetup() {
+    const row = document.getElementById('hrSetupRow');
+    if (!row) return;
+    const text = buildHeartRateSetupText();
+    row.hidden = !text;
+    if (text) row.textContent = text;
   }
 
   async function saveSettings() {
@@ -2201,6 +2281,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
       silentBackupToGitHub();
+      checkHeartRateMailbox();
       paintRing();
     });
 
@@ -2215,6 +2296,12 @@
 
     // Auto-load from GitHub every 30 min (viewer mode: gistId saved, no token)
     setInterval(autoLoadFromGitHub, 30 * 60 * 1000);
+
+    // Heart rate check runs independently of the token/viewer split above —
+    // Shortcuts' mailbox file is a plain read, so this checks on every
+    // device regardless of which one holds the backup token.
+    checkHeartRateMailbox();
+    setInterval(checkHeartRateMailbox, 5 * 60 * 1000);
   }
 
   async function autoLoadFromGitHub() {
@@ -2233,6 +2320,7 @@
         if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
         if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
         if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
+        if (data.heartRate) localStorage.setItem(HR_KEY, JSON.stringify(data.heartRate));
         if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
         loadSettings();
         await renderLog();
@@ -2392,6 +2480,11 @@
         else if (act === 'export') exportAsJSON();
         else if (act === 'backup') backupToGitHub();
         else if (act === 'load') loadFromGitHub();
+        else if (act === 'copyhr') {
+          const text = buildHeartRateSetupText();
+          if (!text) { showToast('Back up to GitHub once first'); return; }
+          copyText(text, b);
+        }
         else if (act === 'reset') {
           // Only the token — NOT gistId. Clearing gistId here was the actual
           // bug behind a real incident: a token reset made the next backup
@@ -2508,6 +2601,7 @@
     const allData = await getAllData();
     const doses = allData.filter(isDoseEntry).slice().sort((a, b) => a.timestamp - b.timestamp);
     const meds = allData.filter(isMedEntry);
+    const hrReadings = getHeartRateLog().map(r => ({ type: 'hr', timestamp: r.ts, bpm: r.bpm }));
 
     const sessions = [];
     let current = null;
@@ -2603,6 +2697,7 @@
       // arbitrary pre-feature history instead of just "getting ready" time.
       const prevEndTs = i > 0 ? (sessions[i - 1].endTs != null ? sessions[i - 1].endTs : -Infinity) : null;
       const medsInSession = meds.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
+      const hrInSession = hrReadings.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
       const isRitalin = m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20';
       const isConcerta = m => m.name === 'Concerta 27' || m.name === 'Concerta 36';
       const ritalinMg = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.mg || 0), 0);
@@ -2616,7 +2711,7 @@
       // adherence. Meds are included so their times are visible here too.
       // Each entry's own `trigger` field (if any) rides along here and is
       // rendered inline on its row in sessionCardHtml — not aggregated.
-      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession]
+      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
@@ -2673,6 +2768,9 @@
           return `<div class="slwear">${label} ${fmtTime(endTs)}</div>`;
         }).join('');
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
+      }
+      if (e.type === 'hr') {
+        return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate</span><span>${e.bpm} bpm</span></div>`;
       }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
@@ -2751,6 +2849,14 @@
   // and Taper use, so a wrong time or ml can be fixed without leaving Log.
   function timelineRowHtml(e) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (e.type === 'hr') {
+      return `<div class="tlrow">
+        <span class="tldot" style="background:#e05c7a"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Heart rate</div></div>
+        <span class="tlamt">${e.bpm} bpm</span>
+      </div>`;
+    }
     if (isMedEntry(e)) {
       // e.part (new split-format Ritalin 20 LA entries) names its own pulse
       // right on the row; older, unsplit entries have no e.part and fall
@@ -3012,7 +3118,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, heartRate: getHeartRateLog(), targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -3092,6 +3198,7 @@
       if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
       if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
       if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
+      if (data.heartRate) localStorage.setItem(HR_KEY, JSON.stringify(data.heartRate));
       if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
       loadSettings();
 
