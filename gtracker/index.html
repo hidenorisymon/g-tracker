@@ -202,6 +202,7 @@
   .stat .v{font-family:var(--mono);font-size:16px;font-weight:500;letter-spacing:-.01em;}
   .stat .v.over{color:var(--wait);} .stat .v.under{color:var(--ready);}
   .stat .k{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+  .stat .sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;}
 
   .logblock{margin-bottom:22px;} .logblock:last-child{margin-bottom:0;}
   .loghead{margin-bottom:4px;} .loghead .t{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
@@ -495,7 +496,7 @@
         <div class="stats three">
           <div class="stat"><div class="v" id="tpDoses">—</div><div class="k">Doses vs sched</div></div>
           <div class="stat"><div class="v" id="tpMl">0</div><div class="k">Total ml</div></div>
-          <div class="stat"><div class="v" id="tpMg">0</div><div class="k">Total mg</div></div>
+          <div class="stat"><div class="v" id="tpMg">0</div><div class="k">Total mg</div><div class="sub" id="tpMgSub"></div></div>
         </div>
 
         <div class="glabel">Per taper day</div>
@@ -535,7 +536,7 @@
           <div class="stat"><div class="v" id="hdAvg">—</div><div class="k">Avg gap</div></div>
           <div class="stat"><div class="v" id="hdCost">₱0</div><div class="k">Cost</div></div>
           <div class="stat"><div class="v" id="hdMl">0</div><div class="k">Total ml</div></div>
-          <div class="stat"><div class="v" id="hdMg">0</div><div class="k">Total mg</div></div>
+          <div class="stat"><div class="v" id="hdMg">0</div><div class="k">Total mg</div><div class="sub" id="hdMgSub"></div></div>
         </div>
         <div class="logblock"><div class="loghead"><span class="t">Meds</span></div><div id="hdMedLog"></div></div>
         <div class="logblock"><div class="loghead"><span class="t">Doses · ml</span></div><div id="hdDoseLog"></div></div>
@@ -555,7 +556,7 @@
       <div class="stats three">
         <div class="stat"><div class="v" id="hAvg">—</div><div class="k">Avg gap</div></div>
         <div class="stat"><div class="v" id="hMl">0</div><div class="k">Total ml</div></div>
-        <div class="stat"><div class="v" id="hMg">0</div><div class="k">Total mg</div></div>
+        <div class="stat"><div class="v" id="hMg">0</div><div class="k">Total mg</div><div class="sub" id="hMgSub"></div></div>
       </div>
 
       <div class="glabel" id="taperLabel" hidden>Taper adherence</div>
@@ -1869,6 +1870,8 @@
 
     const totalMl = doses.reduce((s, e) => s + e.ml, 0);
     const totalMg = meds.reduce((s, e) => s + (e.mg || 0), 0);
+    const ritalinMg = meds.filter(e => e.name === 'Ritalin 5' || e.name === 'Ritalin 10' || e.name === 'Ritalin 20').reduce((s, e) => s + (e.mg || 0), 0);
+    const concertaMg = meds.filter(e => e.name === 'Concerta 27' || e.name === 'Concerta 36').reduce((s, e) => s + (e.mg || 0), 0);
     const doseCost = doses.reduce((s, e) => s + e.ml * costPerMl, 0);
     const medCostSum = meds.reduce((s, e) => s + (e.cost || 0), 0);
 
@@ -1885,7 +1888,7 @@
       gapByTs.set(doses[i].timestamp, Math.round((doses[i].timestamp - doses[i - 1].timestamp) / 60000));
     }
 
-    return { doses, meds, totalMl, totalMg, cost: doseCost + medCostSum, avg, gapByTs, dayLbl: dayLabel(date) };
+    return { doses, meds, totalMl, totalMg, ritalinMg, concertaMg, cost: doseCost + medCostSum, avg, gapByTs, dayLbl: dayLabel(date) };
   }
 
   function doseLogHtml(d) {
@@ -2097,7 +2100,7 @@
 
     const mlVals = [];
     const rows = [];
-    let totalMl = 0, totalMg = 0, doseCostSum = 0, concCostSum = 0, ritCostSum = 0;
+    let totalMl = 0, totalMg = 0, ritMg = 0, concMg = 0, doseCostSum = 0, concCostSum = 0, ritCostSum = 0;
     let totalDiffMin = 0, diffPeriods = 0;
     let totalAdherenceMl = 0, totalSleepMl = 0, totalRescueMl = 0;
 
@@ -2117,8 +2120,8 @@
       totalAdherenceMl += adherenceMl; totalSleepMl += sleepMl; totalRescueMl += rescueMl;
       doseCostSum += ml * costPerMl;
       dMeds.forEach(e => {
-        if (e.name === 'Concerta 27' || e.name === 'Concerta 36') concCostSum += (e.cost || 0);
-        else if (e.name === 'Ritalin 5' || e.name === 'Ritalin 10' || e.name === 'Ritalin 20') ritCostSum += (e.cost || 0);
+        if (e.name === 'Concerta 27' || e.name === 'Concerta 36') { concCostSum += (e.cost || 0); concMg += (e.mg || 0); }
+        else if (e.name === 'Ritalin 5' || e.name === 'Ritalin 10' || e.name === 'Ritalin 20') { ritCostSum += (e.cost || 0); ritMg += (e.mg || 0); }
       });
 
       let rangeAvgText = '—';
@@ -2146,7 +2149,7 @@
 
     return {
       ranges, mlVals, rows, unit, perLabel, max, peakIdx,
-      totalMl, totalMg, avgAll,
+      totalMl, totalMg, ritMg, concMg, avgAll,
       totalAdherenceMl, totalSleepMl, totalRescueMl,
       doseCostSum, concCostSum, ritCostSum,
       grandTotal: doseCostSum + concCostSum + ritCostSum,
@@ -2167,6 +2170,7 @@
       document.getElementById('hdCost').textContent = fmtPeso(d.cost);
       document.getElementById('hdMl').textContent = fmtMl(d.totalMl);
       document.getElementById('hdMg').textContent = d.totalMg;
+      document.getElementById('hdMgSub').textContent = d.totalMg > 0 ? `Rit ${d.ritalinMg} · Conc ${d.concertaMg}` : '';
       document.getElementById('hdDoseLog').innerHTML = doseLogHtml(d);
       document.getElementById('hdMedLog').innerHTML = medLogHtml(d);
       return;
@@ -2195,6 +2199,7 @@
     document.getElementById('hAvg').textContent = h.avgAll;
     document.getElementById('hMl').textContent = fmtMl(h.totalMl);
     document.getElementById('hMg').textContent = h.totalMg;
+    document.getElementById('hMgSub').textContent = h.totalMg > 0 ? `Rit ${h.ritMg} · Conc ${h.concMg}` : '';
 
     document.getElementById('daylist').innerHTML = h.rows.length ? h.rows.map(r => {
       const overClass = r.over === true ? ' over' : r.over === false ? ' under' : '';
@@ -2988,12 +2993,15 @@
     const totActual = inGroup.reduce((s, x) => s + x.actualLogDoses, 0);
     const totMl = inGroup.reduce((s, x) => s + x.totalDailyMl, 0);
     const totMg = inGroup.reduce((s, x) => s + x.ritalinMg + x.concertaMg, 0);
+    const totRitMg = inGroup.reduce((s, x) => s + x.ritalinMg, 0);
+    const totConcMg = inGroup.reduce((s, x) => s + x.concertaMg, 0);
     const dosesEl = document.getElementById('tpDoses');
     dosesEl.textContent = `${totOnTime}/${totActual}`;
     dosesEl.classList.toggle('over', totOnTime < totActual);
     dosesEl.classList.toggle('under', totOnTime >= totActual);
     document.getElementById('tpMl').textContent = fmtMl(totMl);
     document.getElementById('tpMg').textContent = totMg;
+    document.getElementById('tpMgSub').textContent = totMg > 0 ? `Rit ${totRitMg} · Conc ${totConcMg}` : '';
 
     document.getElementById('taperDaylist').innerHTML = inGroup.map(s => {
       const over = s.onTimeLogDoses < s.actualLogDoses;
