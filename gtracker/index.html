@@ -1074,13 +1074,19 @@
     }
   }
 
-  // Shortcuts writes the latest heart rate reading to its OWN file in the
-  // same gist ('heart-rate.json'), blind-overwriting it every time — it
-  // never touches 'g-tracker-data.json', so it can never race with (or get
-  // wiped by) this device's own backup above. This just drains that mailbox:
-  // reads the one reading sitting there, and if it's newer than the last one
-  // already logged, appends it to our own history and re-renders. No token
-  // required — reading a gist, even a secret one, needs no auth.
+  // Shortcuts writes heart rate readings to their OWN file in the same gist
+  // ('heart-rate.json'), blind-overwriting it every time — it never touches
+  // 'g-tracker-data.json', so it can never race with (or get wiped by) this
+  // device's own backup above.
+  //
+  // The mailbox carries a rolling window (every sample Health has for the
+  // last several days), not a single reading, so a run that happens hours
+  // after the watch recorded something still delivers it. That makes the
+  // write idempotent and the delivery order irrelevant: anything already
+  // known by timestamp is skipped, anything new is merged in wherever it
+  // belongs. A bare object is still accepted so an older shortcut keeps
+  // working. No token required — reading a gist, even a secret one, needs
+  // no auth.
   async function checkHeartRateMailbox() {
     const savedGistId = localStorage.getItem('gistId');
     if (!savedGistId) return;
@@ -1090,17 +1096,25 @@
       const gist = await res.json();
       const file = gist.files && gist.files['heart-rate.json'];
       if (!file || !file.content) return;
-      const reading = JSON.parse(file.content);
-      let ts = Number(reading.ts), bpm = Number(reading.bpm);
-      if (!Number.isFinite(ts) || !Number.isFinite(bpm) || bpm <= 0 || bpm > 300) return;
-      // Shortcuts' date-formatting options make it easy to send Unix seconds
-      // instead of milliseconds by mistake — anything under this is almost
-      // certainly seconds, not ms (ms timestamps today are 13 digits).
-      if (ts < 1e12) ts *= 1000;
+      const payload = JSON.parse(file.content);
+      const incoming = Array.isArray(payload) ? payload : [payload];
 
       const log = getHeartRateLog();
-      if (log.length && log[log.length - 1].ts >= ts) return; // nothing new
-      log.push({ ts, bpm });
+      const seen = new Set(log.map(r => r.ts));
+      let added = 0;
+      for (const reading of incoming) {
+        let ts = Number(reading.ts), bpm = Number(reading.bpm);
+        if (!Number.isFinite(ts) || !Number.isFinite(bpm) || bpm <= 0 || bpm > 300) continue;
+        // Shortcuts' date-formatting options make it easy to send Unix seconds
+        // instead of milliseconds by mistake — anything under this is almost
+        // certainly seconds, not ms (ms timestamps today are 13 digits).
+        if (ts < 1e12) ts *= 1000;
+        if (seen.has(ts)) continue;
+        seen.add(ts);
+        log.push({ ts, bpm });
+        added++;
+      }
+      if (!added) return;
       log.sort((a, b) => a.ts - b.ts);
       localStorage.setItem(HR_KEY, JSON.stringify(log));
       await renderLog();
@@ -1235,7 +1249,9 @@
       `  Content-Type: application/json`,
       `Body (JSON):`,
       `  files > heart-rate.json > content =`,
-      `  {"ts": <current time, ms>, "bpm": <heart rate>}`,
+      `  [{"ts": <sample time, unix seconds>, "bpm": <heart rate>}, ...]`,
+      `  (one entry per Health sample from the last 7 days — re-sending`,
+      `   ones already logged is harmless, they're matched by timestamp)`,
     ].join('\n');
   }
 
@@ -2599,6 +2615,29 @@
     return out;
   }
 
+  // A full sync carries every sample the watch recorded — hundreds a day —
+  // and one timeline row each would bury the doses this screen exists to
+  // show. Every reading is still kept in storage (and in the backup); the
+  // timeline just collapses them to one row per clock hour, which carries
+  // the average, the range, and how many readings it stands for.
+  function bucketHeartRateByHour(readings) {
+    const buckets = new Map();
+    readings.forEach(r => {
+      const key = Math.floor(r.ts / 3600000);
+      const b = buckets.get(key);
+      if (b) {
+        b.sum += r.bpm; b.n++;
+        b.lo = Math.min(b.lo, r.bpm);
+        b.hi = Math.max(b.hi, r.bpm);
+      } else {
+        buckets.set(key, { timestamp: r.ts, sum: r.bpm, n: 1, lo: r.bpm, hi: r.bpm });
+      }
+    });
+    return [...buckets.values()].map(b => ({
+      type: 'hr', timestamp: b.timestamp, bpm: Math.round(b.sum / b.n), lo: b.lo, hi: b.hi, n: b.n,
+    }));
+  }
+
   // ===== Sessions (Wake Up -> next Sleep Dose) =====
   // Reconstructed purely from timestamped Wake/Log/Sleep entries. Only
   // meaningful from whenever those types started being logged (see
@@ -2608,7 +2647,7 @@
     const allData = await getAllData();
     const doses = allData.filter(isDoseEntry).slice().sort((a, b) => a.timestamp - b.timestamp);
     const meds = allData.filter(isMedEntry);
-    const hrReadings = getHeartRateLog().map(r => ({ type: 'hr', timestamp: r.ts, bpm: r.bpm }));
+    const hrReadings = bucketHeartRateByHour(getHeartRateLog());
 
     const sessions = [];
     let current = null;
@@ -2779,7 +2818,8 @@
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
       }
       if (e.type === 'hr') {
-        return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate</span><span>${e.bpm} bpm</span></div>`;
+        const spread = e.n > 1 ? ` · ${e.n} readings, ${e.lo}–${e.hi}` : '';
+        return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate${spread}</span><span>${e.bpm} bpm</span></div>`;
       }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
@@ -2865,10 +2905,11 @@
   function timelineRowHtml(e) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     if (e.type === 'hr') {
+      const spread = e.n > 1 ? `<div class="tlwear">${e.n} readings · ${e.lo}–${e.hi} bpm</div>` : '';
       return `<div class="tlrow">
         <span class="tldot" style="background:#e05c7a"></span>
         <span class="tltime">${fmtTime(e.timestamp)}</span>
-        <div class="tlbody"><div class="tltext">Heart rate</div></div>
+        <div class="tlbody"><div class="tltext">Heart rate</div>${spread}</div>
         <span class="tlamt">${e.bpm} bpm</span>
       </div>`;
     }
