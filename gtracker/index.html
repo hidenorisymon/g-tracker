@@ -2751,7 +2751,7 @@
     const medsMg = s.ritalinMg + s.concertaMg;
     const medsCost = s.ritalinCost + s.concertaCost;
     const medsSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
-      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)} &nbsp;·&nbsp; Concerta ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</div>`
+      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
     const medsBlock = medsMg > 0 ? `
       <div class="glabel sublabel">Medication</div>
@@ -2840,7 +2840,7 @@
     const sevRank = { '': 0, under: 1, near: 2, over: 3 };
     const medCls = [medLoadClass(s.ritalinMg), medLoadClass(s.concertaMg)].sort((a, b) => sevRank[b] - sevRank[a])[0];
     const medSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
-      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)} &nbsp;·&nbsp; Concerta ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</div>`
+      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
     const medHtml = medMg > 0 ? `
       <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v">${medMg} mg</span><span class="sub">${fmtPeso(medCost)}</span></div>
