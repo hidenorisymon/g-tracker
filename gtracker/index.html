@@ -247,6 +247,8 @@
   .sessioncard .sstats{border-top:1px solid var(--hair-2);padding-top:4px;margin-bottom:4px;}
   .sessioncard .glabel.sublabel{margin:12px 0 2px;font-size:9.5px;}
   .sessioncard .grandrow{border-top:none;margin-top:8px;}
+  .medsplit{font-family:var(--mono);font-size:11px;color:var(--muted);padding:2px 0 4px;}
+  .sstats > .brow.total:first-child{border-top:none;margin-top:0;border-bottom:none;padding-bottom:2px;}
   .sesslog{border-top:1px solid var(--hair-2);margin-top:8px;padding-top:8px;}
   .sesslog .slrow{display:flex;justify-content:space-between;padding:5px 0;font-family:var(--mono);font-size:12.5px;color:var(--ink-2);}
   .sesslog .slrow.tap{cursor:pointer;border-radius:6px;margin:0 -6px;padding-left:6px;padding-right:6px;}
@@ -284,6 +286,7 @@
   .sum .grow.under{border-left-color:var(--grn);} .sum .grow.under .v{color:var(--grn);}
   .sum .grow.near{border-left-color:var(--amb);} .sum .grow.near .v{color:var(--amb);}
   .sum .grow.over{border-left-color:var(--red);} .sum .grow.over .v{color:var(--red);}
+  .sum .medsplit{padding-left:13px;margin:-6px 0 8px;}
   .sum .stotal{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:11px;}
   .sum .stotal .k{font-size:12.5px;font-weight:600;color:var(--txt2);}
   .sum .stotal .v{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.3px;}
@@ -2747,12 +2750,14 @@
       : '';
     const medsMg = s.ritalinMg + s.concertaMg;
     const medsCost = s.ritalinCost + s.concertaCost;
+    const medsSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
+      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)} &nbsp;·&nbsp; Concerta ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</div>`
+      : '';
     const medsBlock = medsMg > 0 ? `
       <div class="glabel sublabel">Medication</div>
       <div class="sstats">
-        ${s.ritalinMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-purple"></span>Ritalin</span><span class="bv">${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}</span></div>` : ''}
-        ${s.concertaMg > 0 ? `<div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv">${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</span></div>` : ''}
         <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} mg · ${fmtPeso(medsCost)}</span></div>
+        ${medsSplit}
       </div>` : '';
     const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
     const logsHtml = rows.map(e => {
@@ -2824,13 +2829,22 @@
     const doseCls = s.onTimeLogDoses < s.actualLogDoses ? 'amb' : 'grn';
     // Meds lead the card: the stimulant total is the number that changes day
     // to day and the one carrying a ceiling, so it must not be the one you
-    // scroll past. Each row is coloured by its OWN drug's session total.
-    const medHtml = [
-      ['Ritalin', s.ritalinMg, s.ritalinCost],
-      ['Concerta', s.concertaMg, s.concertaCost],
-    ].filter(([, mg]) => mg > 0).map(([name, mg, cost]) =>
-      `<div class="grow ${medLoadClass(mg)}"><span class="k">Meds · ${name}</span><span class="v">${mg} mg</span><span class="sub">${fmtPeso(cost)}</span></div>`
-    ).join('');
+    // scroll past. One combined row so there's a single total to read at a
+    // glance; its colour is still the WORSE of the two drugs' own ceiling
+    // checks (each is measured against medMaxMg separately, see medLoadClass)
+    // so a lone drug crossing its ceiling still flags red/amber here, not
+    // just diluted into the sum. The per-drug split stays visible underneath,
+    // smaller, for whoever wants the breakdown.
+    const medMg = s.ritalinMg + s.concertaMg;
+    const medCost = s.ritalinCost + s.concertaCost;
+    const sevRank = { '': 0, under: 1, near: 2, over: 3 };
+    const medCls = [medLoadClass(s.ritalinMg), medLoadClass(s.concertaMg)].sort((a, b) => sevRank[b] - sevRank[a])[0];
+    const medSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
+      ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)} &nbsp;·&nbsp; Concerta ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}</div>`
+      : '';
+    const medHtml = medMg > 0 ? `
+      <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v">${medMg} mg</span><span class="sub">${fmtPeso(medCost)}</span></div>
+      ${medSplit}` : '';
     const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
       <div class="stop">
