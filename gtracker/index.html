@@ -278,14 +278,15 @@
      Settings, so Ritalin and Concerta can read differently on the same day.
      With no ceiling set they stay purple and the indicator is a plain
      hairline. */
-  .sum .grow{display:flex;align-items:baseline;gap:8px;padding:1px 0 1px 10px;margin-bottom:8px;
+  .sum .grow{display:flex;align-items:center;gap:8px;padding:2px 0;margin-bottom:8px;
     border-left:3px solid var(--line);}
-  .sum .grow .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;}
-  .sum .grow .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;color:var(--pur);}
+  .sum .grow .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;padding-left:10px;}
+  .sum .grow .chip{font-family:var(--mono);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;
+    letter-spacing:-.3px;padding:3px 10px;border-radius:7px;background:rgba(115,85,204,.12);color:var(--pur);}
   .sum .grow .sub{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-left:auto;}
-  .sum .grow.under{border-left-color:var(--grn);} .sum .grow.under .v{color:var(--grn);}
-  .sum .grow.near{border-left-color:var(--amb);} .sum .grow.near .v{color:var(--amb);}
-  .sum .grow.over{border-left-color:var(--red);} .sum .grow.over .v{color:var(--red);}
+  .sum .grow.under{border-left-color:var(--grn);} .sum .grow .chip.under{background:rgba(26,160,111,.14);color:var(--grn);}
+  .sum .grow.near{border-left-color:var(--amb);} .sum .grow .chip.near{background:rgba(209,144,42,.16);color:var(--amb);}
+  .sum .grow.over{border-left-color:var(--red);} .sum .grow .chip.over{background:rgba(212,80,80,.16);color:var(--red);}
   .sum .medsplit{padding-left:13px;margin:-6px 0 8px;}
   .sum .stotal{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:11px;}
   .sum .stotal .k{font-size:12.5px;font-weight:600;color:var(--txt2);}
@@ -626,7 +627,7 @@
 
       <div class="setgroup">
         <div class="glabel">Medication limit</div>
-        <div class="setrow"><div class="sk">Daily maximum<small>Ceiling in mg for one medication's session total — Ritalin and Concerta are each measured against it separately. Colours the medication rows in Log: green under 50%, amber to 70%, red above. Blank or 0 = no limit</small></div>
+        <div class="setrow"><div class="sk">Daily maximum<small>Ceiling in mg for the session's combined Ritalin + Concerta total. Colours the Meds · Total box in Log: green under 50%, amber to 70%, red above. Blank or 0 = no limit</small></div>
           <div class="field cost"><input type="number" id="setMedMax" min="0" step="1" placeholder="0"><span class="cur">mg</span></div></div>
       </div>
 
@@ -758,11 +759,9 @@
   // Grouped by drug family, not exact product name, so it still applies if a
   // different strength (e.g. a future "Ritalin 10" button) gets added later.
   let medWearOff = { ritalin: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
-  // Ceiling in mg for ONE medication's session total — Ritalin is measured
-  // against it, and Concerta separately against the same number. Not the two
-  // added together: they are different drugs and a shared sum would flag a
-  // normal Concerta day the moment any Ritalin was taken. 0 means no ceiling
-  // set, and every medication row stays its neutral purple.
+  // Ceiling in mg for the session's COMBINED Ritalin + Concerta total (the
+  // one number shown as "Meds · Total" in Log). 0 means no ceiling set, and
+  // the meds box stays its neutral purple.
   let medMaxMg = parseFloat(localStorage.getItem(MED_MAX_KEY)) || 0;
 
   // Half the ceiling or less reads as fine, up to 70% as "watch it", above
@@ -2829,21 +2828,18 @@
     const doseCls = s.onTimeLogDoses < s.actualLogDoses ? 'amb' : 'grn';
     // Meds lead the card: the stimulant total is the number that changes day
     // to day and the one carrying a ceiling, so it must not be the one you
-    // scroll past. One combined row so there's a single total to read at a
-    // glance; its colour is still the WORSE of the two drugs' own ceiling
-    // checks (each is measured against medMaxMg separately, see medLoadClass)
-    // so a lone drug crossing its ceiling still flags red/amber here, not
-    // just diluted into the sum. The per-drug split stays visible underneath,
-    // smaller, for whoever wants the breakdown.
+    // scroll past. One combined row, coloured against the COMBINED total vs
+    // medMaxMg — the ceiling is a limit on the day's total dose, not either
+    // drug alone. The per-drug split stays visible underneath, smaller, for
+    // whoever wants the breakdown.
     const medMg = s.ritalinMg + s.concertaMg;
     const medCost = s.ritalinCost + s.concertaCost;
-    const sevRank = { '': 0, under: 1, near: 2, over: 3 };
-    const medCls = [medLoadClass(s.ritalinMg), medLoadClass(s.concertaMg)].sort((a, b) => sevRank[b] - sevRank[a])[0];
+    const medCls = medLoadClass(medMg);
     const medSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
       ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
     const medHtml = medMg > 0 ? `
-      <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v">${medMg} mg</span><span class="sub">${fmtPeso(medCost)}</span></div>
+      <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v"><span class="chip ${medCls}">${medMg} mg</span></span><span class="sub">${fmtPeso(medCost)}</span></div>
       ${medSplit}` : '';
     const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
