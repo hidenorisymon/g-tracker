@@ -284,6 +284,13 @@
   .sum .grow .chip{font-family:var(--mono);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;
     letter-spacing:-.3px;padding:3px 10px;border-radius:7px;background:rgba(115,85,204,.12);color:var(--pur);}
   .sum .grow .sub{font-family:var(--mono);font-size:10.5px;color:var(--mut);margin-left:auto;}
+  /* How much of the daily ceiling is still unused, sitting right next to the
+     total rather than buried in Settings: it is the number that decides
+     whether another dose is on the table. Muted while there is room, red and
+     bold once it goes negative, because an overshoot must not read like a
+     small grey footnote. */
+  .sum .grow .left{font-family:var(--mono);font-size:10.5px;color:var(--mut);white-space:nowrap;}
+  .sum .grow .left.over{color:var(--red);font-weight:700;}
   .sum .grow.under{border-left-color:var(--grn);} .sum .grow .chip.under{background:rgba(26,160,111,.14);color:var(--grn);}
   .sum .grow.near{border-left-color:var(--amb);} .sum .grow .chip.near{background:rgba(209,144,42,.16);color:var(--amb);}
   .sum .grow.over{border-left-color:var(--red);} .sum .grow .chip.over{background:rgba(212,80,80,.16);color:var(--red);}
@@ -2851,11 +2858,21 @@
     const medMg = s.ritalinMg + s.concertaMg;
     const medCost = s.ritalinCost + s.concertaCost;
     const medCls = medLoadClass(medMg);
+    // Headroom against the ceiling, shown as a plain number so the subtraction
+    // never has to happen in your head. Nothing renders when no ceiling is set
+    // (there is no limit to be left of), and once the day goes past it the
+    // wording flips to how far over, since "0 mg left" would hide an overshoot.
+    const mgNum = n => (Math.round(n * 100) / 100).toString();
+    const medLeft = medMaxMg > 0 ? medMaxMg - medMg : null;
+    const medLeftHtml = medLeft === null ? ''
+      : medLeft >= 0
+        ? `<span class="left">${mgNum(medLeft)} mg left</span>`
+        : `<span class="left over">${mgNum(-medLeft)} mg over</span>`;
     const medSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
       ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
     const medHtml = medMg > 0 ? `
-      <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v"><span class="chip ${medCls}">${medMg} mg</span></span><span class="sub">${fmtPeso(medCost)}</span></div>
+      <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v"><span class="chip ${medCls}">${medMg} mg</span></span>${medLeftHtml}<span class="sub">${fmtPeso(medCost)}</span></div>
       ${medSplit}` : '';
     const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
