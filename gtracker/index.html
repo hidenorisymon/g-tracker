@@ -273,6 +273,13 @@
   .sum .g .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
   .sum .g .v small{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;letter-spacing:0;}
   .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);}
+  /* Second line inside a tile, for a figure that belongs to the one above it
+     (rescue under G total). Smaller and muted so the tile still reads as one
+     headline number with a breakdown, not two unlabelled numbers. */
+  .sum .g .v2{font-family:var(--mono);font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;
+    letter-spacing:-.3px;color:var(--mut);margin-top:3px;}
+  .sum .g .v2 small{font-family:var(--mono);font-size:10px;color:var(--mut);font-weight:500;letter-spacing:0;}
+  .sum .g .v2.amb{color:var(--amb);}
   /* Medication rows sit above the grid, one line each. The left indicator and
      the mg colour come from that ROW's own drug total against the ceiling in
      Settings, so Ritalin and Concerta can read differently on the same day.
@@ -2736,6 +2743,18 @@
       const concertaCost = medsInSession.filter(isConcerta).reduce((sum, m) => sum + (m.cost || 0), 0);
       const totalDailyMl = logMl + sleepMl + rescueMl;
       const mlCost = totalDailyMl * costPerMl;
+      // Hours asleep before this day started: from the previous session's
+      // FIRST sleep dose (going to bed) to this session's start (getting up).
+      // sleeps[0], not the last one, because the later entries in that array
+      // are top-ups taken while already down, not a second bedtime. Null when
+      // there is no previous session, when that session never logged a sleep
+      // dose, or when edited timestamps put bedtime after the wake, since in
+      // each case there is nothing honest to measure.
+      const prevSleeps = i > 0 ? sessions[i - 1].sleeps : null;
+      const bedTs = prevSleeps && prevSleeps.length ? prevSleeps[0].timestamp : null;
+      const sleepHours = bedTs != null && s.startTs > bedTs
+        ? (s.startTs - bedTs) / 3600000
+        : null;
       // Bookend entries plus meds, shown in the per-session log list for
       // context — kept separate from the type:'log'-only entries used for
       // adherence. Meds are included so their times are visible here too.
@@ -2746,7 +2765,7 @@
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
         durationHours, actualLogDoses, onTimeLogDoses,
-        logMl, sleepMl, rescueCount, rescueMl, totalDailyMl,
+        logMl, sleepMl, rescueCount, rescueMl, totalDailyMl, sleepHours,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
         timeline
@@ -2868,6 +2887,10 @@
       : medLeft >= 0
         ? `<span class="left">${mgNum(medLeft)} mg left</span>`
         : `<span class="left over">${mgNum(-medLeft)} mg over</span>`;
+    // Same h/m wording as the Session tile beside it, so the two durations
+    // read as one pair. A dash rather than 0h when the night cannot be
+    // measured: no previous day, or no sleep dose logged to start it from.
+    const sleepText = s.sleepHours != null ? fmtGap(Math.round(s.sleepHours * 60)) : '—';
     const medSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
       ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
@@ -2884,8 +2907,8 @@
       <div class="grid">
         <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
         <div class="g"><div class="k">Doses vs schedule</div><div class="v ${doseCls}">${s.onTimeLogDoses} / ${s.actualLogDoses}</div></div>
-        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div></div>
-        <div class="g"><div class="k">Rescue</div><div class="v${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
+        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div><div class="v2${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
+        <div class="g"><div class="k">Sleep</div><div class="v">${sleepText}</div></div>
       </div>
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
     </div>
