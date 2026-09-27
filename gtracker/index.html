@@ -393,24 +393,98 @@
   .modal-btn-save{background:var(--ink);color:#fff;}
   .modal-btn-delete{width:100%;margin-top:10px;height:42px;border-radius:12px;background:none;cursor:pointer;border:1px solid var(--orange);color:var(--orange);font-size:13px;font-weight:600;font-family:var(--sans);}
   .modal-btn-delete.confirm{background:var(--orange);color:#fff;}
-  /* ===== TRIGGER SHEET ===== */
-  #triggerModal{background:rgba(0,0,0,.35);}
-  .sheet{background:var(--card);border-top:none;border-radius:24px 24px 0 0;padding:10px 18px 24px;box-shadow:0 -10px 40px rgba(20,20,15,.12);}
-  .sheet .handle{width:36px;height:4px;border-radius:2px;background:#dedcd6;margin:0 auto 14px;}
-  .trigger-sub{font-size:12px;color:var(--mut);margin:-12px 0 12px;}
-  /* Informational only — it never blocks or adds a step to logging. */
-  .early{display:flex;align-items:center;gap:7px;background:rgba(209,144,42,.1);border:1px solid rgba(209,144,42,.35);
-    color:var(--amb);font-size:11.5px;font-weight:600;border-radius:10px;padding:8px 11px;margin-bottom:12px;}
-  .early[hidden]{display:none;}
-  .early b{font-family:var(--mono);font-weight:700;}
-  .trigger-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
-  .trigger-opt{height:42px;padding:0 8px;border-radius:11px;border:none;background:var(--bg);color:var(--txt2);
-    font-size:13px;font-weight:500;font-family:var(--sans);cursor:pointer;text-align:center;}
-  .trigger-opt:active{opacity:.6;}
-  .trigger-opt.wide{grid-column:1 / -1;}
-  .skip{width:100%;height:40px;border-radius:11px;background:transparent;border:none;color:var(--mut);
-    font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;}
+  /* Check is the "no dose" action: it opens the same CIWA sheet as a dose but
+     records nothing unless you save. Outlined in ink rather than coloured, so
+     it does not read as a fourth kind of dose. */
+  .btnrow .b.chk{color:var(--txt2);box-shadow:var(--sh), inset 0 0 0 1.5px var(--hair);}
 
+  /* ===== CIWA SHEET ===== */
+  /* The band colours the app already uses (--grn/--amb/--red) are tuned for
+     dots and rings. At 11-14px on a tinted pill they read washed out, so each
+     band gets a darker ink of its own here. */
+  .csheet{--grn-ink:#146e4d;--amb-ink:#7d520f;--red-ink:#a33636;--red-btn:#b53b3b;}
+  #ciwaModal{background:rgba(20,20,15,.38);}
+  .csheet{background:var(--surface);width:100%;max-width:432px;border-radius:26px 26px 0 0;
+    padding:10px 18px 22px;max-height:88vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(20,20,15,.14);}
+  .csheet .handle{width:36px;height:4px;border-radius:2px;background:#dedcd6;margin:0 auto 16px;}
+  .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:3px;}
+  .chead h3{font-size:18px;font-weight:700;letter-spacing:-.02em;margin:0;}
+  .cstep{font-size:11px;color:var(--mut);flex:none;}
+  .cctx{font-size:12.5px;color:var(--mut);margin-bottom:16px;}
+  .cgroup{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-bottom:8px;}
+  .cchips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}
+  .cchip{height:36px;padding:0 13px;border-radius:18px;border:1.5px solid var(--hair);background:var(--surface);
+    color:var(--txt2);font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;}
+  .cchip.on{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .cchip.sm{height:34px;padding:0 12px;border-radius:17px;font-size:12.5px;}
+  /* Factors are context, not symptoms, so they answer in blue rather than
+     joining the black "I feel this" chips above them. */
+  .cchip.fac.on{border-color:#2a5fc4;background:#eaf0fb;color:#1f4a9c;}
+  .cblock{border-top:1px solid var(--line2);padding-top:14px;margin-bottom:20px;}
+  .cq{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .chint{font-size:11.5px;color:var(--mut);margin-bottom:10px;}
+  /* Progression strip: five steps in the order they always arrive. Every step
+     up to the one tapped fills in, so the strip reads as "how far it has got"
+     rather than five separate buttons. */
+  .cstrip{display:flex;gap:5px;margin-bottom:8px;}
+  /* Wraps rather than truncates: "Palpitati..." in the one step that is also
+     the default dose point would hide exactly the word that matters. */
+  .cstage{flex:1;min-width:0;padding:7px 3px;border-radius:10px;border:1.5px solid var(--hair);background:var(--surface);
+    color:var(--txt2);font-size:10.5px;font-weight:600;font-family:var(--sans);cursor:pointer;text-align:center;
+    line-height:1.2;}
+  .cstage.reached{border-color:var(--amb);background:rgba(209,144,42,.14);color:var(--amb-ink,#7d520f);}
+  .cstage.at{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .cdosepoint{font-size:12px;font-weight:700;color:#7d520f;background:#fcf2e0;border-radius:10px;padding:8px 11px;margin-bottom:8px;}
+  .cactions{display:flex;gap:8px;}
+  .cactions button{height:48px;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+  .cbtn-soft{flex:1;background:var(--hair-2);color:var(--ink);}
+  .cbtn-go{flex:2;background:var(--ink);color:#fff;font-weight:700;}
+  .csame{width:100%;height:38px;border-radius:11px;border:1.5px solid var(--hair);background:var(--surface);
+    color:var(--txt2);font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;margin-bottom:14px;}
+  .csame[hidden]{display:none;}
+  .ctotal{font-family:var(--mono);font-size:13px;font-weight:700;padding:5px 11px;border-radius:10px;flex:none;}
+  .ctotal.grn{background:rgba(26,160,111,.12);color:#146e4d;}
+  .ctotal.amb{background:rgba(209,144,42,.14);color:#7d520f;}
+  .ctotal.red{background:rgba(212,80,80,.12);color:#a33636;}
+  .ctags{font-size:11.5px;color:var(--mut);margin:-1px 0 2px;}
+  /* A sleep dose is the one taken half asleep, so Skip is the big button there
+     and Next is the small one: the sheet must never be the thing standing
+     between him and bed. */
+  .cactions.bigskip .cbtn-soft{flex:2;}
+  .cactions.bigskip .cbtn-go{flex:1;font-weight:600;}
+  .chard{background:#fbeaea;border:1.5px solid #c94a4a;border-radius:14px;padding:12px;margin-bottom:12px;}
+  .chard .t{font-size:14px;font-weight:700;color:#a33636;margin-bottom:9px;}
+  .chard a{display:block;width:100%;height:44px;line-height:44px;border-radius:11px;background:#b53b3b;color:#fff;
+    font-size:14px;font-weight:700;text-align:center;text-decoration:none;}
+  .cconst{background:#fcf2e0;border-radius:14px;padding:11px 13px;margin-bottom:12px;font-size:13px;font-weight:600;color:#7d520f;line-height:1.4;}
+  .crow{padding:12px 0;border-top:1px solid var(--line2);}
+  .crow .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:9px;}
+  .crow .rh .nm{font-size:14px;font-weight:700;}
+  .crow .rh .nt{font-size:10.5px;color:var(--mut);flex:none;}
+  .cscale{display:flex;gap:6px;flex-wrap:wrap;}
+  .cnum{min-width:42px;height:42px;padding:0 8px;border-radius:12px;border:1.5px solid var(--hair);background:var(--surface);
+    color:var(--ink);font-family:var(--mono);font-size:14px;font-weight:700;cursor:pointer;}
+  .cnum.danger{color:#b53b3b;}
+  .cnum.on{border-color:var(--ink);background:var(--ink);color:#fff;}
+  .cnum.on.danger{border-color:#b53b3b;background:#b53b3b;color:#fff;}
+  .cdesc{font-size:12.5px;color:var(--txt2);margin-top:8px;}
+  .cdesc.danger{color:#a33636;}
+  .cfield{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--line2);}
+  .cfield label{font-size:14px;font-weight:700;}
+  .cfield label span{font-weight:500;color:var(--mut);}
+  .cbox{display:flex;align-items:center;gap:6px;border:1px solid var(--hair);border-radius:12px;padding:8px 12px;background:var(--bg);}
+  .cbox input{width:56px;border:none;outline:none;background:transparent;text-align:right;
+    font-family:var(--mono);font-size:15px;font-weight:600;color:var(--ink);}
+  .cbox input::-webkit-outer-spin-button,.cbox input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .cbox .u{font-family:var(--mono);font-size:12px;color:var(--mut);}
+  .cnote{padding:0 0 18px;border-top:1px solid var(--line2);}
+  .cnote input{width:100%;border:1px solid var(--hair);border-radius:12px;padding:11px 13px;margin-top:12px;
+    font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--bg);}
+  /* The CIWA summary under a timeline row: one grey line, the same shape the
+     copy-day text uses, so the screen and the clipboard read alike. */
+  .tlciwa{font-size:11.5px;color:var(--txt2);margin-top:5px;line-height:1.4;background:var(--bg);border-radius:8px;padding:6px 9px;}
+  .tlciwa.hard{background:#fbeaea;color:#a33636;font-weight:600;}
+  .slciwa{font-size:11px;color:var(--mut);padding:0 0 6px 2px;line-height:1.4;}
   .bg-blue{background:var(--blue);} .bg-green{background:var(--green);} .bg-teal{background:var(--teal);}
   .bg-amber{background:var(--amber);} .bg-orange{background:var(--orange);} .bg-purple{background:var(--purple);} .bg-grey{background:var(--grey);}
   .c-blue{color:var(--blue);} .c-green{color:var(--green);} .c-amber{color:var(--amber);}
@@ -464,6 +538,10 @@
       <div class="btnrow">
         <button class="b tealt" id="chipSleepDose"><span id="sleepDoseLabel">Sleep Dose</span></button>
         <button class="b bluet" id="chipWakeUp">Wake Up</button>
+      </div>
+
+      <div class="btnrow">
+        <button class="b chk" id="chipCheck">Check</button>
       </div>
 
       <div class="btnrow meds">
@@ -646,6 +724,18 @@
       </div>
 
       <div class="setgroup">
+        <div class="glabel">CIWA</div>
+        <div class="setrow"><div class="sk">Dose-at score<small>The CIWA total at or above which the sheet says to dose. Blank until the doctor gives one. Shown on step 2, never enforced. Bands in the app are 0-7 green, 8-15 amber, 16+ red: alcohol-withdrawal norms, not GHB-specific</small></div>
+          <div class="field cost"><input type="number" id="setCiwaDoseAt" min="0" step="1" placeholder="blank"></div></div>
+        <div class="setrow"><div class="sk">Dose point<small>How far the progression can get before the sheet says to dose: 1 Head, 2 Neck, 3 Hands, 4 Palpitations, 5 Tongue</small></div>
+          <div class="field cost"><input type="number" id="setCiwaStagePoint" min="1" max="5" step="1" placeholder="4"></div></div>
+        <div class="setrow"><div class="sk">Emergency contact<small>Name on the call button that appears on a hard stop</small></div>
+          <div class="field cost wide"><input type="text" id="setCiwaContactName" placeholder="Name"></div></div>
+        <div class="setrow"><div class="sk">Contact number<small>Dialled by that button. Blank = the button points at Settings instead</small></div>
+          <div class="field cost wide"><input type="tel" id="setCiwaContactNumber" placeholder="+63..."></div></div>
+      </div>
+
+      <div class="setgroup">
         <div class="glabel">Medication wear-off</div>
         <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log</small></div>
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
@@ -719,22 +809,14 @@
       </div>
     </div>
 
-    <!-- ============ TRIGGER PROMPT ============ -->
-    <div class="modal-overlay" id="triggerModal" hidden>
-      <div class="modal-sheet sheet">
+    <!-- ============ CIWA SHEET ============ -->
+    <!-- Body is rendered from JS (CIWA_ITEMS / CIWA_PERSONAL / CIWA_FACTORS) rather
+         than hand-written here: 13 chips and 11 scale rows in static HTML would be
+         four copies of the same truth to keep in step. -->
+    <div class="modal-overlay" id="ciwaModal" hidden>
+      <div class="csheet">
         <div class="handle"></div>
-        <div class="modal-title">What led to this dose?</div>
-        <div class="trigger-sub">Tap one, or skip</div>
-        <div class="early" id="triggerEarly" hidden>⚠ <span><b id="triggerEarlyVal">—</b> before ready</span></div>
-        <div class="trigger-grid">
-          <button class="trigger-opt" data-trigger="stress">Stress</button>
-          <button class="trigger-opt" data-trigger="cognitive_load">Cognitive load</button>
-          <button class="trigger-opt" data-trigger="call_socialization">Call / Socialization</button>
-          <button class="trigger-opt" data-trigger="pre_post_eat">Pre/Post Eat</button>
-          <button class="trigger-opt" data-trigger="physical_exertion">Physical exertion</button>
-          <button class="trigger-opt" data-trigger="none">None / unclear</button>
-        </div>
-        <button class="skip" id="triggerSkip">Skip</button>
+        <div id="ciwaBody"></div>
       </div>
     </div>
 
@@ -760,6 +842,421 @@
     // label instead of the raw stored key.
     call: 'Call', socialization: 'Socialization',
   };
+
+  // ===== CIWA =====
+  // Clinical withdrawal score, filled in after a dose or on its own as a Check.
+  // Two steps on purpose: step 1 asks only "is this present", step 2 asks "how
+  // strong" about the few things you ticked. Scoring eleven items you are not
+  // feeling is how a score sheet stops getting filled in.
+  const CIWA_KEY = 'ciwaSettings';
+  // Five equal tiles across a phone leave about 55px of text each, and
+  // "Palpitations" needs more than that at a readable size. The strip shows the
+  // short form; everywhere there is room for the full word, it uses the full word.
+  const CIWA_STAGES = ['Head', 'Neck', 'Hands', 'Palpitations', 'Tongue'];
+  const CIWA_STAGES_SHORT = ['Head', 'Neck', 'Hands', 'Palps', 'Tongue'];
+
+  // `mid` covers the CIWA rungs between the anchor descriptions, which the
+  // real sheet leaves blank. A blank rung reads like a missing option.
+  const ciwaMid = n => n <= 3 ? 'Between mild and moderate' : 'Between moderate and severe';
+  const ciwaGen = anchors => n => anchors[n] || ciwaMid(n);
+
+  // Storage keys stay the spec's (`auditory`/`visual`); the labels are the
+  // plain words used on screen. Items with `plus:true` top out at "4+", where
+  // 4 means a hallucination and is a hard stop, not just a high score.
+  const CIWA_ITEMS = [
+    { k: 'nausea',   label: 'Nausea',  max: 7, d: ciwaGen({ 1: 'Mild nausea, no vomiting', 4: 'On and off, dry heaves', 7: 'Constant, vomiting' }) },
+    { k: 'tremor',   label: 'Tremor',  max: 7, d: ciwaGen({ 1: 'Felt fingertip to fingertip, not seen', 4: 'Visible with arms out', 7: 'Shaking even at rest' }) },
+    { k: 'sweats',   label: 'Sweating', max: 7, d: ciwaGen({ 1: 'Palms moist', 4: 'Beads on forehead', 7: 'Drenched' }) },
+    { k: 'anxiety',  label: 'Anxiety', max: 7, d: ciwaGen({ 1: 'Mildly anxious', 4: 'Moderate, on guard', 7: 'Panic-level' }) },
+    { k: 'agitation', label: 'Agitation', max: 7, d: ciwaGen({ 1: 'A bit restless', 4: "Fidgety, can't settle", 7: 'Pacing constantly' }) },
+    { k: 'tactile',  label: 'Tactile', max: 4, plus: true, note: 'your own scale',
+      d: n => ({ 1: 'Only there if I look for it, one area', 2: 'Noticeable without looking, 1-2 areas', 3: 'Clearly there, hard to ignore, 3+ areas', 4: 'Feels real, on or under the skin: hard stop' })[n] },
+    { k: 'auditory', label: 'Hearing', max: 4, plus: true,
+      d: n => ({ 1: 'Sounds a bit harsh', 2: 'Harsh, bothersome', 3: 'Very harsh, startling', 4: "Hearing things that aren't there: hard stop" })[n] },
+    { k: 'visual',   label: 'Vision',  max: 4, plus: true,
+      d: n => ({ 1: 'Light a bit bright', 2: 'Bright, bothersome', 3: 'Very bright, colors off', 4: "Seeing things that aren't there: hard stop" })[n] },
+    { k: 'headache', label: 'Headache / head fullness', max: 7, d: ciwaGen({ 1: 'Very mild', 4: 'Moderate', 7: 'Extreme' }) },
+    { k: 'orientation', label: 'Confused about time or place', max: 4,
+      d: n => ({ 1: 'Unsure of the date', 2: 'Date off by up to 2 days: hard stop', 3: 'Date off by more than 2 days: hard stop', 4: 'Unsure where or who: hard stop' })[n] },
+  ];
+
+  // Personal signals sit outside the CIWA total: they are the ones that show up
+  // first for him, so they are worth recording, but adding them to the total
+  // would make his numbers incomparable to a clinical one. Palpitations get a
+  // 0-3 scale of their own; the rest are simply present or not.
+  const CIWA_PERSONAL = [
+    { k: 'tongue', label: 'Tongue salivating', short: 'tongue' },
+    { k: 'jaw',    label: 'Jaw tightening', short: 'jaw' },
+    { k: 'breathing', label: 'Labored breathing', short: 'breathing', hardStop: true },
+    { k: 'palp',   label: 'Palpitations', max: 3, short: 'palp', note: 'not in CIWA total',
+      d: n => ({ 1: 'Aware of heartbeat', 2: 'Pounding or fluttering', 3: 'Constant or skipping' })[n] },
+  ];
+
+  const CIWA_FACTORS = [
+    ['call', 'Call / socializing'], ['deep', 'Deep work'], ['stress', 'Stress'],
+    ['physical', 'Physical exertion'], ['eating', 'Eating'], ['heat', 'Heat'],
+    ['none', 'Nothing notable'],
+  ];
+  const CIWA_FACTOR_LABELS = Object.fromEntries(CIWA_FACTORS);
+  // The old trigger sheet asked the same question with different words, so its
+  // answers map onto factors and old entries keep reading sensibly in History.
+  const TRIGGER_TO_FACTOR = {
+    stress: 'stress', cognitive_load: 'deep', call_socialization: 'call',
+    call: 'call', socialization: 'call', pre_post_eat: 'eating',
+    physical_exertion: 'physical', none: 'none',
+  };
+
+  function loadCiwaSettings() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CIWA_KEY) || '{}');
+      return {
+        // 0 means "not set": the dose-at score is meant to come from the
+        // doctor, and inventing one would make the sheet look like it was
+        // telling him to dose on a number nobody clinical ever gave him.
+        doseAt: Number(raw.doseAt) > 0 ? Number(raw.doseAt) : 0,
+        stagePoint: Number(raw.stagePoint) > 0 ? Number(raw.stagePoint) : 4,
+        contactName: raw.contactName || '',
+        contactNumber: raw.contactNumber || '',
+      };
+    } catch (e) {
+      return { doseAt: 0, stagePoint: 4, contactName: '', contactNumber: '' };
+    }
+  }
+
+  // ---- draft state ----
+  // One object for the whole sheet. `ts` is the entry being annotated, or null
+  // for a Check (whose entry is only created if you actually save, so a skipped
+  // Check leaves no empty row behind).
+  let ciwaDraft = null;
+
+  function ciwaScore(d, k) {
+    return d.checked[k] ? (d.scores[k] || 1) : 0;
+  }
+  function ciwaTotal(d) {
+    return CIWA_ITEMS.reduce((sum, it) => sum + ciwaScore(d, it.k), 0);
+  }
+  function ciwaIsHardStop(d) {
+    return ciwaScore(d, 'tactile') >= 4 || ciwaScore(d, 'auditory') >= 4
+      || ciwaScore(d, 'visual') >= 4 || ciwaScore(d, 'orientation') >= 2
+      || !!d.checked.breathing;
+  }
+  // The pattern that matters more than the number: strong tactile plus any of
+  // his own early signals. It can fire while the clinical total is still low.
+  function ciwaConstellation(d) {
+    const sigs = CIWA_PERSONAL.filter(it => !it.max && d.checked[it.k]).map(it => it.short);
+    return ciwaScore(d, 'tactile') >= 3 && sigs.length > 0 ? sigs.join(' + ') : null;
+  }
+  function ciwaBandClass(total) {
+    return total >= 16 ? 'red' : total >= 8 ? 'amb' : 'grn';
+  }
+
+  // Minutes since the most recent matching entry STRICTLY BEFORE this one, so
+  // the dose that opened the sheet does not count as its own predecessor.
+  function ciwaMinutesSince(data, pred, beforeTs) {
+    let best = null;
+    data.forEach(e => {
+      if (e.timestamp < beforeTs && pred(e) && (best == null || e.timestamp > best)) best = e.timestamp;
+    });
+    return best == null ? null : Math.round((beforeTs - best) / 60000);
+  }
+
+  async function openCiwaSheet({ kind, ts = null, ml = 0, onClose = null }) {
+    const data = await getAllData();
+    const nowTs = ts != null ? ts : Date.now();
+    ciwaDraft = {
+      kind, ts, ml, onClose, step: 1,
+      checked: {}, scores: {}, factors: {}, stage: 0, hr: '', note: '',
+      minSinceGhb: ciwaMinutesSince(data, e => isDoseEntry(e) && Number(e.ml) > 0, nowTs),
+      minSinceStim: ciwaMinutesSince(data, e => isMedEntry(e), nowTs),
+      last: ciwaMostRecent(data, nowTs),
+    };
+    renderCiwaSheet();
+    document.getElementById('ciwaModal').hidden = false;
+  }
+
+  function ciwaMostRecent(data, beforeTs) {
+    let best = null;
+    data.forEach(e => {
+      if (e.ciwa && e.timestamp < beforeTs && (best == null || e.timestamp > best.timestamp)) best = e;
+    });
+    return best ? best.ciwa : null;
+  }
+
+  // Copy the previous sheet's answers in so a night where nothing has changed is
+  // one tap and a Save, not eleven taps to say the same thing again.
+  function ciwaApplyLast() {
+    const src = ciwaDraft && ciwaDraft.last;
+    if (!src) return;
+    ciwaDraft.checked = {};
+    ciwaDraft.scores = {};
+    CIWA_ITEMS.forEach(it => {
+      const v = Number((src.items || {})[it.k]) || 0;
+      if (v > 0) { ciwaDraft.checked[it.k] = true; ciwaDraft.scores[it.k] = v; }
+    });
+    const sig = src.signals || {};
+    CIWA_PERSONAL.forEach(it => { if (!it.max && sig[it.k]) ciwaDraft.checked[it.k] = true; });
+    if (Number(src.palp) > 0) { ciwaDraft.checked.palp = true; ciwaDraft.scores.palp = Number(src.palp); }
+    ciwaDraft.factors = {};
+    (src.factors || []).forEach(f => { ciwaDraft.factors[f] = true; });
+    if (Number(src.stage) > 0) ciwaDraft.stage = Number(src.stage);
+    renderCiwaSheet();
+  }
+
+  function closeCiwaSheet() {
+    document.getElementById('ciwaModal').hidden = true;
+    const done = ciwaDraft && ciwaDraft.onClose;
+    ciwaDraft = null;
+    if (done) done();
+  }
+
+  const CIWA_CONTEXT = {
+    log: 'Dose logged', sleep: 'Sleep dose logged', rescue: 'Rescue logged',
+    custom: 'Custom dose logged', check: 'Check, no dose',
+  };
+
+  function renderCiwaSheet() {
+    const d = ciwaDraft;
+    if (!d) return;
+    const body = document.getElementById('ciwaBody');
+    let ctx = CIWA_CONTEXT[d.kind] || 'Dose logged';
+    if (d.ml > 0) ctx += ' ' + fmtMl(d.ml) + ' ml';
+    const since = [];
+    if (d.minSinceGhb != null) since.push(fmtGap(d.minSinceGhb) + ' since last G');
+    if (d.minSinceStim != null) since.push(fmtGap(d.minSinceStim) + ' since last stimulant');
+    const ctxLine = since.length ? ctx + ' · ' + since.join(' · ') : ctx;
+    body.innerHTML = d.step === 1 ? ciwaStep1Html(d, ctxLine) : ciwaStep2Html(d, ctxLine);
+    body.parentElement.scrollTop = 0;
+  }
+
+  function ciwaStep1Html(d, ctxLine) {
+    const anyChecked = CIWA_ITEMS.concat(CIWA_PERSONAL).some(it => d.checked[it.k]);
+    const chip = (k, label, cls) =>
+      `<button class="cchip${cls ? ' ' + cls : ''}${d.checked[k] ? ' on' : ''}" data-ciwa-chip="${k}">${label}</button>`;
+    const facChip = ([k, label]) =>
+      `<button class="cchip sm fac${d.factors[k] ? ' on' : ''}" data-ciwa-factor="${k}">${label}</button>`;
+    const set = loadCiwaSettings();
+    const stages = CIWA_STAGES.map((name, i) => {
+      const n = i + 1;
+      const cls = d.stage === n ? ' at' : d.stage > n ? ' reached' : '';
+      return `<button class="cstage${cls}" data-ciwa-stage="${n}" title="${name}">${CIWA_STAGES_SHORT[i]}</button>`;
+    }).join('');
+    return `
+      <div class="chead"><h3>What do you feel?</h3><div class="cstep">Step 1 of 2</div></div>
+      <div class="cctx">${ctxLine}</div>
+      ${d.last ? `<button class="csame" id="ciwaSameAsLast">Same as last</button>` : ''}
+      <div class="cgroup">CIWA</div>
+      <div class="cchips">${CIWA_ITEMS.map(it => chip(it.k, it.label)).join('')}</div>
+      <div class="cgroup">My signals · not in the total</div>
+      <div class="cchips">${CIWA_PERSONAL.map(it => chip(it.k, it.label)).join('')}</div>
+      <div class="cblock">
+        <div class="cq">How far has it got?</div>
+        <div class="chint">Optional · it arrives in this order</div>
+        <div class="cstrip">${stages}</div>
+        ${d.stage >= set.stagePoint ? `<div class="cdosepoint">Dose point reached (${CIWA_STAGES[set.stagePoint - 1]}).</div>` : ''}
+      </div>
+      <div class="cblock">
+        <div class="cq">Since your last dose, was any of this going on?</div>
+        <div class="chint">Optional · pick all that apply</div>
+        <div class="cchips">${CIWA_FACTORS.map(facChip).join('')}</div>
+      </div>
+      <div class="cactions${d.kind === 'sleep' ? ' bigskip' : ''}">
+        <button class="cbtn-soft" id="ciwaSkip">Skip</button>
+        <button class="cbtn-go" id="ciwaNext">${anyChecked ? 'Next' : 'Nothing present · Save'}</button>
+      </div>`;
+  }
+
+  function ciwaStep2Html(d, ctxLine) {
+    const total = ciwaTotal(d);
+    const hard = ciwaIsHardStop(d);
+    const constel = ciwaConstellation(d);
+    const set = loadCiwaSettings();
+    // Only the items ticked in step 1 get a scale, and the scaleless signals
+    // (tongue, jaw, breathing) are already answered by being ticked.
+    const rows = CIWA_ITEMS.concat(CIWA_PERSONAL).filter(it => d.checked[it.k] && it.max).map(it => {
+      const cur = d.scores[it.k] || 1;
+      const nums = [];
+      for (let n = 1; n <= it.max; n++) {
+        const danger = (it.plus && n === 4) || (it.k === 'orientation' && n >= 2);
+        const label = it.plus && n === 4 ? '4+' : String(n);
+        nums.push(`<button class="cnum${danger ? ' danger' : ''}${cur === n ? ' on' : ''}" data-ciwa-score="${it.k}" data-n="${n}">${label}</button>`);
+      }
+      const desc = it.d ? (it.d(cur) || '') : '';
+      const dangerDesc = /hard stop/.test(desc);
+      return `<div class="crow">
+        <div class="rh"><div class="nm">${it.label}</div>${it.note ? `<div class="nt">${it.note}</div>` : ''}</div>
+        <div class="cscale">${nums.join('')}</div>
+        ${desc ? `<div class="cdesc${dangerDesc ? ' danger' : ''}">${desc}</div>` : ''}
+      </div>`;
+    }).join('');
+    // The signals that are NOT in the total, restated beside it, so a low
+    // number is never read as "nothing happening".
+    const tags = CIWA_PERSONAL.filter(it => d.checked[it.k])
+      .map(it => it.k === 'palp' ? 'palp ' + (d.scores.palp || 1) : it.short)
+      .join(' · ');
+    const tel = (set.contactNumber || '').replace(/[^0-9+]/g, '');
+    const callLabel = set.contactName ? `Call ${escapeHtml(set.contactName)}` : 'Call for help';
+    const hardLine = set.contactName ? `Dose now. Call ${escapeHtml(set.contactName)}.` : 'Dose now. Call for help.';
+    return `
+      <div class="chead"><h3>How strong?</h3><div class="ctotal ${ciwaBandClass(total)}">CIWA ${total}</div></div>
+      ${tags ? `<div class="ctags">${tags}</div>` : ''}
+      <div class="cctx">${ctxLine}</div>
+      ${hard ? `<div class="chard"><div class="t">${hardLine}</div>
+        ${tel ? `<a href="tel:${tel}">${callLabel}</a>` : `<a href="#" id="ciwaNoContact">Set a contact in Settings</a>`}</div>` : ''}
+      ${constel ? `<div class="cconst">Constellation: tactile ${ciwaScore(d, 'tactile')} + ${constel}. That's your dose signal, whatever the total says.</div>` : ''}
+      ${set.doseAt > 0 && total >= set.doseAt && !hard ? `<div class="cconst">CIWA ${total} is at or over your dose-at score of ${set.doseAt}.</div>` : ''}
+      ${rows}
+      <div class="cfield">
+        <label>Heart rate <span>(optional)</span></label>
+        <div class="cbox"><input type="number" inputmode="numeric" id="ciwaHr" value="${d.hr}" placeholder="0"><span class="u">bpm</span></div>
+      </div>
+      <div class="cnote"><input type="text" id="ciwaNote" value="${(d.note || '').replace(/"/g, '&quot;')}" placeholder="Note (optional)"></div>
+      <div class="cactions">
+        <button class="cbtn-soft" id="ciwaBack">Back</button>
+        <button class="cbtn-go" id="ciwaSave">Save</button>
+      </div>`;
+  }
+
+  // The stored shape. Zeroes are kept for every CIWA item rather than omitted,
+  // so `items` is always the same eleven keys and the doctor export never has
+  // to guess whether a missing key means "not felt" or "not asked".
+  function ciwaPayload(d) {
+    const items = {};
+    CIWA_ITEMS.forEach(it => { items[it.k] = ciwaScore(d, it.k); });
+    const out = {
+      v: 1, items, total: ciwaTotal(d),
+      palp: ciwaScore(d, 'palp'),
+      signals: { tongue: !!d.checked.tongue, jaw: !!d.checked.jaw, breathing: !!d.checked.breathing },
+      factors: Object.keys(d.factors).filter(k => d.factors[k]),
+      hardStop: ciwaIsHardStop(d),
+    };
+    const hr = parseInt(d.hr, 10);
+    if (hr > 0) out.hr = hr;
+    if (d.stage > 0) out.stage = d.stage;
+    if (d.minSinceGhb != null) out.minSinceGhb = d.minSinceGhb;
+    if (d.minSinceStim != null) out.minSinceStim = d.minSinceStim;
+    const note = (d.note || '').trim();
+    if (note) out.note = note;
+    return out;
+  }
+
+  async function saveCiwa() {
+    const d = ciwaDraft;
+    if (!d) return;
+    const payload = ciwaPayload(d);
+    const data = await getAllData();
+    if (d.kind === 'check') {
+      let ts = Date.now();
+      while (data.some(e => e.timestamp === ts)) ts += 1;
+      data.push({ type: 'check', timestamp: ts, ml: 0, ciwa: payload });
+      data.sort((a, b) => a.timestamp - b.timestamp);
+    } else {
+      const entry = data.find(e => e.timestamp === d.ts);
+      if (!entry) { closeCiwaSheet(); return; }
+      entry.ciwa = payload;
+    }
+    saveData(data);
+    // A Check has no toast of its own to hand back, so it says so itself.
+    const wasCheck = d.kind === 'check';
+    closeCiwaSheet();
+    await renderLog();
+    if (wasCheck) showToast('Check saved · CIWA ' + payload.total);
+  }
+
+  // ---- one delegated listener for the whole sheet ----
+  function initCiwaSheet() {
+    const body = document.getElementById('ciwaBody');
+    body.addEventListener('click', (ev) => {
+      const d = ciwaDraft;
+      if (!d) return;
+      const t = ev.target;
+      const chip = t.closest('[data-ciwa-chip]');
+      if (chip) {
+        const k = chip.dataset.ciwaChip;
+        if (d.checked[k]) { delete d.checked[k]; delete d.scores[k]; }
+        else d.checked[k] = true;
+        renderCiwaSheet();
+        return;
+      }
+      const fac = t.closest('[data-ciwa-factor]');
+      if (fac) {
+        const k = fac.dataset.ciwaFactor;
+        // "Nothing notable" is an answer, not one of the things: picking it
+        // clears the rest, and picking anything else clears it.
+        if (d.factors[k]) delete d.factors[k];
+        else if (k === 'none') d.factors = { none: true };
+        else { delete d.factors.none; d.factors[k] = true; }
+        renderCiwaSheet();
+        return;
+      }
+      const stage = t.closest('[data-ciwa-stage]');
+      if (stage) {
+        const n = Number(stage.dataset.ciwaStage);
+        d.stage = d.stage === n ? 0 : n;
+        renderCiwaSheet();
+        return;
+      }
+      const num = t.closest('[data-ciwa-score]');
+      if (num) {
+        d.scores[num.dataset.ciwaScore] = Number(num.dataset.n);
+        renderCiwaSheet();
+        return;
+      }
+      if (t.closest('#ciwaSameAsLast')) { ciwaApplyLast(); return; }
+      if (t.closest('#ciwaSkip')) { closeCiwaSheet(); return; }
+      if (t.closest('#ciwaBack')) { d.step = 1; renderCiwaSheet(); return; }
+      if (t.closest('#ciwaSave')) { saveCiwa(); return; }
+      if (t.closest('#ciwaNoContact')) {
+        ev.preventDefault();
+        closeCiwaSheet();
+        show('settings');
+        return;
+      }
+      if (t.closest('#ciwaNext')) {
+        // With nothing ticked there is no second step to show: no scores to
+        // give and no scale rows to render, so Next saves a clean zero.
+        const anyScalable = CIWA_ITEMS.concat(CIWA_PERSONAL).some(it => d.checked[it.k] && it.max);
+        if (!anyScalable) saveCiwa();
+        else { d.step = 2; renderCiwaSheet(); }
+      }
+    });
+    // Typed fields live outside the re-render (a re-render on every keystroke
+    // would steal focus), so they write straight into the draft.
+    body.addEventListener('input', (ev) => {
+      if (!ciwaDraft) return;
+      if (ev.target.id === 'ciwaHr') ciwaDraft.hr = ev.target.value;
+      if (ev.target.id === 'ciwaNote') ciwaDraft.note = ev.target.value;
+    });
+  }
+
+  // ---- rendering a stored score ----
+  // One grey line, in the order that matters most to least, so a glance down
+  // the timeline reads as a trend. Old entries have a `trigger` instead of
+  // factors; that maps across so they still say what was going on.
+  function ciwaSummary(e) {
+    const c = e.ciwa;
+    if (!c) {
+      const f = TRIGGER_TO_FACTOR[e.trigger];
+      return f ? 'during: ' + CIWA_FACTOR_LABELS[f].toLowerCase() : '';
+    }
+    const it = c.items || {};
+    const parts = ['CIWA ' + (c.total || 0)];
+    if (it.tactile) parts.push('tactile ' + it.tactile);
+    if (it.anxiety) parts.push('anxiety ' + it.anxiety);
+    if (it.headache) parts.push('head ' + it.headache);
+    if (it.tremor) parts.push('tremor ' + it.tremor);
+    const sig = c.signals || {};
+    if (sig.tongue) parts.push('tongue');
+    if (sig.jaw) parts.push('jaw');
+    if (sig.breathing) parts.push('labored breathing');
+    if (c.palp > 0) parts.push('palp ' + c.palp);
+    if (c.hr > 0) parts.push('HR ' + c.hr);
+    if (c.stage > 0) parts.push('at ' + CIWA_STAGES[c.stage - 1].toLowerCase());
+    if (c.hardStop) parts.push('HARD STOP');
+    const facs = (c.factors || []).map(f => CIWA_FACTOR_LABELS[f] || f);
+    if (facs.length) parts.push('during: ' + facs.join(', ').toLowerCase());
+    if (c.note) parts.push(c.note);
+    return parts.join(' · ');
+  }
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
   const MED_WEBHOOK_KEY = 'n8nMedWebhookUrl';
@@ -1214,6 +1711,12 @@
     const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
     if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
     medMaxMg = parseFloat(localStorage.getItem(MED_MAX_KEY)) || 0;
+
+    const ciwaSet = loadCiwaSettings();
+    document.getElementById('setCiwaDoseAt').value = ciwaSet.doseAt > 0 ? ciwaSet.doseAt : '';
+    document.getElementById('setCiwaStagePoint').value = ciwaSet.stagePoint;
+    document.getElementById('setCiwaContactName').value = ciwaSet.contactName;
+    document.getElementById('setCiwaContactNumber').value = ciwaSet.contactNumber;
     document.getElementById('setMedMax').value = medMaxMg > 0 ? medMaxMg : '';
 
     document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
@@ -1309,6 +1812,16 @@
       ritalin20Part2: parseHM(document.getElementById('setRitalin20Part2').value),
     };
     localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff));
+
+    // Clamped rather than rejected: a dose point outside 1-5 would index past
+    // the end of the stage strip and show "undefined" in the prompt.
+    const stagePoint = Math.min(5, Math.max(1, parseInt(document.getElementById('setCiwaStagePoint').value, 10) || 4));
+    localStorage.setItem(CIWA_KEY, JSON.stringify({
+      doseAt: parseInt(document.getElementById('setCiwaDoseAt').value, 10) || 0,
+      stagePoint,
+      contactName: (document.getElementById('setCiwaContactName').value || '').trim(),
+      contactNumber: (document.getElementById('setCiwaContactNumber').value || '').trim(),
+    }));
 
     medMaxMg = parseFloat(document.getElementById('setMedMax').value) || 0;
     if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg);
@@ -1484,7 +1997,6 @@
     const earlyByMs = targetMinutes > 0 && priorAnchorTs != null
       ? (priorAnchorTs + targetMinutes * 60000) - resolvedTs : 0;
     const isEarly = earlyByMs > 0;
-    const needsTrigger = kind === 'rescue' || (kind === 'log' && isEarly);
 
     // Read BEFORE the write below, so Undo can put the awake/asleep flag back.
     const prevSession = localStorage.getItem(SESSION_KEY);
@@ -1505,56 +2017,19 @@
       : kind === 'sleep' ? `Sleep dose ${fmtMl(ml)} ml`
       : `Logged ${fmtMl(ml)} ml`;
     logDayIdx = null; // jump back to the live session after logging
-    // The dose is already saved above — the trigger prompt only annotates it
+    // The dose is already saved above. The CIWA sheet only annotates it
     // afterward and never gates or delays the save itself.
     await paintRing();
     await renderLog();
-    // The trigger sheet covers the bottom of the screen, which is exactly
-    // where the toast lives, so the Undo waits until the sheet is gone rather
-    // than appearing underneath it.
-    if (needsTrigger) openTriggerModal(resolvedTs, isEarly ? earlyByMs : 0, () => showToast(toast, undo));
-    else showToast(toast, undo);
-  }
-
-  // ===== Trigger prompt (Rescue, or an early Log Dose) =====
-  let triggerModalTs = null;
-  let triggerModalDone = null; // runs once the sheet closes, whichever way it closes
-
-  // earlyMs = how far ahead of the ready time this dose landed, or null when
-  // the dose was on schedule (a Rescue is always off-schedule but never
-  // "early" — nothing was due). The strip is informational only: the dose is
-  // already saved, and nothing here blocks or delays it.
-  function openTriggerModal(ts, earlyMs, onClose) {
-    triggerModalTs = ts;
-    triggerModalDone = typeof onClose === 'function' ? onClose : null;
-    const strip = document.getElementById('triggerEarly');
-    if (earlyMs > 0) {
-      document.getElementById('triggerEarlyVal').textContent = fmtGap(Math.round(earlyMs / 60000));
-      strip.hidden = false;
-    } else {
-      strip.hidden = true;
-    }
-    document.getElementById('triggerModal').hidden = false;
-  }
-
-  function closeTriggerModal() {
-    document.getElementById('triggerModal').hidden = true;
-    triggerModalTs = null;
-    const done = triggerModalDone;
-    triggerModalDone = null;
-    if (done) done();
-  }
-
-  async function saveTriggerSelection(trigger) {
-    const ts = triggerModalTs;
-    closeTriggerModal();
-    if (ts == null) return;
-    const data = await getAllData();
-    const entry = data.find(e => e.timestamp === ts);
-    if (!entry) return;
-    entry.trigger = trigger;
-    saveData(data);
-    await renderLog();
+    // Every dose gets the CIWA sheet, not just the early or rescue ones: the
+    // point of the score is the trend across all of them, and a sheet that
+    // only appears when something is already wrong has no baseline to compare
+    // against. Wake Up is the exception (handled by its own caller).
+    // The sheet covers the bottom of the screen, which is exactly where the
+    // toast lives, so the Undo waits until the sheet is gone rather than
+    // appearing underneath it.
+    if (kind === 'wake') showToast(toast, undo);
+    else await openCiwaSheet({ kind, ts: resolvedTs, ml, onClose: () => showToast(toast, undo) });
   }
 
   // Fire-and-forget ping to an n8n webhook so it can schedule a "ready to
@@ -1986,7 +2461,7 @@
     const d = new Date(ts);
     document.getElementById('editDate').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('editTime').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('editModalTitle').textContent = kind === 'dose' ? 'Edit Dose' : 'Edit Med';
+    document.getElementById('editModalTitle').textContent = kind === 'dose' ? 'Edit Dose' : kind === 'check' ? 'Edit Check' : 'Edit Med';
     const mlGroup = document.getElementById('editMlGroup');
     if (kind === 'dose') {
       getAllData().then(data => {
@@ -2443,11 +2918,9 @@
     document.getElementById('editDeleteBtn').addEventListener('click', handleDeleteClick);
     document.getElementById('entryEditModal').addEventListener('click', (e) => { if (e.target.id === 'entryEditModal') closeEntryEdit(); });
 
-    document.querySelectorAll('.trigger-opt').forEach(btn => {
-      btn.addEventListener('click', () => saveTriggerSelection(btn.dataset.trigger));
-    });
-    document.getElementById('triggerSkip').addEventListener('click', closeTriggerModal);
-    document.getElementById('triggerModal').addEventListener('click', (e) => { if (e.target.id === 'triggerModal') closeTriggerModal(); });
+    document.getElementById('chipCheck').addEventListener('click', () => openCiwaSheet({ kind: 'check' }));
+    initCiwaSheet();
+    document.getElementById('ciwaModal').addEventListener('click', (e) => { if (e.target.id === 'ciwaModal') closeCiwaSheet(); });
 
     document.querySelectorAll('#periodSeg button').forEach(b => b.addEventListener('click', () => {
       document.querySelectorAll('#periodSeg button').forEach(x => x.classList.remove('on'));
@@ -2643,6 +3116,11 @@
     const doses = allData.filter(isDoseEntry).slice().sort((a, b) => a.timestamp - b.timestamp);
     const meds = allData.filter(isMedEntry);
     const hrReadings = getHeartRateLog().map(r => ({ type: 'hr', timestamp: r.ts, bpm: r.bpm }));
+    // Checks carry a CIWA score and no dose, so they are deliberately NOT in
+    // isDoseEntry: nothing they hold should reach a ml total, an interval or an
+    // adherence count. They still have to appear on the day they happened, so
+    // they join the timeline the same way meds and HR readings do.
+    const checks = allData.filter(e => e.type === 'check');
 
     const sessions = [];
     let current = null;
@@ -2739,6 +3217,7 @@
       const prevEndTs = i > 0 ? (sessions[i - 1].endTs != null ? sessions[i - 1].endTs : -Infinity) : null;
       const medsInSession = meds.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
       const hrInSession = hrReadings.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
+      const checksInSession = checks.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
       const isRitalin = m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20';
       const isConcerta = m => m.name === 'Concerta 27' || m.name === 'Concerta 36';
       const ritalinMg = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.mg || 0), 0);
@@ -2764,7 +3243,7 @@
       // adherence. Meds are included so their times are visible here too.
       // Each entry's own `trigger` field (if any) rides along here and is
       // rendered inline on its row in sessionCardHtml — not aggregated.
-      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession]
+      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
@@ -2827,13 +3306,16 @@
       if (e.type === 'hr') {
         return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate</span><span>${e.bpm} bpm</span></div>`;
       }
+      if (e.type === 'check') {
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="check"><span class="sllabel">${fmtTime(e.timestamp)} · Check</span><span>&mdash;</span></div>${ciwaSlHtml(e)}`;
+      }
       const kind = doseKind(e);
       const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
       // The trigger answer rides on its own dose row as a normal part of the
       // log line — not a separate summary elsewhere on the card.
-      const triggerTag = e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '';
+      const triggerTag = e.ciwa ? '' : (e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '');
       const amt = kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`;
-      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}${triggerTag}</span><span>${amt}</span></div>`;
+      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}${triggerTag}</span><span>${amt}</span></div>${ciwaSlHtml(e)}`;
     }).join('');
     return `<div class="sessioncard">
       <div class="shead">
@@ -2932,6 +3414,16 @@
         <span class="tlamt">${e.bpm} bpm</span>
       </div>`;
     }
+    // A Check is a CIWA score with no dose: no amount on the right, and the
+    // score itself is the row rather than a footnote under one.
+    if (e.type === 'check') {
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="check">
+        <span class="tldot" style="background:${e.ciwa && e.ciwa.hardStop ? 'var(--red)' : 'var(--blue)'}"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Check</div>${ciwaSubHtml(e)}</div>
+        <span class="tlamt">&mdash;</span>
+      </div>`;
+    }
     if (isMedEntry(e)) {
       // e.part (new split-format Ritalin 20 LA entries) names its own pulse
       // right on the row; older, unsplit entries have no e.part and fall
@@ -2953,14 +3445,31 @@
     const kind = doseKind(e);
     const dot = kind === 'rescue' ? 'var(--amb)' : (kind === 'wake' || kind === 'sleep') ? '#bcbab3' : 'var(--teal)';
     const label = kind === 'wake' ? 'Wake Up' : kind === 'sleep' ? 'Sleep dose' : kind === 'rescue' ? 'Rescue' : 'Dose';
-    // The trigger answer rides on its own row as a normal part of the log line.
-    const trigger = e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '';
+    // A pre-CIWA entry kept its one-word `trigger` inline on the label; a CIWA
+    // entry gets the full score on its own sub-line below, so the label stays
+    // short either way.
+    const trigger = e.ciwa ? '' : (e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '');
     return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="dose">
       <span class="tldot" style="background:${dot}"></span>
       <span class="tltime">${fmtTime(e.timestamp)}</span>
-      <div class="tlbody"><div class="tltext">${label}${trigger}</div></div>
+      <div class="tlbody"><div class="tltext">${label}${trigger}</div>${ciwaSubHtml(e)}</div>
       <span class="tlamt">${kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`}</span>
     </div>`;
+  }
+
+  // Same summary on the narrower Taper/History cards, where rows are single
+  // lines, so it goes under the row rather than inside it.
+  function ciwaSlHtml(e) {
+    if (!e.ciwa) return '';
+    const txt = ciwaSummary(e);
+    return txt ? `<div class="slciwa">${escapeHtml(txt)}</div>` : '';
+  }
+
+  function ciwaSubHtml(e) {
+    if (!e.ciwa) return '';
+    const txt = ciwaSummary(e);
+    if (!txt) return '';
+    return `<div class="tlciwa${e.ciwa.hardStop ? ' hard' : ''}">${escapeHtml(txt)}</div>`;
   }
 
   // Session card on the Log page. Defaults to the newest session (the live
