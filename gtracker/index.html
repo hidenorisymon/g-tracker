@@ -2027,7 +2027,11 @@
       }
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
-      data.push({ timestamp: newTs, ml, type: entry.type });
+      // Spread the original entry rather than rebuilding it from three fields.
+      // The old rebuild silently dropped everything else the dose carried, so
+      // correcting a dose's time also wiped its `trigger`. Meds have always
+      // been spread this way; doses now match.
+      data.push({ ...entry, timestamp: newTs, ml });
     } else {
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
