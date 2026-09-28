@@ -61,13 +61,20 @@
 
   .view{display:none;} .view.on{display:block;}
 
-  /* ===== HERO: stats + Log Dose on the left, countdown dial on the right ===== */
+  /* ===== HERO: stats on the left, allowance ring on the right ===== */
   .hero{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
   .heroL{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px;}
   .hstat{background:var(--card);border-radius:14px;padding:10px 13px;box-shadow:var(--sh);}
   .hstat .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:3px;}
   .hstat .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
   .hstat .v.amb{color:var(--amb);}
+  .hstat .v.grn{color:var(--grn);}
+  .hstat .v.red{color:var(--red);}
+  /* Rolling 24h sits under the hero rather than inside the ring: the ring is
+     about this waking day, and the 24h window is the check on it for a day
+     that runs long. Two numbers, one deliberately quieter than the other. */
+  .hsub{text-align:center;font-family:var(--mono);font-size:11px;color:var(--mut);margin:-4px 0 12px;}
+  .hsub[hidden]{display:none;}
 
   /* r=70 → circumference 2πr = 439.82, which is the dasharray every offset
      below is a fraction of. Rotated -90° so the arc starts at 12 o'clock. */
@@ -78,14 +85,19 @@
     stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
   .dial .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
   .dial .in .lbl{font-size:8.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:3px;}
-  .dial .in .big{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.6px;transition:color .4s;}
-  #dial.ready .fill{stroke:var(--grn);}
-  #dial.ready .lbl,#dial.ready .big{color:var(--grn);}
-  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-  /* Only the seconds separator pulses, and only in the countdown. Since last
-     is read as "how long ago", not timed to the second, so it holds still. */
-  #readout .bl{animation:blink 1s infinite;}
-  #dial.ready #readout .bl{animation:none;opacity:1;}
+  /* 15px, not the old countdown's 23px: "3.2 / 11.0 ml" is three times the
+     characters of "04:12" and has to sit inside a 130px chord. */
+  .dial .in .big{font-family:var(--mono);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;transition:color .4s;}
+  .dial .in .sub{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--mut);margin-top:4px;transition:color .4s;}
+  /* The ring runs the other way round from the old countdown: filling up is
+     now the bad direction, so green is empty and red is spent. */
+  #dial.lvl-grn .fill{stroke:var(--grn);}
+  #dial.lvl-amb .fill{stroke:var(--amb);}
+  #dial.lvl-red .fill{stroke:var(--red);}
+  #dial.lvl-grn .big{color:var(--grn);}
+  #dial.lvl-amb .big{color:var(--amb);}
+  #dial.lvl-red .big,#dial.lvl-red .sub{color:var(--red);}
+  #dial.over .sub{font-weight:700;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
   /* Outer .amed only clips; the sliding .body carries the visible card, so a
@@ -272,7 +284,7 @@
   .sum .g .k{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--mut2);font-weight:600;margin-bottom:3px;}
   .sum .g .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
   .sum .g .v small{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;letter-spacing:0;}
-  .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);}
+  .sum .g .v.grn{color:var(--grn);} .sum .g .v.amb{color:var(--amb);} .sum .g .v.red{color:var(--red);}
   /* Second line inside a tile, for a figure that belongs to the one above it
      (rescue under G total). Smaller and muted so the tile still reads as one
      headline number with a breakdown, not two unlabelled numbers. */
@@ -512,7 +524,8 @@
     <div class="view on" id="view-log">
       <div class="hero">
         <div class="heroL">
-          <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--:--</div></div>
+          <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div></div>
+          <div class="hstat"><div class="k">Last CIWA</div><div class="v" id="lastCiwa">—</div></div>
           <div class="hstat" id="ilastrescue" hidden><div class="k">Last rescue</div><div class="v amb" id="ilastrescueVal">—</div></div>
         </div>
         <div class="dial" id="dial">
@@ -521,11 +534,13 @@
             <circle class="fill" id="dialFill" cx="76" cy="76" r="70"/>
           </svg>
           <div class="in">
-            <div class="lbl" id="eyebrow">Ready in</div>
-            <div class="big" id="readout">--:--:--</div>
+            <div class="lbl" id="eyebrow">Allowance</div>
+            <div class="big" id="readout">—</div>
+            <div class="sub" id="ringSub"></div>
           </div>
         </div>
       </div>
+      <div class="hsub" id="rolling24" hidden></div>
 
       <div class="ameds" id="activeMedsWrap" hidden></div>
       <button class="restoreCard" id="restoreMedCard" hidden>↺ Restore <span class="rname"></span></button>
@@ -590,7 +605,7 @@
         <div class="peakcap">Peak <b id="taperPeakVal">0 ml</b> · <span id="taperPeakDay">—</span></div>
 
         <div class="stats three">
-          <div class="stat"><div class="v" id="tpDoses">—</div><div class="k">Doses vs sched</div></div>
+          <div class="stat"><div class="v" id="tpDoses">—</div><div class="k">Days in cap</div></div>
           <div class="stat"><div class="v" id="tpMl">0</div><div class="k">Total ml</div></div>
           <div class="stat"><div class="v" id="tpMg">0</div><div class="k">Total mg</div><div class="sub" id="tpMgSub"></div></div>
         </div>
@@ -658,7 +673,7 @@
       <div class="glabel" id="taperLabel" hidden>Taper adherence</div>
       <div class="breakdown" id="taperCard" hidden>
         <div class="brow"><span class="bk">Target dose this week</span><span class="bv" id="taperTargetVal">—</span></div>
-        <div class="brow total"><span class="bk">Total vs ceiling</span><span class="bv" id="taperCeilingVal">—</span></div>
+        <div class="brow total" id="taperCeilingRow"><span class="bk">Total vs cap</span><span class="bv" id="taperCeilingVal">—</span></div>
         <div class="brow" id="taperSleepRow" hidden><span class="bk">Sleep doses</span><span class="bv" id="taperSleepVal">—</span></div>
         <div class="brow" id="taperRescueRow" hidden><span class="bk">Rescue doses</span><span class="bv" id="taperRescueVal">—</span></div>
       </div>
@@ -682,16 +697,14 @@
     <!-- ============ SETTINGS ============ -->
     <div class="view" id="view-settings">
       <div class="setgroup">
-        <div class="glabel">Dose & interval</div>
+        <div class="glabel">Dose</div>
         <div class="setrow"><div class="sk"><span class="cd bg-teal"></span>Cost per ml</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" id="setPerMl" value="50" min="0" step="1"></div></div>
-        <div class="setrow"><div class="sk">Target interval<small>Drives the "Ready in" timer</small></div>
-          <div class="field cost wide"><input type="text" id="setInterval" value="" placeholder="04:00" maxlength="5"></div></div>
       </div>
 
       <div class="setgroup">
         <div class="glabel">Notifications</div>
-        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged when you log a dose, so n8n can alert you when the next one is ready</small></div>
+        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged only when you log a Sleep Dose. Dose-ready reminders are gone: with no target interval there is nothing to remind against</small></div>
           <div class="field cost wide"><input type="text" id="setWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-dose"></div></div>
         <div class="setrow"><div class="sk">Medication lapse webhook URL<small>Pinged when you log Ritalin/Concerta — one alert 30 min before it wears off, one when it does</small></div>
           <div class="field cost wide"><input type="text" id="setMedWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-med-lapse"></div></div>
@@ -703,6 +716,8 @@
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Rescue dose<small id="rescueHint">Off-schedule top-up — doesn't reset the timer</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
+        <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
+          <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
           <div class="field cost"><input type="date" id="setTaperStart"></div></div>
       </div>
@@ -831,7 +846,6 @@
   const WEAR_OFF_KEY = 'medWearOffMinutes';
   const MED_MAX_KEY = 'medMaxMg';
   const DISMISSED_MEDS_KEY = 'dismissedMedDoses';
-  const TARGET_KEY = 'targetIntervalMinutes';
   const HR_KEY = 'heartRateLog';
   const TRIGGER_LABELS = {
     stress: 'Stress', cognitive_load: 'Cognitive load',
@@ -1281,6 +1295,18 @@
   // cards use, so the whole screen reads one way.
   const MED_MAX_NEAR_FRAC = 0.50;
   const MED_MAX_OVER_FRAC = 0.70;
+  // The day's ml against its cap, in the one shape every screen shows it in.
+  // Returns null when no cap is set, so callers can leave the slot out rather
+  // than print a ratio against nothing.
+  function allowanceOf(s) {
+    if (!(s.capMl > 0)) return null;
+    const frac = s.totalDailyMl / s.capMl;
+    return {
+      frac, over: s.totalDailyMl > s.capMl, level: s.totalDailyMl > s.capMl ? 'red' : capLevel(frac),
+      text: `${fmtMl(s.totalDailyMl)} / ${fmtMl(s.capMl)} ml`,
+    };
+  }
+
   function medLoadClass(mg) {
     if (!(medMaxMg > 0) || !(mg > 0)) return '';
     const f = mg / medMaxMg;
@@ -1354,7 +1380,7 @@
   const TAPER_EVERY_DAYS = 7;
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }] — one per
   // edit to Current dose, so past weeks keep showing what was actually taken.
-  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, adjustments: [] };
+  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [] };
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -1572,7 +1598,6 @@
       const content = JSON.stringify({
         entries: data, costPerMl, medCost, taperPlan, medWearOff,
         heartRate: getHeartRateLog(),
-        targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null
       }, null, 2);
       const res = await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
         method: 'PATCH',
@@ -1698,13 +1723,6 @@
       if (medCost[inp.dataset.med] != null) inp.value = medCost[inp.dataset.med];
     });
 
-    const targetMins = parseInt(localStorage.getItem(TARGET_KEY) || '0');
-    if (targetMins > 0) {
-      const th = String(Math.floor(targetMins / 60)).padStart(2, '0');
-      const tm = String(targetMins % 60).padStart(2, '0');
-      document.getElementById('setInterval').value = `${th}:${tm}`;
-    }
-
     document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
     document.getElementById('setMedWebhookUrl').value = localStorage.getItem(MED_WEBHOOK_KEY) || '';
 
@@ -1727,6 +1745,7 @@
     const savedTaper = localStorage.getItem(TAPER_KEY);
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
+    document.getElementById('setDailyCap').value = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     renderGistRow();
@@ -1784,14 +1803,6 @@
     costPerMl = parseFloat(document.getElementById('setPerMl').value) || 50;
     localStorage.setItem(costKey, costPerMl);
 
-    const intervalInput = (document.getElementById('setInterval').value || '').trim();
-    const match = intervalInput.match(/^(\d{1,2}):(\d{2})$/);
-    if (match) {
-      localStorage.setItem(TARGET_KEY, parseInt(match[1]) * 60 + parseInt(match[2]));
-    } else if (intervalInput === '' || intervalInput === '00:00') {
-      localStorage.removeItem(TARGET_KEY);
-    }
-
     document.querySelectorAll('.field.cost input[data-med]').forEach(inp => {
       medCost[inp.dataset.med] = parseFloat(inp.value) || 0;
     });
@@ -1834,6 +1845,7 @@
       start: document.getElementById('setTaperStart').value || null,
       startDose: taperPlan.startDose || 0.8,
       rescueDose: parseFloat(document.getElementById('setRescueDose').value) || null,
+      dailyCap: parseFloat(document.getElementById('setDailyCap').value) || 0,
       adjustments: taperPlan.adjustments || [],
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
@@ -1861,25 +1873,18 @@
     document.getElementById('stamp').textContent = `${dayName}, ${month} ${day} · ${h}:${m} ${ap}`;
   }
 
-  // ===== Countdown dial =====
-  // 2π × r, r=70 — the ring's full circumference, and the dasharray the SVG
-  // is set up with. Offset counts DOWN from it as the elapsed fraction grows,
+  // ===== Allowance ring =====
+  // 2π × r, r=70 - the ring's full circumference, and the dasharray the SVG
+  // is set up with. Offset counts DOWN from it as the used fraction grows,
   // so the arc fills clockwise from 12 o'clock.
   const DIAL_CIRCUMFERENCE = 439.82;
-
-  // Red just after a dose, amber around halfway, green as the wait runs out —
-  // the same three palette colours the medication rows use, so the whole screen
-  // reads the same way. Interpolated rather than stepped, so there is no moment
-  // where the number jumps colour and looks like something happened.
-  const HEAT_STOPS = [[212, 80, 80], [209, 144, 42], [26, 160, 111]]; // --red, --amb, --grn
-  const DIAL_READY_SOON_SEC = 15 * 60; // go solid green this close to ready
-  function readyHeat(frac) {
-    const f = Math.min(1, Math.max(0, frac)) * (HEAT_STOPS.length - 1);
-    const i = Math.min(HEAT_STOPS.length - 2, Math.floor(f));
-    const t = f - i;
-    const a = HEAT_STOPS[i], b = HEAT_STOPS[i + 1];
-    const c = a.map((v, k) => Math.round(v + (b[k] - v) * t));
-    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  // Green under 70%, amber to 90%, red above. Stepped rather than the old
+  // countdown's smooth gradient: this number carries a decision, and a
+  // decision wants three states you can name, not a continuous hue.
+  const CAP_NEAR_FRAC = 0.70;
+  const CAP_OVER_FRAC = 0.90;
+  function capLevel(frac) {
+    return frac > CAP_OVER_FRAC ? 'red' : frac >= CAP_NEAR_FRAC ? 'amb' : 'grn';
   }
 
   async function paintRing() {
@@ -1890,25 +1895,21 @@
     const dialFill = document.getElementById('dialFill');
     const eyebrow = document.getElementById('eyebrow');
     const readout = document.getElementById('readout');
+    const ringSub = document.getElementById('ringSub');
     const since = document.getElementById('since');
-    const target = parseInt(localStorage.getItem(TARGET_KEY) || '0');
-    const col = '<span class="bl">:</span>';
+    const lastCiwaEl = document.getElementById('lastCiwa');
+    const rolling = document.getElementById('rolling24');
     const p = n => String(n).padStart(2, '0');
 
-    // An arc that's a sliver of a percent renders as nothing at all, which
-    // reads as "no dose logged" rather than "just dosed" — so any progress at
-    // all shows at least a dot.
-    // live=false is the '--:--:--' placeholder: no countdown is running, so it
-    // must not pick up the just-dosed red that a fraction of 0 would give it.
-    const setDial = (frac, ready, live = true) => {
+    // An arc that is a sliver of a percent renders as nothing at all, which
+    // reads as "nothing used yet" rather than "just dosed", so any amount at
+    // all shows at least a dot. Over the cap the ring stays full: there is no
+    // more than full, and the overshoot is said in words underneath instead.
+    const setDial = (frac, level) => {
       const shown = frac <= 0 ? 0 : Math.min(1, Math.max(0.01, frac));
       dialFill.style.strokeDashoffset = (DIAL_CIRCUMFERENCE * (1 - shown)).toFixed(2);
-      dial.classList.toggle('ready', !!ready);
-      // Cleared rather than set to green once ready, so the .ready rule stays
-      // the single place the ready colour is defined.
-      const heat = (ready || !live) ? '' : readyHeat(frac);
-      dialFill.style.stroke = heat;
-      readout.style.color = heat;
+      ['lvl-grn', 'lvl-amb', 'lvl-red'].forEach(c => dial.classList.remove(c));
+      if (level) dial.classList.add('lvl-' + level);
     };
 
     const doseLabel = document.getElementById('logDoseLabel');
@@ -1920,54 +1921,72 @@
       document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl(getRescueDose())}`;
     }
 
-    const doseData = (await getAllData()).filter(isDoseEntry);
-    // Only real scheduled doses anchor the countdown. Wake Up is a session
-    // marker carrying no ml, and Rescue is an off-schedule top-up — neither
-    // may reset "ready in"/"since last" or the reminder cycle.
+    const all = await getAllData();
+    const doseData = all.filter(isDoseEntry);
+
+    // ---- Since last: a passive readout now, not a countdown. Only real
+    // scheduled doses anchor it; Wake Up carries no ml and a Rescue is an
+    // off-schedule top-up, so neither resets "how long since you dosed".
     const anchorData = doseData.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
-
     if (anchorData.length === 0) {
-      setDial(0, false, false);
-      eyebrow.textContent = 'No dose yet';
-      readout.innerHTML = '--:--:--';
-      since.innerHTML = '--:--';
-      return;
-    }
-
-    // The colon after the hour used to blink too. Two pulsing separators made
-    // the whole number look unstable, so only the seconds one moves now.
-    const hms = totalSec => p(Math.floor(totalSec / 3600)) + ':' + p(Math.floor(totalSec / 60) % 60) + col + p(totalSec % 60);
-    const hm = totalSec => p(Math.floor(totalSec / 3600)) + ':' + p(Math.floor(totalSec / 60) % 60);
-
-    const lastTs = anchorData[anchorData.length - 1].timestamp;
-    const elapsedSec = Math.floor((Date.now() - lastTs) / 1000);
-    since.innerHTML = hm(elapsedSec);
-
-    if (target <= 0) {
-      setDial(0, false, false);
-      eyebrow.textContent = 'No target set';
-      readout.innerHTML = '--:--:--';
-      return;
-    }
-
-    const targetSec = target * 60;
-    const remainSec = targetSec - elapsedSec;
-
-    if (remainSec <= 0) {
-      // Full green ring, and the number counts UP — how long it's been ready,
-      // which is the thing worth knowing once the countdown is spent. A ring
-      // sitting empty at 00:00:00 read as "nothing logged".
-      setDial(1, true);
-      eyebrow.textContent = 'Ready';
-      readout.innerHTML = hms(-remainSec);
+      since.textContent = '--:--';
     } else {
-      // Inside the last DIAL_READY_SOON_SEC, the ring goes solid green early —
-      // "basically ready" reads better than a still-ambering gradient this
-      // close to the target. The countdown itself keeps running true to zero.
-      setDial(elapsedSec / targetSec, remainSec <= DIAL_READY_SOON_SEC);
-      eyebrow.textContent = 'Ready in';
-      readout.innerHTML = hms(remainSec);
+      const elapsedSec = Math.floor((Date.now() - anchorData[anchorData.length - 1].timestamp) / 1000);
+      since.textContent = p(Math.floor(elapsedSec / 3600)) + ':' + p(Math.floor(elapsedSec / 60) % 60);
     }
+
+    // ---- Last CIWA: the score and when it was taken, from a dose or a Check.
+    let lastScored = null;
+    all.forEach(e => { if (e.ciwa && (!lastScored || e.timestamp > lastScored.timestamp)) lastScored = e; });
+    lastCiwaEl.classList.remove('grn', 'amb', 'red');
+    if (!lastScored) {
+      lastCiwaEl.textContent = '—';
+    } else {
+      const t = new Date(lastScored.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      lastCiwaEl.textContent = `${lastScored.ciwa.total} · ${t}`;
+      lastCiwaEl.classList.add(lastScored.ciwa.hardStop ? 'red' : ciwaBandClass(lastScored.ciwa.total));
+    }
+
+    // ---- Rolling 24h. A session that runs 24h+ awake would otherwise stretch
+    // the cap window, so this is the check that does not care about sessions.
+    const cutoff = Date.now() - 86400000;
+    const ml24 = doseData.reduce((sum, e) => sum + (e.timestamp >= cutoff ? (e.ml || 0) : 0), 0);
+    rolling.hidden = ml24 <= 0;
+    rolling.textContent = `Rolling 24h: ${fmtMl(ml24)} ml`;
+
+    // ---- The ring itself: this waking day's ml against the daily cap. When
+    // nothing is open it keeps showing the day that just ended, which is still
+    // the last day there is; Wake Up is what resets it to zero.
+    const sessions = await computeSessions();
+    const cur = sessions.length ? sessions[sessions.length - 1] : null;
+    const cap = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+    const used = cur ? cur.totalDailyMl : 0;
+
+    if (!cur) {
+      setDial(0, null);
+      eyebrow.textContent = 'No dose yet';
+      readout.textContent = '—';
+      ringSub.textContent = '';
+      dial.classList.remove('over');
+      return;
+    }
+    if (cap <= 0) {
+      setDial(0, null);
+      eyebrow.textContent = 'Today';
+      readout.textContent = `${fmtMl(used)} ml`;
+      ringSub.textContent = 'No cap set';
+      dial.classList.remove('over');
+      return;
+    }
+    const frac = used / cap;
+    const over = used > cap;
+    setDial(frac, over ? 'red' : capLevel(frac));
+    dial.classList.toggle('over', over);
+    eyebrow.textContent = 'Allowance';
+    readout.textContent = `${fmtMl(used)} / ${fmtMl(cap)} ml`;
+    ringSub.textContent = over
+      ? `${fmtMl(used - cap)} ml over`
+      : `${fmtMl(cap - used)} ml left`;
   }
 
   // ===== Logging =====
@@ -1986,18 +2005,6 @@
     const resolvedTs = ts || Date.now();
     const data = await getAllData();
 
-    // A Log Dose counts as "early" if it lands before the scheduled interval
-    // since the last real dose (log/sleep) has elapsed — checked against the
-    // data as it stood BEFORE this entry, i.e. the schedule this dose is
-    // either keeping or breaking. Rescue is always off-schedule by
-    // definition, so it always qualifies regardless of timing.
-    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
-    const priorAnchors = data.filter(e => isDoseEntry(e) && (doseKind(e) === 'log' || doseKind(e) === 'sleep') && e.timestamp < resolvedTs);
-    const priorAnchorTs = priorAnchors.length ? priorAnchors[priorAnchors.length - 1].timestamp : null;
-    const earlyByMs = targetMinutes > 0 && priorAnchorTs != null
-      ? (priorAnchorTs + targetMinutes * 60000) - resolvedTs : 0;
-    const isEarly = earlyByMs > 0;
-
     // Read BEFORE the write below, so Undo can put the awake/asleep flag back.
     const prevSession = localStorage.getItem(SESSION_KEY);
     const entry = { timestamp: resolvedTs, ml, type: kind };
@@ -2009,8 +2016,7 @@
     if (kind === 'sleep') localStorage.setItem(SESSION_KEY, 'false');
     // Rescue must not touch the reminder schedule — it's off-schedule, so the
     // already-scheduled next Log Dose reminder keeps its original anchor.
-    if (kind === 'log' || kind === 'sleep') notifyN8nDoseLogged(resolvedTs, kind);
-    else if (kind === 'wake') notifyN8nWake(resolvedTs, data);
+    notifyN8nDoseLogged(resolvedTs, kind);
     const undo = () => undoLog(resolvedTs, prevSession);
     const toast = kind === 'wake' ? 'Wake up logged'
       : kind === 'rescue' ? `Rescue ${fmtMl(ml)} ml`
@@ -2032,53 +2038,17 @@
     else await openCiwaSheet({ kind, ts: resolvedTs, ml, onClose: () => showToast(toast, undo) });
   }
 
-  // Fire-and-forget ping to an n8n webhook so it can schedule a "ready to
-  // dose" push (e.g. via ntfy) without the app needing to run in the
-  // background. `wait` is minutes remaining until the target interval is up
-  // (old/overdue entries are skipped rather than firing immediately).
-  //
-  // A 'sleep' ping carries no `wait` — its only job is to become the
-  // newest known dose timestamp on the n8n side, which makes any earlier
-  // pending reminder (from the last Start/Log dose) self-cancel via the
-  // same staleness check used for redoses. See g-tracker-dose-reminder.json.
-  // A Sleep Dose suspends reminders until the next Wake Up — but nothing used
-  // to restart them, so the first stretch of a new session ran unwatched. Wake
-  // Up now re-arms the cycle. It still does NOT re-anchor the schedule: the
-  // countdown keeps running from the last real dose, so the wait is whatever
-  // is left of that interval, floored at a short grace period so the phone
-  // doesn't buzz in your hand the moment you press the button.
-  const WAKE_GRACE_MIN = 10;
-  function notifyN8nWake(wakeTs, data) {
-    const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
-    if (!webhookUrl) return;
-    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
-    if (targetMinutes <= 0) return;
-    const anchors = data.filter(e => isDoseEntry(e) && (doseKind(e) === 'log' || doseKind(e) === 'sleep'));
-    const lastAnchor = anchors.length ? anchors[anchors.length - 1] : null;
-    // Only re-arm when the cycle was actually suspended, i.e. the last real
-    // entry was a Sleep Dose. Waking mid-session leaves the pending reminder
-    // from the last Log Dose alone, so it can't end up firing twice.
-    if (lastAnchor && doseKind(lastAnchor) !== 'sleep') return;
-    const dueTs = (lastAnchor ? lastAnchor.timestamp : wakeTs) + targetMinutes * 60000;
-    const waitMinutes = Math.max(WAKE_GRACE_MIN, Math.round((dueTs - Date.now()) / 60000));
-    const sep = webhookUrl.includes('?') ? '&' : '?';
-    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(wakeTs)}&wait=${encodeURIComponent(waitMinutes)}&type=wake`).catch(() => {});
-  }
-
+  // The dose webhook used to schedule a "ready to dose" push a target interval
+  // after each dose. There is no target interval any more (dosing is
+  // CIWA-triggered, not clock-triggered), so nothing is scheduled and nothing
+  // has to be suspended on Wake Up. The sleep ping is all that is left: it
+  // tells n8n the day has closed.
   function notifyN8nDoseLogged(ts, kind) {
+    if (kind !== 'sleep') return;
     const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
     if (!webhookUrl) return;
     const sep = webhookUrl.includes('?') ? '&' : '?';
-    if (kind === 'sleep') {
-      fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&type=sleep`).catch(() => {});
-      return;
-    }
-    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
-    if (targetMinutes <= 0) return;
-    const elapsedMin = Math.floor((Date.now() - ts) / 60000);
-    const waitMinutes = targetMinutes - elapsedMin;
-    if (waitMinutes <= 0) return;
-    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&wait=${encodeURIComponent(waitMinutes)}&type=${kind}`).catch(() => {});
+    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&type=sleep`).catch(() => {});
   }
 
   async function logMed(name) {
@@ -2569,6 +2539,10 @@
     let unit = 'day';
     let perLabel = '';
     let taperTarget = null, taperCeiling = null;
+    // The daily cap replaces the old invented ceiling (target dose x 9.6 doses
+    // a day). It counts every ml, sleep and rescue included: a cap that left
+    // the bedtime dose outside it would not be a cap on the day.
+    const capMl = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
 
     if (period === 'weekly') {
       const weekBase = new Date(selectedWeek);
@@ -2586,7 +2560,7 @@
       }
       unit = 'day';
       taperTarget = getTaperTargetForDate(weekBase);
-      if (taperTarget != null) taperCeiling = Math.round(taperTarget * 9.6 * 7 * 100) / 100;
+      if (capMl > 0) taperCeiling = Math.round(capMl * 7 * 100) / 100;
     } else if (period === 'monthly') {
       const monthDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
       perLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -2613,22 +2587,20 @@
     const rows = [];
     let totalMl = 0, totalMg = 0, ritMg = 0, concMg = 0, doseCostSum = 0, concCostSum = 0, ritCostSum = 0;
     let totalDiffMin = 0, diffPeriods = 0;
-    let totalAdherenceMl = 0, totalSleepMl = 0, totalRescueMl = 0;
+    let totalSleepMl = 0, totalRescueMl = 0;
 
     ranges.forEach(r => {
       const dDoses = doseData.filter(e => e.timestamp >= r.start && e.timestamp < r.end);
       const dMeds = medData.filter(e => e.timestamp >= r.start && e.timestamp < r.end);
       const ml = dDoses.reduce((s, e) => s + e.ml, 0);
-      // Sleep and rescue doses follow their own rules, not the 2.5hr taper
-      // schedule — keep them in totals/cost/chart (real ml taken, matters
-      // for safety) but exclude both from taper-schedule adherence.
-      const adherenceMl = dDoses.filter(e => doseKind(e) === 'log' || doseKind(e) === 'wake').reduce((s, e) => s + e.ml, 0);
+      // Sleep and rescue are broken out for the breakdown rows; the cap
+      // itself is measured against the full `ml` above.
       const sleepMl = dDoses.filter(e => doseKind(e) === 'sleep').reduce((s, e) => s + e.ml, 0);
       const rescueMl = dDoses.filter(e => doseKind(e) === 'rescue').reduce((s, e) => s + e.ml, 0);
       const mg = dMeds.reduce((s, e) => s + (e.mg || 0), 0);
       mlVals.push(ml);
       totalMl += ml; totalMg += mg;
-      totalAdherenceMl += adherenceMl; totalSleepMl += sleepMl; totalRescueMl += rescueMl;
+      totalSleepMl += sleepMl; totalRescueMl += rescueMl;
       doseCostSum += ml * costPerMl;
       dMeds.forEach(e => {
         if (e.name === 'Concerta 27' || e.name === 'Concerta 36') { concCostSum += (e.cost || 0); concMg += (e.mg || 0); }
@@ -2646,10 +2618,7 @@
       }
 
       let rowOver = null;
-      if (unit === 'day') {
-        const rowTarget = getTaperTargetForDate(new Date(r.start));
-        if (rowTarget != null) rowOver = adherenceMl > Math.round(rowTarget * 9.6 * 100) / 100;
-      }
+      if (unit === 'day' && capMl > 0) rowOver = ml > capMl;
       if (ml > 0) rows.push({ label: r.full, ml, sleepMl, rescueMl, count: dDoses.length, avgGapText: rangeAvgText, over: rowOver });
     });
 
@@ -2661,7 +2630,7 @@
     return {
       ranges, mlVals, rows, unit, perLabel, max, peakIdx,
       totalMl, totalMg, ritMg, concMg, avgAll,
-      totalAdherenceMl, totalSleepMl, totalRescueMl,
+      totalSleepMl, totalRescueMl,
       doseCostSum, concCostSum, ritCostSum,
       grandTotal: doseCostSum + concCostSum + ritCostSum,
       taperTarget, taperCeiling
@@ -2726,17 +2695,23 @@
     if (h.taperTarget != null) {
       taperLabel.hidden = false; taperCard.hidden = false;
       document.getElementById('taperTargetVal').textContent = `${fmtMl(h.taperTarget)} ml`;
-      const ceilingEl = document.getElementById('taperCeilingVal');
-      const over = h.totalAdherenceMl > h.taperCeiling;
-      ceilingEl.textContent = `${fmtMl(h.totalAdherenceMl)} / ${fmtMl(h.taperCeiling)} ml`;
-      ceilingEl.classList.toggle('over', over);
-      ceilingEl.classList.toggle('under', !over);
+      // No cap set means no line to measure the week against: the row goes
+      // rather than showing a ratio against nothing.
+      const ceilingRow = document.getElementById('taperCeilingRow');
+      ceilingRow.hidden = h.taperCeiling == null;
+      if (h.taperCeiling != null) {
+        const ceilingEl = document.getElementById('taperCeilingVal');
+        const over = h.totalMl > h.taperCeiling;
+        ceilingEl.textContent = `${fmtMl(h.totalMl)} / ${fmtMl(h.taperCeiling)} ml`;
+        ceilingEl.classList.toggle('over', over);
+        ceilingEl.classList.toggle('under', !over);
+      }
       const sleepRow = document.getElementById('taperSleepRow');
       sleepRow.hidden = h.totalSleepMl <= 0;
-      if (h.totalSleepMl > 0) document.getElementById('taperSleepVal').textContent = `${fmtMl(h.totalSleepMl)} ml (not counted)`;
+      if (h.totalSleepMl > 0) document.getElementById('taperSleepVal').textContent = `${fmtMl(h.totalSleepMl)} ml (included)`;
       const rescueRow = document.getElementById('taperRescueRow');
       rescueRow.hidden = h.totalRescueMl <= 0;
-      if (h.totalRescueMl > 0) document.getElementById('taperRescueVal').textContent = `${fmtMl(h.totalRescueMl)} ml (not counted)`;
+      if (h.totalRescueMl > 0) document.getElementById('taperRescueVal').textContent = `${fmtMl(h.totalRescueMl)} ml (included)`;
     } else {
       taperLabel.hidden = true; taperCard.hidden = true;
     }
@@ -2837,7 +2812,6 @@
         if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
         if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
         if (data.heartRate) localStorage.setItem(HR_KEY, JSON.stringify(data.heartRate));
-        if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
         loadSettings();
         await renderLog();
         await paintRing();
@@ -3055,7 +3029,8 @@
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
     let out = `G Tracker — Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n${range}\n`;
     out += `Session length   ${fmtGap(Math.round(s.durationHours * 60))}\n`;
-    out += `Doses vs schedule   ${s.onTimeLogDoses} / ${s.actualLogDoses}\n`;
+    const allow = allowanceOf(s);
+    if (allow) out += `Allowance   ${allow.text}${allow.over ? ' (over)' : ''}\n`;
     out += `Total ml   ${fmtMl(s.totalDailyMl)} ml · ${fmtPeso(s.mlCost)}\n`;
     if (s.sleepMl > 0) out += `  incl. sleep   ${fmtMl(s.sleepMl)} ml\n`;
     if (s.rescueCount > 0) out += `Rescue   ${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml · ${fmtPeso(s.rescueMl * costPerMl)}\n`;
@@ -3096,10 +3071,13 @@
     let out = `G Tracker — ${pname} (${h.perLabel})\nAvg gap ${h.avgAll} · Total ${fmtMl(h.totalMl)} ml · ${h.totalMg} mg\n\nPer ${h.unit}\n`;
     out += h.rows.length ? h.rows.map(r => `${r.label}   ${r.count}× · ${fmtMl(r.ml)} ml   ${r.avgGapText}${r.over ? '   over' : ''}`).join('\n') : '—';
     if (h.taperTarget != null) {
-      const status = h.totalAdherenceMl > h.taperCeiling ? 'over' : 'under/at';
-      out += `\n\nTaper target ${fmtMl(h.taperTarget)} ml/dose · ${fmtMl(h.totalAdherenceMl)} / ${fmtMl(h.taperCeiling)} ml ceiling (${status})`;
-      if (h.totalSleepMl > 0) out += ` · +${fmtMl(h.totalSleepMl)} ml sleep (not counted)`;
-      if (h.totalRescueMl > 0) out += ` · +${fmtMl(h.totalRescueMl)} ml rescue (not counted)`;
+      out += `\n\nTaper target ${fmtMl(h.taperTarget)} ml/dose`;
+      if (h.taperCeiling != null) {
+        const status = h.totalMl > h.taperCeiling ? 'over' : 'under/at';
+        out += ` · ${fmtMl(h.totalMl)} / ${fmtMl(h.taperCeiling)} ml cap (${status})`;
+      }
+      if (h.totalSleepMl > 0) out += ` · incl. ${fmtMl(h.totalSleepMl)} ml sleep`;
+      if (h.totalRescueMl > 0) out += ` · incl. ${fmtMl(h.totalRescueMl)} ml rescue`;
       out += '\n';
     }
     out += `\n\nCost\nDoses · ml   ${fmtPeso(h.doseCostSum)}\nConcerta   ${fmtPeso(h.concCostSum)}\nRitalin   ${fmtPeso(h.ritCostSum)}\nGrand total   ${fmtPeso(h.grandTotal)}\n`;
@@ -3163,43 +3141,14 @@
     });
 
     const now = Date.now();
-    // Adherence is measured against the Target interval in Settings. This was
-    // hardcoded to 2.5hr, so changing the interval to 2:00 left every day
-    // scored against a schedule that was no longer being followed.
-    const targetMinutes = parseInt(localStorage.getItem(TARGET_KEY) || '0') || 0;
+    // The one cap that applies to every day. Step dates (a different cap from
+    // a given date on) are a later step; until then a session carries the
+    // current cap so the rest of the app never reads the setting directly.
+    const dailyCap = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
 
-    // "Doses vs schedule" = how many of a session's doses actually landed
-    // on time, not an elapsed-time pace estimate. Computed once, up front,
-    // over ALL doses in chronological order (not scoped to a session) so it
-    // mirrors logDose()'s own early-dose check exactly: a dose is on time
-    // if it landed at/after the target interval since the last real dose
-    // (log or sleep) — the same check that decides whether the early-dose
-    // reason prompt fires. A dose that never triggered that prompt always
-    // counts as on time here too. This replaced a pace estimate (doses
-    // implied by hours elapsed so far) that could read "over" even when
-    // every dose taken was on time, just because a couple of gaps ran long.
-    const onTimeSet = new Set();
-    {
-      let lastAnchorTs = null;
-      doses.forEach(e => {
-        const kind = doseKind(e);
-        if (kind === 'log') {
-          const onTime = !(targetMinutes > 0 && lastAnchorTs != null && e.timestamp < lastAnchorTs + targetMinutes * 60000);
-          if (onTime) onTimeSet.add(e.timestamp);
-          lastAnchorTs = e.timestamp;
-        } else if (kind === 'sleep') {
-          lastAnchorTs = e.timestamp;
-        }
-      });
-    }
     return sessions.map((s, i) => {
       const endTs = s.endTs != null ? s.endTs : now;
       const durationHours = (endTs - s.startTs) / 3600000;
-      // Only type:'log' counts toward adherence — rescue doses are tracked
-      // as a separate tally so schedule-adherence and rescue frequency read
-      // as two distinct numbers, not conflated into one.
-      const actualLogDoses = s.logs.length;
-      const onTimeLogDoses = s.logs.filter(e => onTimeSet.has(e.timestamp)).length;
       const logMl = s.logs.reduce((sum, e) => sum + e.ml, 0);
       const sleepMl = s.sleeps.reduce((sum, e) => sum + e.ml, 0);
       const rescueCount = s.rescues.length;
@@ -3247,7 +3196,7 @@
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
-        durationHours, actualLogDoses, onTimeLogDoses,
+        durationHours, capMl: dailyCap,
         logMl, sleepMl, rescueCount, rescueMl, totalDailyMl, sleepHours,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
@@ -3262,8 +3211,7 @@
   function sessionCardHtml(s, newestFirst) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const over = s.onTimeLogDoses < s.actualLogDoses;
-    const doseClass = over ? 'over' : 'under';
+    const allow = allowanceOf(s);
     const rangeText = s.isOpen
       ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
@@ -3324,7 +3272,7 @@
       </div>
       <div class="sstats">
         <div class="brow"><span class="bk">Session length</span><span class="bv">${durationText}</span></div>
-        <div class="brow"><span class="bk">Doses vs schedule</span><span class="bv ${doseClass}">${s.onTimeLogDoses} / ${s.actualLogDoses}</span></div>
+        ${allow ? `<div class="brow"><span class="bk">Allowance</span><span class="bv ${allow.over ? 'over' : 'under'}">${allow.text}</span></div>` : ''}
       </div>
 
       <div class="glabel sublabel">G · ml</div>
@@ -3351,9 +3299,12 @@
     const rangeText = s.isOpen
       ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – now`
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
-    // Over the scheduled dose count is the only state worth flagging; on or
-    // under schedule is the goal, so it reads green.
-    const doseCls = s.onTimeLogDoses < s.actualLogDoses ? 'amb' : 'grn';
+    // The day against its cap, in the ring's own three colours. With no cap
+    // set there is no ratio to show, so the tile says so instead of pretending.
+    const allow = allowanceOf(s);
+    const allowTile = allow
+      ? `<div class="v ${allow.level}">${allow.text}</div>`
+      : `<div class="v"><small>No cap set</small></div>`;
     // Meds lead the card: the stimulant total is the number that changes day
     // to day and the one carrying a ceiling, so it must not be the one you
     // scroll past. One combined row, coloured against the COMBINED total vs
@@ -3392,7 +3343,7 @@
       ${medHtml}
       <div class="grid">
         <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
-        <div class="g"><div class="k">Doses vs schedule</div><div class="v ${doseCls}">${s.onTimeLogDoses} / ${s.actualLogDoses}</div></div>
+        <div class="g"><div class="k">Allowance</div>${allowTile}</div>
         <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div><div class="v2${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
         <div class="g"><div class="k">Sleep</div><div class="v">${sleepText}</div></div>
       </div>
@@ -3568,27 +3519,29 @@
     document.getElementById('taperPeakVal').textContent = `${fmtMl((mlVals[peakIdx] || 0))} ml`;
     document.getElementById('taperPeakDay').textContent = inGroup[peakIdx] ? `Day ${inGroup[peakIdx].day}` : '—';
 
-    const totOnTime = inGroup.reduce((s, x) => s + x.onTimeLogDoses, 0);
-    const totActual = inGroup.reduce((s, x) => s + x.actualLogDoses, 0);
+    // The group-level form of the allowance: how many of these days stayed
+    // inside the cap. Only days that have a cap to be inside of are counted.
+    const capped = inGroup.filter(x => x.capMl > 0);
+    const inCap = capped.filter(x => x.totalDailyMl <= x.capMl).length;
     const totMl = inGroup.reduce((s, x) => s + x.totalDailyMl, 0);
     const totMg = inGroup.reduce((s, x) => s + x.ritalinMg + x.concertaMg, 0);
     const totRitMg = inGroup.reduce((s, x) => s + x.ritalinMg, 0);
     const totConcMg = inGroup.reduce((s, x) => s + x.concertaMg, 0);
     const dosesEl = document.getElementById('tpDoses');
-    dosesEl.textContent = `${totOnTime}/${totActual}`;
-    dosesEl.classList.toggle('over', totOnTime < totActual);
-    dosesEl.classList.toggle('under', totOnTime >= totActual);
+    dosesEl.textContent = capped.length ? `${inCap}/${capped.length}` : '—';
+    dosesEl.classList.toggle('over', capped.length > 0 && inCap < capped.length);
+    dosesEl.classList.toggle('under', capped.length > 0 && inCap >= capped.length);
     document.getElementById('tpMl').textContent = fmtMl(totMl);
     document.getElementById('tpMg').textContent = totMg;
     document.getElementById('tpMgSub').textContent = totMg > 0 ? `Rit ${totRitMg} · Conc ${totConcMg}` : '';
 
     document.getElementById('taperDaylist').innerHTML = inGroup.map(s => {
-      const over = s.onTimeLogDoses < s.actualLogDoses;
-      const cls = over ? ' over' : ' under';
+      // Coloured only when there is a cap to be over or under.
+      const cls = s.capMl > 0 ? (s.totalDailyMl > s.capMl ? ' over' : ' under') : '';
       const extras = [];
       if (s.sleepMl > 0) extras.push(`<span class="dsleep">+${fmtMl(s.sleepMl)}s</span>`);
       if (s.rescueMl > 0) extras.push(`<span class="drescue">+${fmtMl(s.rescueMl)}r</span>`);
-      return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${s.onTimeLogDoses}/${s.actualLogDoses} · ${fmtMl(s.totalDailyMl)} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
+      return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
     }).join('') || '<div class="empty">No data.</div>';
 
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
@@ -3608,7 +3561,7 @@
     const inGroup = sessions.slice(startIdx, startIdx + groupSize);
     const gLabel = `${taperPeriod === 'weekly' ? 'Week' : 'Month'} ${taperGroupIdx}`;
     let out = `G Tracker — Taper (${gLabel})\n\nPer taper day\n`;
-    out += inGroup.map(s => `Day ${s.day}   ${s.onTimeLogDoses}/${s.actualLogDoses} · ${fmtMl(s.totalDailyMl)} ml   ${fmtGap(Math.round(s.durationHours * 60))}`).join('\n');
+    out += inGroup.map(s => `Day ${s.day}   ${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml${s.capMl > 0 && s.totalDailyMl > s.capMl ? ' (over)' : ''}   ${fmtGap(Math.round(s.durationHours * 60))}`).join('\n');
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
     const ritCost = inGroup.reduce((s, x) => s + x.ritalinCost, 0);
     const concCost = inGroup.reduce((s, x) => s + x.concertaCost, 0);
@@ -3678,7 +3631,7 @@
 
   async function exportAsJSON() {
     const data = await getAllData();
-    const exportData = { entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null, exportDate: new Date().toISOString() };
+    const exportData = { entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, exportDate: new Date().toISOString() };
     const json = JSON.stringify(exportData, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -3705,7 +3658,7 @@
 
     try {
       const data = await getAllData();
-      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, heartRate: getHeartRateLog(), targetIntervalMinutes: parseInt(localStorage.getItem(TARGET_KEY) || '0') || null }, null, 2);
+      const content = JSON.stringify({ entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg, heartRate: getHeartRateLog() }, null, 2);
 
       if (gistId) {
         const response = await fetch(`${GITHUB_API}/gists/${gistId}`, {
@@ -3786,7 +3739,6 @@
       if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
       if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
       if (data.heartRate) localStorage.setItem(HR_KEY, JSON.stringify(data.heartRate));
-      if (data.targetIntervalMinutes) localStorage.setItem(TARGET_KEY, data.targetIntervalMinutes);
       loadSettings();
 
       showToast('✓ Data restored from Gist');
