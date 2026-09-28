@@ -178,6 +178,29 @@
   .btnrow .b.pill.pur{color:var(--pur);}
   .btnrow .b.pill.org{color:var(--org);}
 
+  /* ===== LOG DOSE + ACTION TILES ===== */
+  /* One full-width primary action with the dose on a pill, then six equal
+     tiles. The tiles deliberately skip the ::after hit-area stretch that
+     .btnrow .b uses: in a grid with an 8px gap two stretched rows would
+     overlap, and a tap on the seam could land on the tile above. */
+  .logbtn{width:100%;height:54px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 8px 0 20px;margin-bottom:10px;border:none;border-radius:16px;background:#168a60;color:#fff;
+    font-family:var(--sans);font-size:16px;font-weight:700;cursor:pointer;
+    box-shadow:0 6px 16px rgba(22,138,96,.25);transition:transform .12s;-webkit-tap-highlight-color:transparent;}
+  .logbtn:active{transform:scale(.97);}
+  .logbtn .mlpill{font-family:var(--mono);font-size:14px;font-weight:600;background:rgba(255,255,255,.18);padding:8px 12px;border-radius:11px;}
+  .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px;}
+  .tile{height:66px;min-width:0;padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    border:none;border-radius:16px;background:var(--card);box-shadow:0 1px 2px rgba(20,20,15,.05);
+    font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;
+    transition:transform .12s;-webkit-tap-highlight-color:transparent;}
+  .tile:active{transform:scale(.97);}
+  .tile svg{width:20px;height:20px;flex:none;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .tile span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* Clonazepam is held down to log "missed", so the iOS text callout and the
+     selection magnifier must not claim that press first. */
+  .tile.hold{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+
   .glabel{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 2px 9px;}
 
   .daynav{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
@@ -398,6 +421,7 @@
   .modal-field[hidden]{display:none;}
   .modal-field label{display:block;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
   .modal-field input,.modal-field select{width:100%;border:1px solid var(--hair);border-radius:11px;padding:11px 13px;font-family:var(--mono);font-size:15px;color:var(--ink);background:var(--app);}
+  .modal-field textarea{width:100%;min-height:96px;border:1px solid var(--hair);border-radius:11px;padding:11px 13px;font-family:var(--sans);font-size:15px;color:var(--ink);background:var(--app);resize:none;display:block;}
   .modal-field input::-webkit-outer-spin-button,.modal-field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .modal-actions{display:flex;gap:10px;margin-top:6px;}
   .modal-actions button{flex:1;height:46px;border-radius:12px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);}
@@ -497,6 +521,20 @@
   .tlciwa{font-size:11.5px;color:var(--txt2);margin-top:5px;line-height:1.4;background:var(--bg);border-radius:8px;padding:6px 9px;}
   .tlciwa.hard{background:#fbeaea;color:#a33636;font-weight:600;}
   .slciwa{font-size:11px;color:var(--mut);padding:0 0 6px 2px;line-height:1.4;}
+  /* A Note row shows only its first line; the full text lives in the edit sheet. */
+  .tlnote{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* ===== QUICK SHEET: Custom dose stepper, Note, Clonazepam ask ===== */
+  #quickModal{background:rgba(20,20,15,.38);}
+  .qsub{font-size:12.5px;color:var(--mut);line-height:1.45;margin-bottom:20px;}
+  .qstep{display:flex;align-items:center;justify-content:center;gap:22px;margin-bottom:24px;}
+  .qstep button{width:54px;height:54px;flex:none;border-radius:50%;border:none;background:var(--hair-2);color:var(--ink);
+    font-family:var(--sans);font-size:24px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  .qstep button:disabled{opacity:.35;}
+  .qval{min-width:110px;text-align:center;font-family:var(--mono);font-size:36px;font-weight:600;letter-spacing:-1px;}
+  .qval small{font-size:15px;font-weight:600;letter-spacing:0;color:var(--mut);}
+  .qnote{display:block;width:100%;min-height:120px;margin:9px 0 14px;padding:13px;border:1px solid var(--hair);border-radius:14px;
+    background:#f7f6f2;color:var(--ink);font-family:var(--sans);font-size:15px;resize:none;}
   .bg-blue{background:var(--blue);} .bg-green{background:var(--green);} .bg-teal{background:var(--teal);}
   .bg-amber{background:var(--amber);} .bg-orange{background:var(--orange);} .bg-purple{background:var(--purple);} .bg-grey{background:var(--grey);}
   .c-blue{color:var(--blue);} .c-green{color:var(--green);} .c-amber{color:var(--amber);}
@@ -526,7 +564,6 @@
         <div class="heroL">
           <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div></div>
           <div class="hstat"><div class="k">Last CIWA</div><div class="v" id="lastCiwa">—</div></div>
-          <div class="hstat" id="ilastrescue" hidden><div class="k">Last rescue</div><div class="v amb" id="ilastrescueVal">—</div></div>
         </div>
         <div class="dial" id="dial">
           <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
@@ -545,18 +582,15 @@
       <div class="ameds" id="activeMedsWrap" hidden></div>
       <button class="restoreCard" id="restoreMedCard" hidden>↺ Restore <span class="rname"></span></button>
 
-      <div class="btnrow">
-        <button class="b prim" id="chipLogDose"><span id="logDoseLabel">Log Dose</span></button>
-        <button class="b resc" id="chipRescue"><span id="rescueLabel">Rescue</span></button>
-      </div>
+      <button class="logbtn" id="chipLogDose"><span>Log Dose</span><span class="mlpill" id="logDoseAmt">0.8 ml</span></button>
 
-      <div class="btnrow">
-        <button class="b tealt" id="chipSleepDose"><span id="sleepDoseLabel">Sleep Dose</span></button>
-        <button class="b bluet" id="chipWakeUp">Wake Up</button>
-      </div>
-
-      <div class="btnrow">
-        <button class="b chk" id="chipCheck">Check</button>
+      <div class="tiles">
+        <button class="tile" id="chipCustom"><svg viewBox="0 0 24 24" stroke="#b07a12" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg><span>Custom dose</span></button>
+        <button class="tile" id="chipCheck"><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
+        <button class="tile" id="chipSleepDose"><svg viewBox="0 0 24 24" stroke="#0f7c75" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep dose</span></button>
+        <button class="tile" id="chipWakeUp"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake up</span></button>
+        <button class="tile hold" id="chipBenzo"><svg viewBox="0 0 24 24" stroke="#141517" aria-hidden="true"><g transform="rotate(-35 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/></g></svg><span id="benzoLabel">Clonazepam</span></button>
+        <button class="tile" id="chipNote"><svg viewBox="0 0 24 24" stroke="#6f6d66" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Note</span></button>
       </div>
 
       <div class="btnrow meds">
@@ -675,7 +709,7 @@
         <div class="brow"><span class="bk">Target dose this week</span><span class="bv" id="taperTargetVal">—</span></div>
         <div class="brow total" id="taperCeilingRow"><span class="bk">Total vs cap</span><span class="bv" id="taperCeilingVal">—</span></div>
         <div class="brow" id="taperSleepRow" hidden><span class="bk">Sleep doses</span><span class="bv" id="taperSleepVal">—</span></div>
-        <div class="brow" id="taperRescueRow" hidden><span class="bk">Rescue doses</span><span class="bv" id="taperRescueVal">—</span></div>
+        <div class="brow" id="taperRescueRow" hidden><span class="bk">Custom / rescue doses</span><span class="bv" id="taperRescueVal">—</span></div>
       </div>
 
       <div class="grouprow">
@@ -714,7 +748,7 @@
         <div class="glabel">Taper plan</div>
         <div class="setrow"><div class="sk">Current dose<small id="taperCurrentHint">What you're taking now</small></div>
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
-        <div class="setrow"><div class="sk">Rescue dose<small id="rescueHint">Off-schedule top-up — doesn't reset the timer</small></div>
+        <div class="setrow"><div class="sk">Custom dose start<small id="rescueHint">Where the Custom dose stepper starts. Adjust it there in steps of 0.05</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
           <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
@@ -816,6 +850,10 @@
           <label for="editMl">ML</label>
           <input type="number" id="editMl" step="0.05" min="0.05">
         </div>
+        <div class="modal-field" id="editTextGroup" hidden>
+          <label for="editText">Note</label>
+          <textarea id="editText" rows="4"></textarea>
+        </div>
         <div class="modal-actions">
           <button class="modal-btn-cancel" id="editCancel">Cancel</button>
           <button class="modal-btn-save" id="editSave">Save</button>
@@ -832,6 +870,17 @@
       <div class="csheet">
         <div class="handle"></div>
         <div id="ciwaBody"></div>
+      </div>
+    </div>
+
+    <!-- ============ QUICK SHEET ============ -->
+    <!-- Custom dose stepper, Note and the Clonazepam "Log another?" ask. Each is
+         a title, one control and two buttons, so they share one sheet and
+         render into #quickBody from JS. -->
+    <div class="modal-overlay" id="quickModal" hidden>
+      <div class="csheet">
+        <div class="handle"></div>
+        <div id="quickBody"></div>
       </div>
     </div>
 
@@ -974,11 +1023,15 @@
     return best == null ? null : Math.round((beforeTs - best) / 60000);
   }
 
+  // How long a freshly opened sheet ignores taps, so the second tap of a
+  // double tap cannot land on it.
+  const TAP_THROUGH_MS = 350;
+
   async function openCiwaSheet({ kind, ts = null, ml = 0, onClose = null }) {
     const data = await getAllData();
     const nowTs = ts != null ? ts : Date.now();
     ciwaDraft = {
-      kind, ts, ml, onClose, step: 1,
+      kind, ts, ml, onClose, step: 1, openedAt: performance.now(),
       checked: {}, scores: {}, factors: {}, stage: 0, hr: '', note: '',
       minSinceGhb: ciwaMinutesSince(data, e => isDoseEntry(e) && Number(e.ml) > 0, nowTs),
       minSinceStim: ciwaMinutesSince(data, e => isMedEntry(e), nowTs),
@@ -1182,6 +1235,9 @@
     body.addEventListener('click', (ev) => {
       const d = ciwaDraft;
       if (!d) return;
+      // The second tap of a double tap on the button that opened the sheet
+      // must not answer it (a "Nothing present" save nobody meant).
+      if (performance.now() - d.openedAt < TAP_THROUGH_MS) return;
       const t = ev.target;
       const chip = t.closest('[data-ciwa-chip]');
       if (chip) {
@@ -1429,20 +1485,13 @@
     return (c % 10 === 0) ? (c / 100).toFixed(1) : (c / 100).toFixed(2);
   }
 
-  // Rescue is a fixed amount, so it does NOT follow Current dose when you
-  // lower it. If it drifts above the scheduled dose the hint says so, since
-  // that's the point where a "top-up" is quietly the larger of the two.
+  // Custom dose start (stored under its old name, taperPlan.rescueDose) is a
+  // fixed amount: it does not follow Current dose when you lower it. It is
+  // only where the stepper starts, and the stepper shows the amount anyway.
   function refreshRescueSetting(setValue) {
     const input = document.getElementById('setRescueDose');
-    const hint = document.getElementById('rescueHint');
-    if (!input || !hint) return;
-    const rescue = getRescueDose();
-    if (setValue) input.value = rescue;
-    const target = getTaperTargetForDate(new Date());
-    const base = target != null ? target : taperPlan.startDose;
-    hint.textContent = rescue >= base
-      ? `Off-schedule top-up — doesn't reset the timer. Note this is not below your ${fmtMl(base)} ml dose`
-      : `Off-schedule top-up — doesn't reset the timer. Stays fixed even if you lower Current dose`;
+    if (!input) return;
+    if (setValue) input.value = getRescueDose();
   }
 
   function fmtPeso(n) { return '₱' + Math.round(n).toLocaleString('en-US'); }
@@ -1676,7 +1725,11 @@
     if (undoable) {
       toast.innerHTML = `${escapeHtml(message)} · <span class="undo">Undo</span>`;
       toast.classList.add('act');
+      const shownAt = performance.now();
       toast.querySelector('.undo').addEventListener('click', () => {
+        // Too soon to be a real Undo: this is the second tap of a double tap
+        // on a button that sat where the toast now is.
+        if (performance.now() - shownAt < 400) return;
         clearTimeout(toast._t);
         toast.classList.remove('show', 'act');
         undoFn();
@@ -1890,7 +1943,6 @@
   async function paintRing() {
     renderCurrentSession();
     renderActiveMeds();
-    renderLastRescue();
     const dial = document.getElementById('dial');
     const dialFill = document.getElementById('dialFill');
     const eyebrow = document.getElementById('eyebrow');
@@ -1912,21 +1964,24 @@
       if (level) dial.classList.add('lvl-' + level);
     };
 
-    const doseLabel = document.getElementById('logDoseLabel');
-    if (doseLabel) {
+    // Only the amount on the pill is rewritten, never the button itself: this
+    // runs every second, and replacing a button's contents mid-press drops
+    // the tap.
+    const doseAmtEl = document.getElementById('logDoseAmt');
+    if (doseAmtEl) {
       const taperTarget = getTaperTargetForDate(new Date());
       const doseAmt = taperTarget != null ? taperTarget : taperPlan.startDose;
-      doseLabel.textContent = `Log Dose · ${fmtMl(doseAmt)}`;
-      document.getElementById('sleepDoseLabel').textContent = `Sleep Dose · ${fmtMl(doseAmt)}`;
-      document.getElementById('rescueLabel').textContent = `Rescue · ${fmtMl(getRescueDose())}`;
+      const want = `${fmtMl(doseAmt)} ml`;
+      if (doseAmtEl.textContent !== want) doseAmtEl.textContent = want;
     }
 
     const all = await getAllData();
     const doseData = all.filter(isDoseEntry);
 
-    // ---- Since last: a passive readout now, not a countdown. Only real
-    // scheduled doses anchor it; Wake Up carries no ml and a Rescue is an
-    // off-schedule top-up, so neither resets "how long since you dosed".
+    // ---- Since last: a passive readout now, not a countdown. Every real dose
+    // anchors it, a Custom dose included (it is stored as a 'log'). Wake Up
+    // carries no ml, and an old Rescue entry was an off-schedule top-up, so
+    // neither resets "how long since you dosed".
     const anchorData = doseData.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
     if (anchorData.length === 0) {
       since.textContent = '--:--';
@@ -1960,6 +2015,15 @@
     const sessions = await computeSessions();
     const cur = sessions.length ? sessions[sessions.length - 1] : null;
     const cap = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+
+    // ---- Clonazepam tile: ticked once one is logged taken today. The tick and
+    // the "Log another?" ask read the same window, so the tile never says one
+    // thing while the ask does another.
+    const benzoLbl = document.getElementById('benzoLabel');
+    if (benzoLbl) {
+      const want = benzoTakenToday(all, sessions).length ? 'Clonazepam ✓' : 'Clonazepam';
+      if (benzoLbl.textContent !== want) benzoLbl.textContent = want;
+    }
     const used = cur ? cur.totalDailyMl : 0;
 
     if (!cur) {
@@ -1990,25 +2054,38 @@
   }
 
   // ===== Logging =====
-  // kind: 'wake' | 'log' | 'sleep' | 'rescue' — see doseKind(). Defaults to
-  // 'log' so existing call sites keep working unchanged.
-  // 'wake' is a pure session marker — always logs ml:0, not a real dose.
-  // 'rescue' always logs 50% of the current dynamic taper dose, regardless
-  // of whatever ml was passed in — it's a fixed-formula safety top-up, not
-  // a free-amount entry.
+  // kind: 'wake' | 'log' | 'sleep' | 'custom', plus 'rescue' for any old
+  // caller. Defaults to 'log'.
+  // 'wake' is a pure session marker: it always logs ml:0, not a real dose.
+  // 'custom' logs the ml the Custom dose stepper passed, stored as a 'log'.
+  // 'rescue' is no longer on any button. It still logs the Custom dose start
+  // amount if something calls it, and old rescue entries keep counting.
   async function logDose(ml, ts, kind) {
     kind = kind || 'log';
+    // A Custom dose is stored as an ordinary 'log' flagged custom:true, so it
+    // counts toward the allowance and every total exactly like Log Dose.
+    // 'custom' only ever names the CIWA sheet's context line: a stored
+    // type:'custom' would fail isDoseEntry and drop out of every total.
+    const custom = kind === 'custom';
+    const type = custom ? 'log' : kind;
     if (kind === 'wake') ml = 0;
     else if (kind === 'rescue') {
       ml = getRescueDose();
     } else if (!(ml > 0)) { showToast('Enter a valid ml amount'); return; }
-    const resolvedTs = ts || Date.now();
+    // The stepper hands over hundredths; storing a rounded Number keeps the
+    // sums numeric (a string ml would concatenate) and free of float drift.
+    if (custom) ml = Math.round(Number(ml) * 100) / 100;
+    let resolvedTs = ts || Date.now();
     const data = await getAllData();
+    // The timestamp is every entry's only id (edit, delete, Undo, the CIWA
+    // save), so it must not collide with one already stored.
+    while (data.some(e => e.timestamp === resolvedTs)) resolvedTs += 1;
 
     // Read BEFORE the write below, so Undo can put the awake/asleep flag back.
     const prevSession = localStorage.getItem(SESSION_KEY);
-    const entry = { timestamp: resolvedTs, ml, type: kind };
-    if (kind === 'log' || kind === 'rescue') entry.trigger = null;
+    const entry = { timestamp: resolvedTs, ml, type };
+    if (type === 'log' || type === 'rescue') entry.trigger = null;
+    if (custom) entry.custom = true;
     data.push(entry);
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
@@ -2020,6 +2097,7 @@
     const undo = () => undoLog(resolvedTs, prevSession);
     const toast = kind === 'wake' ? 'Wake up logged'
       : kind === 'rescue' ? `Rescue ${fmtMl(ml)} ml`
+      : custom ? `Custom dose ${fmtMl(ml)} ml`
       : kind === 'sleep' ? `Sleep dose ${fmtMl(ml)} ml`
       : `Logged ${fmtMl(ml)} ml`;
     logDayIdx = null; // jump back to the live session after logging
@@ -2061,6 +2139,214 @@
     notifyN8nMedLapse(name, tm);
     await renderLog();
     await renderActiveMeds();
+  }
+
+  // ===== Clonazepam, Note, Custom dose =====
+  // Clonazepam is its own type, 'benzo', never 'med': every stimulant mg total
+  // sums all 'med' entries, and 0.5 mg of Clonazepam must never land in them.
+  const BENZO_NAME = 'Clonazepam';
+  const BENZO_MG = 0.5;
+  const BENZO_HOLD_MS = 500;
+
+  // "Today" runs from the latest real Wake Up on, including anything logged
+  // after that day's Sleep Dose (see the inDay window in computeSessions).
+  // Only a Wake Up resets it. A Log Dose in the night starts a "no Wake Up"
+  // day, but that must not clear the tick or skip the double up ask for a
+  // Clonazepam taken a few hours earlier, so those days are skipped here.
+  // With no Wake Up at all yet, the calendar day stands in.
+  function benzoTakenToday(all, sessions) {
+    const woke = sessions.filter(s => !s.implicit);
+    const from = woke.length
+      ? woke[woke.length - 1].startTs
+      : new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+    return all.filter(e => e.type === 'benzo' && !e.missed && e.timestamp >= from);
+  }
+
+  // Shared by Clonazepam and Note: unique timestamp, one save, an Undo that
+  // takes the entry back like any other log. Neither touches the awake /
+  // asleep flag, so Undo gets undefined for it, the same as a medication.
+  async function logPlainEntry(build, toastText) {
+    const data = await getAllData();
+    let ts = Date.now();
+    while (data.some(e => e.timestamp === ts)) ts += 1;
+    data.push(build(ts));
+    data.sort((a, b) => a.timestamp - b.timestamp);
+    saveData(data);
+    logDayIdx = null;
+    showToast(toastText, () => undoLog(ts, undefined));
+    await paintRing();
+    await renderLog();
+  }
+
+  function logBenzo(missed) {
+    return logPlainEntry(
+      ts => ({ type: 'benzo', name: BENZO_NAME, mg: BENZO_MG, timestamp: ts, missed: !!missed }),
+      missed ? `${BENZO_NAME} marked missed` : `${BENZO_NAME} ${BENZO_MG} mg logged`);
+  }
+
+  function logNote(text) {
+    return logPlainEntry(ts => ({ type: 'note', timestamp: ts, text }), 'Note saved');
+  }
+
+  // A second Clonazepam the same day is allowed, but asked about first.
+  // confirm() is not an option (Android blocks it in standalone PWA mode), so
+  // the ask is the quick sheet, and the big button is the one that does not log.
+  async function tapBenzo() {
+    const all = await getAllData();
+    const taken = benzoTakenToday(all, await computeSessions());
+    if (!taken.length) { await logBenzo(false); return; }
+    const at = new Date(taken[taken.length - 1].timestamp)
+      .toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    openQuick(`
+      <div class="chead"><h3>Log another?</h3></div>
+      <div class="qsub">${BENZO_NAME} already logged today at ${at}. Don't double up to catch up.</div>
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="benzo-again" style="flex:1">Log another</button>
+        <button class="cbtn-go" data-q="cancel" style="flex:2">Cancel</button>
+      </div>`, { mode: 'benzo' });
+  }
+
+  // A tap logs Clonazepam taken; holding it down logs it missed. The hold has
+  // to swallow the click the browser fires when the finger lifts, or one
+  // press would log both. Moving the finger (a scroll) cancels the hold.
+  function attachBenzoHold(btn) {
+    let timer = null, held = false, x0 = 0, y0 = 0;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    btn.addEventListener('pointerdown', ev => {
+      held = false; x0 = ev.clientX; y0 = ev.clientY;
+      cancel();
+      timer = setTimeout(() => { timer = null; held = true; logBenzo(true); }, BENZO_HOLD_MS);
+    });
+    btn.addEventListener('pointermove', ev => {
+      if (timer && Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) cancel();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => btn.addEventListener(t, cancel));
+    btn.addEventListener('contextmenu', ev => ev.preventDefault());
+    btn.addEventListener('click', ev => {
+      if (held) { held = false; ev.preventDefault(); return; }
+      tapBenzo();
+    });
+  }
+
+  // ----- The quick sheet -----
+  let quickState = null;
+
+  // A live Undo toast sits over the sheet's button row, so it goes first:
+  // otherwise tapping Cancel on "Log another?" could hit the toast's Undo and
+  // delete the Clonazepam the ask was about. openedAt lets the backdrop
+  // ignore the second tap of a double tap on the tile that opened the sheet.
+  function openQuick(html, state) {
+    const toast = document.getElementById('toast');
+    clearTimeout(toast._t);
+    toast.classList.remove('show', 'act');
+    quickState = { ...state, openedAt: performance.now() };
+    document.getElementById('quickBody').innerHTML = html;
+    document.getElementById('quickModal').hidden = false;
+  }
+
+  function closeQuick() {
+    document.getElementById('quickModal').hidden = true;
+    quickState = null;
+  }
+
+  // Stepper bounds in hundredths of a ml, so repeated steps never drift to
+  // 0.15000000000000002 the way adding 0.05 in floats does.
+  const CUSTOM_STEP = 5, CUSTOM_MIN = 5, CUSTOM_MAX = 200;
+
+  async function openCustomSheet() {
+    // Starts from the old Rescue amount (Settings: Custom dose start), snapped
+    // to the 0.05 grid the stepper moves on.
+    const start = Math.round(getRescueDose() * 100 / CUSTOM_STEP) * CUSTOM_STEP;
+    const c = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, start));
+    const sessions = await computeSessions();
+    const cur = sessions.length ? sessions[sessions.length - 1] : null;
+    const allow = cur ? allowanceOf(cur) : null;
+    const left = allow ? cur.capMl - cur.totalDailyMl : null;
+    const sub = left == null ? "Counts toward today's allowance"
+      : left >= 0 ? `Counts toward today's allowance · ${fmtMl(left)} ml left`
+      : `Counts toward today's allowance · ${fmtMl(-left)} ml over`;
+    openQuick(`
+      <div class="chead"><h3>Custom dose</h3></div>
+      <div class="qsub">${sub}</div>
+      <div class="qstep">
+        <button data-q="minus" aria-label="Less">&minus;</button>
+        <div class="qval"><span id="qMl"></span><small> ml</small></div>
+        <button data-q="plus" aria-label="More">+</button>
+      </div>
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">Cancel</button>
+        <button class="cbtn-go" data-q="log-custom" id="qGo"></button>
+      </div>`, { mode: 'custom', c });
+    paintStepper();
+  }
+
+  function paintStepper() {
+    const st = quickState;
+    if (!st || st.mode !== 'custom') return;
+    const ml = fmtMl(st.c / 100);
+    document.getElementById('qMl').textContent = ml;
+    document.getElementById('qGo').textContent = `Log ${ml} ml`;
+    document.querySelector('#quickBody [data-q="minus"]').disabled = st.c <= CUSTOM_MIN;
+    document.querySelector('#quickBody [data-q="plus"]').disabled = st.c >= CUSTOM_MAX;
+  }
+
+  // Synchronous on purpose: iOS only raises the keyboard (and dictation) for
+  // a focus() made inside the tap itself. One await before it and the field
+  // is focused with no keyboard.
+  function openNoteSheet() {
+    openQuick(`
+      <div class="chead"><h3><label for="qNote">Note</label></h3></div>
+      <textarea class="qnote" id="qNote" placeholder="What are you noticing?"></textarea>
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">Cancel</button>
+        <button class="cbtn-go" data-q="save-note">Save note</button>
+      </div>`, { mode: 'note' });
+    document.getElementById('qNote').focus();
+  }
+
+  function initQuickSheet() {
+    // Tapping the dim area is how iOS users drop the keyboard. On a Note that
+    // already has text it only does that, so a stray tap cannot lose the
+    // note. Cancel and Save note are the ways out of it.
+    document.getElementById('quickModal').addEventListener('click', ev => {
+      if (ev.target.id !== 'quickModal' || !quickState) return;
+      if (performance.now() - quickState.openedAt < TAP_THROUGH_MS) return;
+      const note = document.getElementById('qNote');
+      if (quickState.mode === 'note' && note && note.value.trim()) { note.blur(); return; }
+      closeQuick();
+    });
+    document.getElementById('quickBody').addEventListener('click', async ev => {
+      const btn = ev.target.closest('[data-q]');
+      if (!btn || !quickState) return;
+      const q = btn.dataset.q;
+      if (q === 'cancel') { closeQuick(); return; }
+      if (q === 'minus' || q === 'plus') {
+        const st = quickState;
+        st.c = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, st.c + (q === 'plus' ? CUSTOM_STEP : -CUSTOM_STEP)));
+        paintStepper();
+        return;
+      }
+      // Each of these closes the sheet first: that clears quickState, so a
+      // second tap on the same button cannot log twice. If that tap lands on
+      // the Custom dose's CIWA sheet instead, the sheet ignores it (see
+      // TAP_THROUGH_MS in openCiwaSheet).
+      if (q === 'log-custom') {
+        const ml = quickState.c / 100;
+        closeQuick();
+        await logDose(ml, undefined, 'custom');
+        return;
+      }
+      if (q === 'save-note') {
+        const text = document.getElementById('qNote').value.trim();
+        closeQuick();
+        if (text) await logNote(text);
+        return;
+      }
+      if (q === 'benzo-again') {
+        closeQuick();
+        await logBenzo(false);
+      }
+    });
   }
 
   // Ritalin 20 LA is one capsule but two physical pulses (see
@@ -2373,8 +2659,8 @@
     return dosesDesc.length ? dosesDesc.map(e => {
       const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       const kind = doseKind(e);
-      const cl = kind === 'wake' ? 'blue' : kind === 'sleep' ? 'teal' : kind === 'rescue' ? 'amber' : 'green';
-      const kindTag = kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : '';
+      const cl = kind === 'wake' ? 'blue' : kind === 'sleep' ? 'teal' : (kind === 'rescue' || e.custom) ? 'amber' : 'green';
+      const kindTag = kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : e.custom ? ' · Custom' : '';
       const gap = d.gapByTs.get(e.timestamp);
       const gapHtml = gap != null ? `<span class="gap">+${fmtGap(gap)}</span>` : '';
       const lead = kind === 'wake' ? 'Wake Up' : `${fmtMl(e.ml)} ml`;
@@ -2405,33 +2691,24 @@
   }
 
 
-  // Most recent Rescue since the current anchor (the last real Log/Sleep
-  // dose — same anchor "Since last" above it is measured from). A rescue
-  // taken before that anchor was topping up the PREVIOUS interval, not this
-  // one, so it's cleared the moment a new dose is logged — showing it after
-  // that would read as still-relevant when it no longer is. A new Rescue
-  // still shows immediately; only a fresh Log/Sleep dose clears the slot.
-  async function renderLastRescue() {
-    const box = document.getElementById('ilastrescue');
-    if (!box) return;
-    const doses = (await getAllData()).filter(isDoseEntry);
-    const anchors = doses.filter(e => { const k = doseKind(e); return k === 'log' || k === 'sleep'; });
-    const anchorTs = anchors.length ? anchors[anchors.length - 1].timestamp : -Infinity;
-    const rescues = doses.filter(e => doseKind(e) === 'rescue' && e.timestamp > anchorTs);
-    if (!rescues.length) { box.hidden = true; return; }
-    const last = rescues[rescues.length - 1]; // getAllData() is timestamp-sorted
-    box.hidden = false;
-    const time = new Date(last.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    document.getElementById('ilastrescueVal').textContent = `${fmtMl(last.ml)} ml · ${time}`;
-  }
-
   // ===== Entry edit / delete (tap a row) =====
   function openEntryEdit(ts, kind) {
     editingTs = ts; editingKind = kind;
     const d = new Date(ts);
     document.getElementById('editDate').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('editTime').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('editModalTitle').textContent = kind === 'dose' ? 'Edit Dose' : kind === 'check' ? 'Edit Check' : 'Edit Med';
+    const titles = { dose: 'Edit Dose', check: 'Edit Check', note: 'Edit Note', benzo: 'Edit Clonazepam' };
+    document.getElementById('editModalTitle').textContent = titles[kind] || 'Edit Med';
+    const textGroup = document.getElementById('editTextGroup');
+    const textEl = document.getElementById('editText');
+    textGroup.hidden = kind !== 'note';
+    textEl.value = '';
+    if (kind === 'note') {
+      getAllData().then(data => {
+        const entry = data.find(e => e.timestamp === ts);
+        textEl.value = entry ? String(entry.text || '') : '';
+      });
+    }
     const mlGroup = document.getElementById('editMlGroup');
     if (kind === 'dose') {
       getAllData().then(data => {
@@ -2458,6 +2735,11 @@
     if (!dateStr || !timeStr) { showToast('Date and time required'); return; }
     let newTs = new Date(`${dateStr}T${timeStr}`).getTime();
     if (isNaN(newTs)) { showToast('Invalid date/time'); return; }
+    // The inputs only hold minutes. When the minute was not changed, keep the
+    // original seconds, so fixing a note's text or a dose's ml cannot move
+    // the entry to before a Wake Up logged earlier in the same minute.
+    const origMinute = new Date(editingTs); origMinute.setSeconds(0, 0);
+    if (newTs === origMinute.getTime()) newTs = editingTs;
 
     let data = await getAllData();
     const entry = data.find(e => e.timestamp === editingTs);
@@ -2477,6 +2759,14 @@
       // correcting a dose's time also wiped its `trigger`. Meds have always
       // been spread this way; doses now match.
       data.push({ ...entry, timestamp: newTs, ml });
+    } else if (editingKind === 'note') {
+      // An emptied note is refused rather than saved blank or silently
+      // deleted: removing it is what the Delete button below is for.
+      const text = document.getElementById('editText').value.trim();
+      if (!text) { showToast('Note is empty. Use Delete to remove it'); return; }
+      data = data.filter(e => e.timestamp !== editingTs);
+      while (data.some(e => e.timestamp === newTs)) newTs += 1;
+      data.push({ ...entry, timestamp: newTs, text });
     } else {
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
@@ -2594,9 +2884,10 @@
       const dMeds = medData.filter(e => e.timestamp >= r.start && e.timestamp < r.end);
       const ml = dDoses.reduce((s, e) => s + e.ml, 0);
       // Sleep and rescue are broken out for the breakdown rows; the cap
-      // itself is measured against the full `ml` above.
+      // itself is measured against the full `ml` above. Custom doses took
+      // over from Rescue, so they are broken out with it.
       const sleepMl = dDoses.filter(e => doseKind(e) === 'sleep').reduce((s, e) => s + e.ml, 0);
-      const rescueMl = dDoses.filter(e => doseKind(e) === 'rescue').reduce((s, e) => s + e.ml, 0);
+      const rescueMl = dDoses.filter(e => doseKind(e) === 'rescue' || e.custom).reduce((s, e) => s + e.ml, 0);
       const mg = dMeds.reduce((s, e) => s + (e.mg || 0), 0);
       mlVals.push(ml);
       totalMl += ml; totalMg += mg;
@@ -2685,7 +2976,7 @@
       const overClass = r.over === true ? ' over' : r.over === false ? ' under' : '';
       const extras = [];
       if (showSleepStat && r.sleepMl > 0) extras.push(`<span class="dsleep">+${fmtMl(r.sleepMl)} sleep</span>`);
-      if (showSleepStat && r.rescueMl > 0) extras.push(`<span class="drescue">+${fmtMl(r.rescueMl)} rescue</span>`);
+      if (showSleepStat && r.rescueMl > 0) extras.push(`<span class="drescue">+${fmtMl(r.rescueMl)} custom / rescue</span>`);
       const extraText = extras.length ? ` (${extras.join(' ')})` : '';
       return `<div class="drow"><span class="dd">${escapeHtml(r.label)}</span><span class="dv"><span class="dml${overClass}">${r.count}× · ${fmtMl(r.ml)} ml</span>${extraText}<span class="dgap">${r.avgGapText}</span></span></div>`;
     }).join('') : '<div class="empty">No data.</div>';
@@ -2834,9 +3125,10 @@
       const target = getTaperTargetForDate(new Date());
       logDose(target != null ? target : taperPlan.startDose, undefined, 'sleep');
     });
-    document.getElementById('chipRescue').addEventListener('click', () => {
-      logDose(0, undefined, 'rescue');
-    });
+    document.getElementById('chipCustom').addEventListener('click', () => openCustomSheet());
+    document.getElementById('chipNote').addEventListener('click', () => openNoteSheet());
+    attachBenzoHold(document.getElementById('chipBenzo'));
+    initQuickSheet();
 
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
@@ -2894,7 +3186,11 @@
 
     document.getElementById('chipCheck').addEventListener('click', () => openCiwaSheet({ kind: 'check' }));
     initCiwaSheet();
-    document.getElementById('ciwaModal').addEventListener('click', (e) => { if (e.target.id === 'ciwaModal') closeCiwaSheet(); });
+    document.getElementById('ciwaModal').addEventListener('click', (e) => {
+      if (e.target.id !== 'ciwaModal') return;
+      if (ciwaDraft && performance.now() - ciwaDraft.openedAt < TAP_THROUGH_MS) return;
+      closeCiwaSheet();
+    });
 
     document.querySelectorAll('#periodSeg button').forEach(b => b.addEventListener('click', () => {
       document.querySelectorAll('#periodSeg button').forEach(x => x.classList.remove('on'));
@@ -3033,15 +3329,27 @@
     if (allow) out += `Allowance   ${allow.text}${allow.over ? ' (over)' : ''}\n`;
     out += `Total ml   ${fmtMl(s.totalDailyMl)} ml · ${fmtPeso(s.mlCost)}\n`;
     if (s.sleepMl > 0) out += `  incl. sleep   ${fmtMl(s.sleepMl)} ml\n`;
-    if (s.rescueCount > 0) out += `Rescue   ${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml · ${fmtPeso(s.rescueMl * costPerMl)}\n`;
+    if (s.extraCount > 0) out += `Custom / rescue   ${s.extraCount}× · ${fmtMl(s.extraMl)} ml · ${fmtPeso(s.extraMl * costPerMl)}\n`;
     if (s.ritalinMg > 0) out += `Ritalin   ${s.ritalinMg} mg · ${fmtPeso(s.ritalinCost)}\n`;
     if (s.concertaMg > 0) out += `Concerta   ${s.concertaMg} mg · ${fmtPeso(s.concertaCost)}\n`;
+    const benzoLines = s.timeline.filter(e => e.type === 'benzo')
+      .map(e => `${e.name || 'Clonazepam'}   ${e.missed ? 'missed' : e.mg + ' mg'} · ${fmtTime(e.timestamp)}`);
+    if (benzoLines.length) out += benzoLines.join('\n') + '\n';
     out += `Total cost   ${fmtPeso(s.grandCost)}\n\nTimeline\n`;
+    // Every row type gets its own line here. Anything left to the dose
+    // fallthrough at the bottom would copy as a fake "Dose 0.0 ml".
     out += s.timeline.map(e => {
-      if (isMedEntry(e)) return `${fmtTime(e.timestamp)}   ${e.name}${e.part ? ' · Part ' + e.part : ''}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
+      const t = fmtTime(e.timestamp);
+      const cs = e.ciwa ? ciwaSummary(e) : '';
+      const ciwa = cs ? `   ${cs}` : '';
+      if (isMedEntry(e)) return `${t}   ${e.name}${e.part ? ' · Part ' + e.part : ''}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
+      if (e.type === 'hr') return `${t}   Heart rate   ${e.bpm} bpm`;
+      if (e.type === 'check') return `${t}   Check${ciwa}`;
+      if (e.type === 'note') return `${t}   Note   ${String(e.text || '').replace(/\s*\n\s*/g, ' / ')}`;
+      if (e.type === 'benzo') return `${t}   ${e.name || 'Clonazepam'}   ${e.missed ? 'missed' : e.mg + ' mg'}`;
       const kind = doseKind(e);
-      const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : 'Dose';
-      return `${fmtTime(e.timestamp)}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}`;
+      const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : e.custom ? 'Custom' : 'Dose';
+      return `${t}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}${ciwa}`;
     }).join('\n');
     return out + '\n';
   }
@@ -3077,7 +3385,7 @@
         out += ` · ${fmtMl(h.totalMl)} / ${fmtMl(h.taperCeiling)} ml cap (${status})`;
       }
       if (h.totalSleepMl > 0) out += ` · incl. ${fmtMl(h.totalSleepMl)} ml sleep`;
-      if (h.totalRescueMl > 0) out += ` · incl. ${fmtMl(h.totalRescueMl)} ml rescue`;
+      if (h.totalRescueMl > 0) out += ` · incl. ${fmtMl(h.totalRescueMl)} ml custom / rescue`;
       out += '\n';
     }
     out += `\n\nCost\nDoses · ml   ${fmtPeso(h.doseCostSum)}\nConcerta   ${fmtPeso(h.concCostSum)}\nRitalin   ${fmtPeso(h.ritCostSum)}\nGrand total   ${fmtPeso(h.grandTotal)}\n`;
@@ -3099,6 +3407,11 @@
     // adherence count. They still have to appear on the day they happened, so
     // they join the timeline the same way meds and HR readings do.
     const checks = allData.filter(e => e.type === 'check');
+    // Notes and Clonazepam are the same kind of row as a Check: shown on the
+    // day, never part of a ml or stimulant mg total. Clonazepam is its own
+    // 'benzo' type precisely so isMedEntry never picks it up.
+    const notes = allData.filter(e => e.type === 'note');
+    const benzos = allData.filter(e => e.type === 'benzo');
 
     const sessions = [];
     let current = null;
@@ -3113,7 +3426,7 @@
         // Nothing open. Before the first-ever Wake Up this is imported
         // pre-feature history, which stays out of the day count entirely.
         if (!sessions.length) return;
-        if (kind !== 'log') {
+        if (kind !== 'log' || e.custom) {
           // Rescues and extra sleep doses between sessions belong to the
           // sleep period that just ended — a top-up taken while still down
           // does not start a waking day, and letting one do so would insert
@@ -3121,8 +3434,14 @@
           // that day's totals but must NOT move its end time: adherence is
           // measured to the moment the session closed, and stretching it
           // would invent hours of expected doses.
+          // A Custom dose here is the night top-up the old Rescue used to be,
+          // so it joins that night the same way. It goes in with the day's
+          // logs, where every other Custom dose lives, so it is labelled and
+          // counted identically whichever side of Sleep Dose it was taken on.
           const prev = sessions[sessions.length - 1];
-          if (kind === 'sleep') prev.sleeps.push(e); else prev.rescues.push(e);
+          if (kind === 'sleep') prev.sleeps.push(e);
+          else if (e.custom) prev.logs.push(e);
+          else prev.rescues.push(e);
           return;
         }
         // A Log Dose with no session open means Wake Up was never pressed.
@@ -3166,7 +3485,17 @@
       const prevEndTs = i > 0 ? (sessions[i - 1].endTs != null ? sessions[i - 1].endTs : -Infinity) : null;
       const medsInSession = meds.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
       const hrInSession = hrReadings.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
-      const checksInSession = checks.filter(m => (prevEndTs != null ? m.timestamp > prevEndTs : m.timestamp >= s.startTs) && m.timestamp < endTs + 1);
+      // Checks, Notes and Clonazepam run from this Wake Up to the next one. One
+      // logged after Sleep Dose belongs to the night that just closed, the
+      // same rule the loop above applies to a top-up dose taken then. That
+      // keeps it on the Log screen the moment it is saved, instead of hidden
+      // until the next Wake Up, and keeps a bedtime Clonazepam on the day it
+      // was taken for.
+      const nextStartTs = i < sessions.length - 1 ? sessions[i + 1].startTs : Infinity;
+      const inDay = m => m.timestamp >= s.startTs && m.timestamp < nextStartTs;
+      const checksInSession = checks.filter(inDay);
+      const notesInSession = notes.filter(inDay);
+      const benzosInSession = benzos.filter(inDay);
       const isRitalin = m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20';
       const isConcerta = m => m.name === 'Concerta 27' || m.name === 'Concerta 36';
       const ritalinMg = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.mg || 0), 0);
@@ -3174,6 +3503,11 @@
       const ritalinCost = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.cost || 0), 0);
       const concertaCost = medsInSession.filter(isConcerta).reduce((sum, m) => sum + (m.cost || 0), 0);
       const totalDailyMl = logMl + sleepMl + rescueMl;
+      // Custom doses took over from Rescue, so the "extra doses" line counts
+      // both: new Custom doses and any old Rescue entries on past days.
+      const customs = s.logs.filter(e => e.custom);
+      const extraCount = rescueCount + customs.length;
+      const extraMl = rescueMl + customs.reduce((sum, e) => sum + e.ml, 0);
       const mlCost = totalDailyMl * costPerMl;
       // Hours asleep before this day started: from the previous session's
       // FIRST sleep dose (going to bed) to this session's start (getting up).
@@ -3192,12 +3526,12 @@
       // adherence. Meds are included so their times are visible here too.
       // Each entry's own `trigger` field (if any) rides along here and is
       // rendered inline on its row in sessionCardHtml — not aggregated.
-      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession]
+      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession, ...notesInSession, ...benzosInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
         durationHours, capMl: dailyCap,
-        logMl, sleepMl, rescueCount, rescueMl, totalDailyMl, sleepHours,
+        logMl, sleepMl, rescueCount, rescueMl, extraCount, extraMl, totalDailyMl, sleepHours,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
         timeline
@@ -3217,8 +3551,8 @@
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
     const durationText = fmtGap(Math.round(s.durationHours * 60));
     const sleepTag = s.sleepMl > 0 ? ` <span class="dsleep">+${fmtMl(s.sleepMl)} sleep</span>` : '';
-    const rescueRow = s.rescueCount > 0
-      ? `<div class="brow"><span class="bk"><span class="cd bg-amber"></span>Rescue</span><span class="bv"><span class="drescue">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml</span> · ${fmtPeso(s.rescueMl * costPerMl)}</span></div>`
+    const rescueRow = s.extraCount > 0
+      ? `<div class="brow"><span class="bk"><span class="cd bg-amber"></span>Custom / rescue</span><span class="bv"><span class="drescue">${s.extraCount}× · ${fmtMl(s.extraMl)} ml</span> · ${fmtPeso(s.extraMl * costPerMl)}</span></div>`
       : '';
     const medsMg = s.ritalinMg + s.concertaMg;
     const medsCost = s.ritalinCost + s.concertaCost;
@@ -3257,8 +3591,15 @@
       if (e.type === 'check') {
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="check"><span class="sllabel">${fmtTime(e.timestamp)} · Check</span><span>&mdash;</span></div>${ciwaSlHtml(e)}`;
       }
+      if (e.type === 'note') {
+        const first = String(e.text || '').split('\n')[0];
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="note"><span class="sllabel">${fmtTime(e.timestamp)} · Note</span><span></span></div><div class="slciwa tlnote">${escapeHtml(first)}</div>`;
+      }
+      if (e.type === 'benzo') {
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="benzo"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name || 'Clonazepam')}</span><span>${e.missed ? 'missed' : e.mg + ' mg'}</span></div>`;
+      }
       const kind = doseKind(e);
-      const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : ' · Dose';
+      const tag = kind === 'wake' ? ' · Wake' : kind === 'sleep' ? ' · Sleep' : kind === 'rescue' ? ' · Rescue' : e.custom ? ' · Custom' : ' · Dose';
       // The trigger answer rides on its own dose row as a normal part of the
       // log line — not a separate summary elsewhere on the card.
       const triggerTag = e.ciwa ? '' : (e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '');
@@ -3344,7 +3685,7 @@
       <div class="grid">
         <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
         <div class="g"><div class="k">Allowance</div>${allowTile}</div>
-        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div><div class="v2${s.rescueCount > 0 ? ' amb' : ''}">${s.rescueCount}× · ${fmtMl(s.rescueMl)} ml <small>${fmtPeso(s.rescueMl * costPerMl)}</small></div></div>
+        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div><div class="v2${s.extraCount > 0 ? ' amb' : ''}">${s.extraCount}× · ${fmtMl(s.extraMl)} ml <small>${fmtPeso(s.extraMl * costPerMl)}</small></div></div>
         <div class="g"><div class="k">Sleep</div><div class="v">${sleepText}</div></div>
       </div>
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
@@ -3375,6 +3716,25 @@
         <span class="tlamt">&mdash;</span>
       </div>`;
     }
+    // A Note shows its first line under the label; the whole text is in the
+    // edit sheet a tap away. No amount: a note never counts toward anything.
+    if (e.type === 'note') {
+      const first = String(e.text || '').split('\n')[0];
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="note">
+        <span class="tldot" style="background:var(--mut2)"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Note</div><div class="tlciwa tlnote">${escapeHtml(first)}</div></div>
+        <span class="tlamt"></span>
+      </div>`;
+    }
+    if (e.type === 'benzo') {
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="benzo">
+        <span class="tldot" style="background:${e.missed ? 'var(--neutral)' : 'var(--ink)'}"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">${escapeHtml(e.name || 'Clonazepam')}</div></div>
+        <span class="tlamt">${e.missed ? 'missed' : e.mg + ' mg'}</span>
+      </div>`;
+    }
     if (isMedEntry(e)) {
       // e.part (new split-format Ritalin 20 LA entries) names its own pulse
       // right on the row; older, unsplit entries have no e.part and fall
@@ -3394,8 +3754,8 @@
       </div>`;
     }
     const kind = doseKind(e);
-    const dot = kind === 'rescue' ? 'var(--amb)' : (kind === 'wake' || kind === 'sleep') ? '#bcbab3' : 'var(--teal)';
-    const label = kind === 'wake' ? 'Wake Up' : kind === 'sleep' ? 'Sleep dose' : kind === 'rescue' ? 'Rescue' : 'Dose';
+    const dot = (kind === 'rescue' || e.custom) ? 'var(--amb)' : (kind === 'wake' || kind === 'sleep') ? '#bcbab3' : 'var(--teal)';
+    const label = kind === 'wake' ? 'Wake Up' : kind === 'sleep' ? 'Sleep dose' : kind === 'rescue' ? 'Rescue' : e.custom ? 'Custom dose' : 'Dose';
     // A pre-CIWA entry kept its one-word `trigger` inline on the label; a CIWA
     // entry gets the full score on its own sub-line below, so the label stays
     // short either way.
@@ -3540,7 +3900,7 @@
       const cls = s.capMl > 0 ? (s.totalDailyMl > s.capMl ? ' over' : ' under') : '';
       const extras = [];
       if (s.sleepMl > 0) extras.push(`<span class="dsleep">+${fmtMl(s.sleepMl)}s</span>`);
-      if (s.rescueMl > 0) extras.push(`<span class="drescue">+${fmtMl(s.rescueMl)}r</span>`);
+      if (s.extraMl > 0) extras.push(`<span class="drescue">+${fmtMl(s.extraMl)}r</span>`);
       return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
     }).join('') || '<div class="empty">No data.</div>';
 
