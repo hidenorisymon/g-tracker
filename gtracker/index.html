@@ -272,6 +272,42 @@
   .xaxis span{flex:1;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--muted);}
   .peakcap{text-align:center;font-size:11px;color:var(--muted);margin:2px 0 20px;}
   .peakcap b{font-family:var(--mono);color:var(--ink-2);font-weight:500;}
+  /* Taper chart: the day's cap as a dashed tick across its column (so a
+     changed cap reads as a stepped line), and a dashed marker on each day a
+     step-down starts. */
+  .chart .col{position:relative;}
+  .capln{position:absolute;left:-3px;right:-3px;height:0;border-top:2px dashed var(--amber);pointer-events:none;}
+  .chart .barval{position:relative;z-index:1;align-self:center;padding:0 3px;background:var(--app);border-radius:3px;}
+  .stepmk{position:absolute;left:-4px;top:0;bottom:0;border-left:1.5px dashed var(--ink-2);opacity:.55;pointer-events:none;}
+  .chartkey{display:flex;justify-content:center;gap:16px;font-size:10.5px;color:var(--muted);margin:4px 0 2px;}
+  .chartkey[hidden]{display:none;}
+  .chartkey i{display:inline-block;vertical-align:middle;margin-right:5px;}
+  .chartkey .kcap{width:14px;border-top:2px dashed var(--amber);}
+  .chartkey .kstep{height:11px;border-left:1.5px dashed var(--ink-2);opacity:.55;}
+  .drow2{border-bottom:1px solid var(--hair-2);}
+  .drow2:last-child{border-bottom:none;}
+  .drow2 .drow{border-bottom:none;padding-bottom:3px;}
+  .dsub{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5;padding:0 0 10px;}
+  .palpcard{border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin-bottom:24px;}
+  .palpcard .pt{font-size:12px;font-weight:600;color:var(--ink-2);margin:6px 0 4px;}
+  .palpcard .pt:first-child{margin-top:0;}
+  .palpcard svg{display:block;width:100%;height:auto;}
+  .palpcard .ax{stroke:var(--hair);stroke-width:1;}
+  .palpcard .tk{fill:var(--muted);font-size:9px;font-family:var(--mono);}
+  .palpcard .dot{fill:var(--red);fill-opacity:.45;}
+  .palpcard .pr{font-size:13px;color:var(--ink-2);line-height:1.45;margin-top:12px;}
+  .palpcard .pn{font-size:11px;color:var(--muted);line-height:1.45;margin-top:8px;}
+  .docrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--hair-2);font-size:14px;font-weight:500;}
+  .docrow:last-child{border-bottom:none;}
+  .docrow input[type=date]{border:1px solid var(--hair);border-radius:11px;padding:7px 10px;font-family:var(--mono);font-size:14px;background:var(--surface);color:var(--ink);}
+  .tgl{width:46px;height:28px;border-radius:14px;border:none;background:var(--neutral);position:relative;cursor:pointer;flex:none;transition:background .15s;}
+  .tgl::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s;}
+  .tgl.on{background:var(--green);}
+  .tgl.on::after{transform:translateX(18px);}
+  .docbtn{width:100%;height:50px;border:none;border-radius:14px;background:var(--ink);color:#fff;font-size:15px;font-weight:600;margin:14px 0 20px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;justify-content:center;}
+  .docbtn.done{background:var(--green);}
+  .docbtn svg{width:20px;height:20px;}
+  .docprev{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink-2);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;}
   .breakdown{border:1px solid var(--hair);border-radius:14px;padding:2px 14px;background:var(--surface);}
   .sessioncard{border:1px solid var(--hair);border-radius:14px;padding:14px;background:var(--surface);margin-bottom:14px;}
   .sessioncard .shead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
@@ -617,6 +653,7 @@
         <button class="on" data-tp="daily">Daily</button>
         <button data-tp="weekly">Weekly</button>
         <button data-tp="monthly">Monthly</button>
+        <button data-tp="doctor">Doctor</button>
       </div>
 
       <div class="pernav">
@@ -636,6 +673,7 @@
           <div class="chart" id="taperChart"></div>
           <div class="xaxis" id="taperXaxis"></div>
         </div>
+        <div class="chartkey" id="taperChartKey" hidden><span><i class="kcap"></i>Daily cap</span><span><i class="kstep"></i>Step-down</span></div>
         <div class="peakcap">Peak <b id="taperPeakVal">0 ml</b> · <span id="taperPeakDay">—</span></div>
 
         <div class="stats three">
@@ -647,6 +685,9 @@
         <div class="glabel">Per taper day</div>
         <div class="daylist" id="taperDaylist"></div>
 
+        <div class="glabel">Palpitations</div>
+        <div class="palpcard" id="taperPalp"></div>
+
         <div class="glabel">Cost breakdown</div>
         <div class="breakdown">
           <div class="brow"><span class="bk"><span class="cd bg-teal"></span>Doses · ml</span><span class="bv" id="tpCDose">₱0</span></div>
@@ -654,6 +695,17 @@
           <div class="brow"><span class="bk"><span class="cd bg-orange"></span>Concerta</span><span class="bv" id="tpCConc">₱0</span></div>
           <div class="brow total"><span class="bk">Grand total</span><span class="bv" id="tpCGrand">₱0</span></div>
         </div>
+      </div>
+
+      <div id="taperDoctorWrap" hidden>
+        <div class="glabel">Doctor export</div>
+        <div class="breakdown">
+          <div class="docrow"><label for="docFrom">From</label><input type="date" id="docFrom"></div>
+          <div class="docrow"><span>Include notes</span><button class="tgl on" id="docNotes" aria-pressed="true" aria-label="Include notes"></button></div>
+        </div>
+        <button class="docbtn" id="copyDoctor">Copy for doctor</button>
+        <div class="glabel">Preview</div>
+        <pre class="docprev" id="docPreview"></pre>
       </div>
     </div>
 
@@ -685,6 +737,8 @@
         </div>
         <div class="logblock"><div class="loghead"><span class="t">Meds</span></div><div id="hdMedLog"></div></div>
         <div class="logblock"><div class="loghead"><span class="t">Doses · ml</span></div><div id="hdDoseLog"></div></div>
+        <div class="logblock" id="hdBenzoBlock" hidden><div class="loghead"><span class="t">Clonazepam</span></div><div id="hdBenzoLog"></div></div>
+        <div class="logblock" id="hdNoteBlock" hidden><div class="loghead"><span class="t">Notes</span></div><div id="hdNoteLog"></div></div>
       </div>
 
       <div id="histPeriodWrap">
@@ -750,6 +804,8 @@
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Custom dose start<small id="rescueHint">Where the Custom dose stepper starts. Adjust it there in steps of 0.05</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
+        <div class="setrow"><div class="sk">Clonazepam dose<small>What one tap on the Clonazepam tile logs</small></div>
+          <div class="field cost"><input type="number" id="setBenzoMg" step="0.05" min="0" placeholder="0.25"><span class="cur">mg</span></div></div>
         <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
           <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
@@ -849,6 +905,10 @@
         <div class="modal-field" id="editMlGroup">
           <label for="editMl">ML</label>
           <input type="number" id="editMl" step="0.05" min="0.05">
+        </div>
+        <div class="modal-field" id="editMgGroup" hidden>
+          <label for="editMg">MG</label>
+          <input type="number" id="editMg" step="0.05" min="0">
         </div>
         <div class="modal-field" id="editTextGroup" hidden>
           <label for="editText">Note</label>
@@ -1354,11 +1414,16 @@
   // The day's ml against its cap, in the one shape every screen shows it in.
   // Returns null when no cap is set, so callers can leave the slot out rather
   // than print a ratio against nothing.
+  // Over is judged in hundredths of a ml: sums like 3 x 0.4 + 0.5 come out
+  // a hair above 1.7, and a day exactly at its cap must not read as over.
+  function overCap(ml, cap) { return cap > 0 && Math.round(ml * 100) > Math.round(cap * 100); }
+
   function allowanceOf(s) {
     if (!(s.capMl > 0)) return null;
     const frac = s.totalDailyMl / s.capMl;
+    const over = overCap(s.totalDailyMl, s.capMl);
     return {
-      frac, over: s.totalDailyMl > s.capMl, level: s.totalDailyMl > s.capMl ? 'red' : capLevel(frac),
+      frac, over, level: over ? 'red' : capLevel(frac),
       text: `${fmtMl(s.totalDailyMl)} / ${fmtMl(s.capMl)} ml`,
     };
   }
@@ -1437,6 +1502,20 @@
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }] — one per
   // edit to Current dose, so past weeks keep showing what was actually taken.
   let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [] };
+  // Two later additions ride in taperPlan too, so the Gist backup carries
+  // them with no change to its format:
+  // benzoMg: what one Clonazepam tap logs (blank = BENZO_DEFAULT_MG).
+  // capHistory: [{ from: ms, cap }], one per change to Daily cap, oldest
+  // first. A day is held to the cap in force when it ended, so lowering the
+  // cap never re-judges past days, and a day from before this history began
+  // has no cap at all rather than today's.
+  function capAt(ts) {
+    const hist = taperPlan.capHistory;
+    if (!Array.isArray(hist)) return taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+    let cap = 0;
+    hist.forEach(c => { if (c && c.from <= ts) cap = c.cap > 0 ? c.cap : 0; });
+    return cap;
+  }
   let gistId = localStorage.getItem('gistId');
 
   let selectedDate = new Date();
@@ -1799,6 +1878,23 @@
     if (savedTaper) { try { taperPlan = { ...taperPlan, ...JSON.parse(savedTaper) }; } catch (e) {} }
     document.getElementById('setTaperStart').value = taperPlan.start || '';
     document.getElementById('setDailyCap').value = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : '';
+    // Cap history starts the first time this version runs, holding the cap
+    // already set. Days before that stay uncapped (see capAt). If the cap
+    // changed some other way (a restore from an older backup), the change is
+    // dated now so the history always ends on the cap in Settings.
+    const capNow = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+    if (!Array.isArray(taperPlan.capHistory)) {
+      taperPlan.capHistory = capNow > 0 ? [{ from: Date.now(), cap: capNow }] : [];
+      localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
+    } else {
+      const hist = taperPlan.capHistory;
+      const last = hist.length ? hist[hist.length - 1].cap : 0;
+      if (Math.abs((last > 0 ? last : 0) - capNow) > 0.0001) {
+        hist.push({ from: Date.now(), cap: capNow });
+        localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
+      }
+    }
+    document.getElementById('setBenzoMg').value = getBenzoMg();
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     renderGistRow();
@@ -1894,12 +1990,21 @@
     // Only start date and Current dose are editable now; step/interval/floor
     // are constants, and startDose is carried forward (Current dose writes it
     // when the override lands on the plan's own first week).
+    // A real change to Daily cap is dated, so charts can mark the step-down
+    // and past days keep the cap they had. Saving anything else adds nothing.
+    const newCap = parseFloat(document.getElementById('setDailyCap').value) || 0;
+    const capHistory = Array.isArray(taperPlan.capHistory) ? taperPlan.capHistory.slice() : [];
+    const lastCap = capHistory.length ? capHistory[capHistory.length - 1].cap : 0;
+    if (Math.abs(newCap - lastCap) > 0.0001) capHistory.push({ from: Date.now(), cap: newCap });
+    const benzoIn = parseFloat(document.getElementById('setBenzoMg').value);
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
       startDose: taperPlan.startDose || 0.8,
       rescueDose: parseFloat(document.getElementById('setRescueDose').value) || null,
-      dailyCap: parseFloat(document.getElementById('setDailyCap').value) || 0,
+      dailyCap: newCap,
       adjustments: taperPlan.adjustments || [],
+      capHistory,
+      benzoMg: benzoIn > 0 ? Math.round(benzoIn * 1000) / 1000 : null,
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
     // records an override when the number really differs from the automatic one.
@@ -1907,6 +2012,7 @@
     localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan));
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
+    document.getElementById('setBenzoMg').value = getBenzoMg();
     silentBackupToGitHub();
 
     showToast('✓ Settings saved');
@@ -2014,7 +2120,9 @@
     // the last day there is; Wake Up is what resets it to zero.
     const sessions = await computeSessions();
     const cur = sessions.length ? sessions[sessions.length - 1] : null;
-    const cap = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+    // The shown day's own cap: an open day is on the Settings cap, and a day
+    // that has ended keeps the cap it ended on, as every other screen does.
+    const cap = cur ? cur.capMl : capAt(Date.now());
 
     // ---- Clonazepam tile: ticked once one is logged taken today. The tick and
     // the "Log another?" ask read the same window, so the tile never says one
@@ -2043,7 +2151,7 @@
       return;
     }
     const frac = used / cap;
-    const over = used > cap;
+    const over = overCap(used, cap);
     setDial(frac, over ? 'red' : capLevel(frac));
     dial.classList.toggle('over', over);
     eyebrow.textContent = 'Allowance';
@@ -2143,9 +2251,10 @@
 
   // ===== Clonazepam, Note, Custom dose =====
   // Clonazepam is its own type, 'benzo', never 'med': every stimulant mg total
-  // sums all 'med' entries, and 0.5 mg of Clonazepam must never land in them.
+  // sums all 'med' entries, and no Clonazepam mg must ever land in them.
   const BENZO_NAME = 'Clonazepam';
-  const BENZO_MG = 0.5;
+  const BENZO_DEFAULT_MG = 0.25;
+  function getBenzoMg() { return taperPlan.benzoMg > 0 ? taperPlan.benzoMg : BENZO_DEFAULT_MG; }
   const BENZO_HOLD_MS = 500;
 
   // "Today" runs from the latest real Wake Up on, including anything logged
@@ -2179,9 +2288,10 @@
   }
 
   function logBenzo(missed) {
+    const mg = getBenzoMg();
     return logPlainEntry(
-      ts => ({ type: 'benzo', name: BENZO_NAME, mg: BENZO_MG, timestamp: ts, missed: !!missed }),
-      missed ? `${BENZO_NAME} marked missed` : `${BENZO_NAME} ${BENZO_MG} mg logged`);
+      ts => ({ type: 'benzo', name: BENZO_NAME, mg, timestamp: ts, missed: !!missed }),
+      missed ? `${BENZO_NAME} marked missed` : `${BENZO_NAME} ${mg} mg logged`);
   }
 
   function logNote(text) {
@@ -2651,7 +2761,11 @@
       gapByTs.set(doses[i].timestamp, Math.round((doses[i].timestamp - doses[i - 1].timestamp) / 60000));
     }
 
-    return { doses, meds, totalMl, totalMg, ritalinMg, concertaMg, cost: doseCost + medCostSum, avg, gapByTs, dayLbl: dayLabel(date) };
+    // Clonazepam and notes are listed on their own, outside every total.
+    const benzos = selData.filter(e => e.type === 'benzo');
+    const notes = selData.filter(e => e.type === 'note');
+
+    return { doses, meds, benzos, notes, totalMl, totalMg, ritalinMg, concertaMg, cost: doseCost + medCostSum, avg, gapByTs, dayLbl: dayLabel(date) };
   }
 
   function doseLogHtml(d) {
@@ -2667,6 +2781,21 @@
       const meta = kind === 'wake' ? 'session start' : `<span class="mono">${fmtPeso(e.ml * costPerMl)}</span>${kindTag}`;
       return `<div class="entry" data-ts="${e.timestamp}" data-kind="dose"><span class="cd bg-${cl}"></span><div class="body"><div class="lead">${lead}</div><div class="meta">${meta}</div></div><div class="time">${time}${gapHtml}</div></div>`;
     }).join('') : `<div class="empty">No doses logged.</div>`;
+  }
+
+  function benzoLogHtml(d) {
+    return [...d.benzos].reverse().map(e => {
+      const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return `<div class="entry" data-ts="${e.timestamp}" data-kind="benzo"><span class="cd" style="background:${e.missed ? 'var(--neutral)' : 'var(--ink)'}"></span><div class="body"><div class="lead">${escapeHtml(e.name || 'Clonazepam')}</div><div class="meta">${e.missed ? 'missed' : e.mg + ' mg'}</div></div><div class="time">${time}</div></div>`;
+    }).join('');
+  }
+
+  function noteLogHtml(d) {
+    return [...d.notes].reverse().map(e => {
+      const time = new Date(e.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      const text = escapeHtml(String(e.text || '')).replace(/\n/g, '<br>');
+      return `<div class="entry" data-ts="${e.timestamp}" data-kind="note"><span class="cd" style="background:var(--mut2)"></span><div class="body"><div class="meta" style="font-size:14px;color:var(--ink-2)">${text}</div></div><div class="time">${time}</div></div>`;
+    }).join('');
   }
 
   function medLogHtml(d) {
@@ -2707,6 +2836,17 @@
       getAllData().then(data => {
         const entry = data.find(e => e.timestamp === ts);
         textEl.value = entry ? String(entry.text || '') : '';
+      });
+    }
+    // Clonazepam's mg is editable, so an entry logged at the wrong strength
+    // can be put right without deleting and re-logging it.
+    const mgGroup = document.getElementById('editMgGroup');
+    mgGroup.hidden = kind !== 'benzo';
+    document.getElementById('editMg').value = '';
+    if (kind === 'benzo') {
+      getAllData().then(data => {
+        const entry = data.find(e => e.timestamp === ts);
+        document.getElementById('editMg').value = entry && entry.mg > 0 ? entry.mg : '';
       });
     }
     const mlGroup = document.getElementById('editMlGroup');
@@ -2767,6 +2907,12 @@
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
       data.push({ ...entry, timestamp: newTs, text });
+    } else if (editingKind === 'benzo') {
+      const mg = parseFloat(document.getElementById('editMg').value);
+      if (!(mg > 0)) { showToast('Enter a valid mg amount'); return; }
+      data = data.filter(e => e.timestamp !== editingTs);
+      while (data.some(e => e.timestamp === newTs)) newTs += 1;
+      data.push({ ...entry, timestamp: newTs, mg: Math.round(mg * 1000) / 1000 });
     } else {
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
@@ -2831,8 +2977,11 @@
     let taperTarget = null, taperCeiling = null;
     // The daily cap replaces the old invented ceiling (target dose x 9.6 doses
     // a day). It counts every ml, sleep and rescue included: a cap that left
-    // the bedtime dose outside it would not be a cap on the day.
-    const capMl = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
+    // the bedtime dose outside it would not be a cap on the day. Each day is
+    // held to the cap in force at its end (see capAt), so days from before
+    // cap history began have none.
+    const capFor = r => capAt(Math.min(r.end - 1, Date.now()));
+    let capSum = 0, cappedMl = 0, cappedDays = 0;
 
     if (period === 'weekly') {
       const weekBase = new Date(selectedWeek);
@@ -2850,7 +2999,6 @@
       }
       unit = 'day';
       taperTarget = getTaperTargetForDate(weekBase);
-      if (capMl > 0) taperCeiling = Math.round(capMl * 7 * 100) / 100;
     } else if (period === 'monthly') {
       const monthDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
       perLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -2909,10 +3057,16 @@
       }
 
       let rowOver = null;
-      if (unit === 'day' && capMl > 0) rowOver = ml > capMl;
+      if (unit === 'day') {
+        const dayCap = capFor(r);
+        if (dayCap > 0) { rowOver = overCap(ml, dayCap); capSum += dayCap; cappedMl += ml; cappedDays++; }
+      }
       if (ml > 0) rows.push({ label: r.full, ml, sleepMl, rescueMl, count: dDoses.length, avgGapText: rangeAvgText, over: rowOver });
     });
 
+    // The week's ceiling only covers days that had a cap, and is measured
+    // against those same days' ml.
+    if (period === 'weekly' && cappedDays > 0) taperCeiling = Math.round(capSum * 100) / 100;
     const max = Math.max(...mlVals, 0.001);
     const peakIdx = mlVals.indexOf(Math.max(...mlVals));
     let avgAll = '—';
@@ -2924,7 +3078,7 @@
       totalSleepMl, totalRescueMl,
       doseCostSum, concCostSum, ritCostSum,
       grandTotal: doseCostSum + concCostSum + ritCostSum,
-      taperTarget, taperCeiling
+      taperTarget, taperCeiling, cappedMl, cappedDays
     };
   }
 
@@ -2944,6 +3098,10 @@
       document.getElementById('hdMgSub').textContent = d.totalMg > 0 ? `Rit ${d.ritalinMg} · Conc ${d.concertaMg}` : '';
       document.getElementById('hdDoseLog').innerHTML = doseLogHtml(d);
       document.getElementById('hdMedLog').innerHTML = medLogHtml(d);
+      document.getElementById('hdBenzoBlock').hidden = !d.benzos.length;
+      document.getElementById('hdBenzoLog').innerHTML = benzoLogHtml(d);
+      document.getElementById('hdNoteBlock').hidden = !d.notes.length;
+      document.getElementById('hdNoteLog').innerHTML = noteLogHtml(d);
       return;
     }
     dailyWrap.hidden = true; periodWrap.hidden = false;
@@ -2992,8 +3150,8 @@
       ceilingRow.hidden = h.taperCeiling == null;
       if (h.taperCeiling != null) {
         const ceilingEl = document.getElementById('taperCeilingVal');
-        const over = h.totalMl > h.taperCeiling;
-        ceilingEl.textContent = `${fmtMl(h.totalMl)} / ${fmtMl(h.taperCeiling)} ml`;
+        const over = overCap(h.cappedMl, h.taperCeiling);
+        ceilingEl.textContent = `${fmtMl(h.cappedMl)} / ${fmtMl(h.taperCeiling)} ml${h.cappedDays < 7 ? ` (${h.cappedDays} of 7 days)` : ''}`;
         ceilingEl.classList.toggle('over', over);
         ceilingEl.classList.toggle('under', !over);
       }
@@ -3031,7 +3189,7 @@
     if (view === 'taper') {
       computeSessions().then(sessions => {
         if (taperPeriod === 'daily') taperDayIdx = Math.max(1, sessions.length);
-        else {
+        else if (taperPeriod !== 'doctor') {
           const groupSize = taperPeriod === 'weekly' ? TAPER_DAYS_PER_WEEK : TAPER_DAYS_PER_WEEK * TAPER_WEEKS_PER_MONTH;
           taperGroupIdx = Math.max(1, Math.ceil(sessions.length / groupSize));
         }
@@ -3167,6 +3325,8 @@
 
     document.getElementById('hdDoseLog').addEventListener('click', handleEntryClick);
     document.getElementById('hdMedLog').addEventListener('click', handleEntryClick);
+    document.getElementById('hdBenzoLog').addEventListener('click', handleEntryClick);
+    document.getElementById('hdNoteLog').addEventListener('click', handleEntryClick);
     // Session timelines are re-rendered wholesale, so the listener sits on the
     // wrapper rather than the rows.
     document.getElementById('currentSessionWrap').addEventListener('click', handleEntryClick);
@@ -3227,12 +3387,27 @@
       // always opens on "where I am now" rather than back at Day 1.
       const sessions = await computeSessions();
       if (taperPeriod === 'daily') taperDayIdx = Math.max(1, sessions.length);
-      else {
+      else if (taperPeriod !== 'doctor') {
         const groupSize = taperPeriod === 'weekly' ? TAPER_DAYS_PER_WEEK : TAPER_DAYS_PER_WEEK * TAPER_WEEKS_PER_MONTH;
         taperGroupIdx = Math.max(1, Math.ceil(sessions.length / groupSize));
       }
       renderTaper();
     }));
+    document.getElementById('docFrom').addEventListener('change', e => {
+      docFromPicked = e.target.value || null;
+      renderDoctor();
+    });
+    document.getElementById('docNotes').addEventListener('click', () => {
+      docNotes = !docNotes;
+      renderDoctor();
+    });
+    document.getElementById('copyDoctor').addEventListener('click', async e => {
+      const btn = e.currentTarget;
+      // Copy the preview as shown, with no wait first, so iOS still treats
+      // the copy as part of the tap.
+      const shown = document.getElementById('docPreview').textContent;
+      copyText(shown || await buildDoctorText(), btn);
+    });
     document.getElementById('prevTaper').addEventListener('click', () => {
       if (document.getElementById('prevTaper').classList.contains('off')) return;
       if (taperPeriod === 'daily') taperDayIdx -= 1; else taperGroupIdx -= 1;
@@ -3381,8 +3556,8 @@
     if (h.taperTarget != null) {
       out += `\n\nTaper target ${fmtMl(h.taperTarget)} ml/dose`;
       if (h.taperCeiling != null) {
-        const status = h.totalMl > h.taperCeiling ? 'over' : 'under/at';
-        out += ` · ${fmtMl(h.totalMl)} / ${fmtMl(h.taperCeiling)} ml cap (${status})`;
+        const status = overCap(h.cappedMl, h.taperCeiling) ? 'over' : 'under/at';
+        out += ` · ${fmtMl(h.cappedMl)} / ${fmtMl(h.taperCeiling)} ml cap${h.cappedDays < 7 ? ` over ${h.cappedDays} of 7 days` : ''} (${status})`;
       }
       if (h.totalSleepMl > 0) out += ` · incl. ${fmtMl(h.totalSleepMl)} ml sleep`;
       if (h.totalRescueMl > 0) out += ` · incl. ${fmtMl(h.totalRescueMl)} ml custom / rescue`;
@@ -3460,12 +3635,8 @@
     });
 
     const now = Date.now();
-    // The one cap that applies to every day. Step dates (a different cap from
-    // a given date on) are a later step; until then a session carries the
-    // current cap so the rest of the app never reads the setting directly.
-    const dailyCap = taperPlan.dailyCap > 0 ? taperPlan.dailyCap : 0;
 
-    return sessions.map((s, i) => {
+    const out = sessions.map((s, i) => {
       const endTs = s.endTs != null ? s.endTs : now;
       const durationHours = (endTs - s.startTs) / 3600000;
       const logMl = s.logs.reduce((sum, e) => sum + e.ml, 0);
@@ -3528,15 +3699,55 @@
       // rendered inline on its row in sessionCardHtml — not aggregated.
       const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession, ...notesInSession, ...benzosInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
+      // The day's CIWA picture for Taper and the doctor export: every scored
+      // reading, from a dose or a Check.
+      const ciwaReads = [...s.logs, ...s.sleeps, ...s.rescues, ...checksInSession]
+        .filter(e => e.ciwa && typeof e.ciwa.total === 'number')
+        .sort((a, b) => a.timestamp - b.timestamp);
+      const ciwaMax = ciwaReads.length ? Math.max(...ciwaReads.map(e => e.ciwa.total)) : null;
+      const ciwaAvg = ciwaReads.length ? ciwaReads.reduce((sum, e) => sum + e.ciwa.total, 0) / ciwaReads.length : null;
+      // Average time between the day's doses that carried ml, bedtime included.
+      const mlDoses = [...s.logs, ...s.sleeps, ...s.rescues].filter(e => e.ml > 0).sort((a, b) => a.timestamp - b.timestamp);
+      const avgGapMin = mlDoses.length > 1
+        ? Math.round((mlDoses[mlDoses.length - 1].timestamp - mlDoses[0].timestamp) / (mlDoses.length - 1) / 60000)
+        : null;
+      // A past day never closed with a Sleep Dose ends, for its cap, where the
+      // next day starts; only the newest day is judged against now.
+      const capEndTs = s.endTs != null ? s.endTs : (i < sessions.length - 1 ? sessions[i + 1].startTs - 1 : now);
       return {
         day: i + 1, startTs: s.startTs, endTs: s.endTs, isOpen: s.endTs == null, implicit: !!s.implicit,
-        durationHours, capMl: dailyCap,
+        durationHours, capMl: capAt(capEndTs),
         logMl, sleepMl, rescueCount, rescueMl, extraCount, extraMl, totalDailyMl, sleepHours,
         ritalinMg, concertaMg, mlCost, ritalinCost, concertaCost,
         grandCost: mlCost + ritalinCost + concertaCost,
+        ciwaReads, ciwaMax, ciwaAvg, checkCount: checksInSession.length,
+        benzoTaken: benzosInSession.filter(e => !e.missed), benzoMissed: benzosInSession.filter(e => e.missed),
+        notes: notesInSession, avgGapMin,
+        targetDose: getTaperTargetForDate(new Date(s.startTs)),
         timeline
       };
     });
+    // A step-down is the first day on a lower Daily cap or a lower target
+    // dose than the day before. Days with no cap on either side are not one.
+    out.forEach((s, i) => {
+      const p = i > 0 ? out[i - 1] : null;
+      s.capStep = !!(p && p.capMl > 0 && s.capMl > 0 && s.capMl < p.capMl - 0.001);
+      s.doseStep = !!(p && p.targetDose != null && s.targetDose != null && s.targetDose < p.targetDose - 0.001);
+    });
+    return out;
+  }
+
+  // Stimulant (methylphenidate) target a day is read against: the Daily
+  // maximum from Settings, or 20 mg while that is blank.
+  const STIM_TARGET_MG = 20;
+  function stimTargetMg() { return medMaxMg > 0 ? medMaxMg : STIM_TARGET_MG; }
+  function fmtCiwaAvg(v) { return v == null ? '—' : String(Math.round(v * 10) / 10); }
+  function benzoDayText(s) {
+    if (s.benzoTaken.length) {
+      const mg = Math.round(s.benzoTaken.reduce((sum, e) => sum + (e.mg || 0), 0) * 1000) / 1000;
+      return `${s.benzoTaken.length > 1 ? s.benzoTaken.length + '× · ' : ''}${mg} mg taken`;
+    }
+    return s.benzoMissed.length ? 'missed' : 'not logged';
   }
 
   // newestFirst flips the timeline order — the Log tab wants the latest
@@ -3559,10 +3770,17 @@
     const medsSplit = (s.ritalinMg > 0 && s.concertaMg > 0)
       ? `<div class="medsplit">Ritalin ${s.ritalinMg} mg &nbsp;·&nbsp; Concerta ${s.concertaMg} mg</div>`
       : '';
+    const ciwaBlock = `
+      <div class="glabel sublabel">CIWA · Clonazepam</div>
+      <div class="sstats">
+        <div class="brow"><span class="bk">CIWA max · avg</span><span class="bv">${s.ciwaMax != null ? `${s.ciwaMax} · ${fmtCiwaAvg(s.ciwaAvg)}` : '—'}</span></div>
+        <div class="brow"><span class="bk">Checks</span><span class="bv">${s.checkCount}</span></div>
+        <div class="brow"><span class="bk">Clonazepam</span><span class="bv">${benzoDayText(s)}</span></div>
+      </div>`;
     const medsBlock = medsMg > 0 ? `
       <div class="glabel sublabel">Medication</div>
       <div class="sstats">
-        <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} mg · ${fmtPeso(medsCost)}</span></div>
+        <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} / ${stimTargetMg()} mg · ${fmtPeso(medsCost)}</span></div>
         ${medsSplit}
       </div>` : '';
     const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
@@ -3621,6 +3839,7 @@
         <div class="brow"><span class="bk"><span class="cd bg-teal"></span>Total ml</span><span class="bv">${fmtMl(s.totalDailyMl)} ml${sleepTag} · ${fmtPeso(s.mlCost)}</span></div>
         ${rescueRow}
       </div>
+      ${ciwaBlock}
       ${medsBlock}
 
       <div class="sstats grandrow">
@@ -3821,6 +4040,16 @@
     const periodWrap = document.getElementById('taperPeriodWrap');
     const label = document.getElementById('taperLbl');
 
+    // Doctor has its own date range, so the day/group arrows step aside.
+    const doctor = taperPeriod === 'doctor';
+    document.getElementById('taperDoctorWrap').hidden = !doctor;
+    document.querySelector('#view-taper .pernav').style.display = doctor ? 'none' : '';
+    if (doctor) {
+      dailyWrap.hidden = true; periodWrap.hidden = true;
+      await renderDoctor();
+      return;
+    }
+
     if (!sessions.length) {
       dailyWrap.hidden = false; periodWrap.hidden = true;
       label.textContent = '—';
@@ -3861,14 +4090,18 @@
     label.textContent = `${taperPeriod === 'weekly' ? 'Week' : 'Month'} ${taperGroupIdx}${rangeStr ? ' · ' + rangeStr : ''}`;
 
     const mlVals = inGroup.map(s => s.totalDailyMl);
-    const max = Math.max(...mlVals, 0.001);
+    // The cap shares the bars' scale, so a cap above every bar still fits.
+    const max = Math.max(...mlVals, ...inGroup.map(s => s.capMl || 0), 0.001);
     const peakIdx = mlVals.indexOf(Math.max(...mlVals));
     const scale = taperPeriod === 'weekly' ? 82 : 100;
     document.getElementById('taperChart').innerHTML = inGroup.map(s => {
       const v = s.totalDailyMl;
       const barLabel = taperPeriod === 'weekly' ? `<div class="barval">${fmtMl(v)}</div>` : '';
-      return `<div class="col">${barLabel}<div class="bar" style="height:0%" data-h="${(v / max * scale).toFixed(1)}"></div></div>`;
+      const capLine = s.capMl > 0 ? `<div class="capln" style="bottom:${(s.capMl / max * scale).toFixed(1)}%"></div>` : '';
+      const step = s.capStep || s.doseStep ? '<div class="stepmk"></div>' : '';
+      return `<div class="col">${step}${barLabel}<div class="bar" style="height:0%" data-h="${(v / max * scale).toFixed(1)}"></div>${capLine}</div>`;
     }).join('');
+    document.getElementById('taperChartKey').hidden = !inGroup.some(s => s.capMl > 0 || s.capStep || s.doseStep);
     document.getElementById('taperXaxis').innerHTML = inGroup.map(s =>
       `<span>${taperPeriod === 'weekly' ? s.day : (s.day % 5 === 0 || s.day === inGroup[0].day ? s.day : '')}</span>`
     ).join('');
@@ -3882,7 +4115,7 @@
     // The group-level form of the allowance: how many of these days stayed
     // inside the cap. Only days that have a cap to be inside of are counted.
     const capped = inGroup.filter(x => x.capMl > 0);
-    const inCap = capped.filter(x => x.totalDailyMl <= x.capMl).length;
+    const inCap = capped.filter(x => !overCap(x.totalDailyMl, x.capMl)).length;
     const totMl = inGroup.reduce((s, x) => s + x.totalDailyMl, 0);
     const totMg = inGroup.reduce((s, x) => s + x.ritalinMg + x.concertaMg, 0);
     const totRitMg = inGroup.reduce((s, x) => s + x.ritalinMg, 0);
@@ -3897,12 +4130,16 @@
 
     document.getElementById('taperDaylist').innerHTML = inGroup.map(s => {
       // Coloured only when there is a cap to be over or under.
-      const cls = s.capMl > 0 ? (s.totalDailyMl > s.capMl ? ' over' : ' under') : '';
+      const cls = s.capMl > 0 ? (overCap(s.totalDailyMl, s.capMl) ? ' over' : ' under') : '';
       const extras = [];
       if (s.sleepMl > 0) extras.push(`<span class="dsleep">+${fmtMl(s.sleepMl)}s</span>`);
       if (s.extraMl > 0) extras.push(`<span class="drescue">+${fmtMl(s.extraMl)}r</span>`);
-      return `<div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div>`;
+      const benzoMark = s.benzoTaken.length ? '✓' : s.benzoMissed.length ? 'missed' : '—';
+      const sub = `CIWA max ${s.ciwaMax != null ? s.ciwaMax : '—'} · avg ${fmtCiwaAvg(s.ciwaAvg)} · ${s.checkCount} check${s.checkCount === 1 ? '' : 's'}<br>Clonazepam ${benzoMark} · meds ${s.ritalinMg + s.concertaMg} / ${stimTargetMg()} mg`;
+      return `<div class="drow2"><div class="drow"><span class="dd">Day ${s.day}</span><span class="dv"><span class="dml${cls}">${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml</span>${extras.join(' ')}<span class="dgap">${fmtPeso(s.grandCost)}</span></span></div><div class="dsub">${sub}</div></div>`;
     }).join('') || '<div class="empty">No data.</div>';
+
+    document.getElementById('taperPalp').innerHTML = palpHtml(inGroup, await getAllData());
 
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
     const ritCost = inGroup.reduce((s, x) => s + x.ritalinCost, 0);
@@ -3921,12 +4158,127 @@
     const inGroup = sessions.slice(startIdx, startIdx + groupSize);
     const gLabel = `${taperPeriod === 'weekly' ? 'Week' : 'Month'} ${taperGroupIdx}`;
     let out = `G Tracker — Taper (${gLabel})\n\nPer taper day\n`;
-    out += inGroup.map(s => `Day ${s.day}   ${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml${s.capMl > 0 && s.totalDailyMl > s.capMl ? ' (over)' : ''}   ${fmtGap(Math.round(s.durationHours * 60))}`).join('\n');
+    out += inGroup.map(s => `Day ${s.day}   ${fmtMl(s.totalDailyMl)}${s.capMl > 0 ? ' / ' + fmtMl(s.capMl) : ''} ml${overCap(s.totalDailyMl, s.capMl) ? ' (over)' : ''}   ${fmtGap(Math.round(s.durationHours * 60))}`
+      + `\n   CIWA max ${s.ciwaMax != null ? s.ciwaMax : '—'} · avg ${fmtCiwaAvg(s.ciwaAvg)} · ${s.checkCount} check${s.checkCount === 1 ? '' : 's'} · Clonazepam ${benzoDayText(s)} · meds ${s.ritalinMg + s.concertaMg} / ${stimTargetMg()} mg`).join('\n');
     const mlCost = inGroup.reduce((s, x) => s + x.mlCost, 0);
     const ritCost = inGroup.reduce((s, x) => s + x.ritalinCost, 0);
     const concCost = inGroup.reduce((s, x) => s + x.concertaCost, 0);
     out += `\n\nCost\nDoses · ml   ${fmtPeso(mlCost)}\nRitalin   ${fmtPeso(ritCost)}\nConcerta   ${fmtPeso(concCost)}\nGrand total   ${fmtPeso(mlCost + ritCost + concCost)}\n`;
     return out;
+  }
+
+  // ===== Palpitations =====
+  // Palpitation score against time since the last G dose and since the last
+  // stimulant, from every scored dose and Check in the period. Rising with G
+  // time and dropping after a dose points to withdrawal; tracking stimulant
+  // time and not dropping points to the stimulant.
+  const PALP_FOLLOWUP_MIN = 45;
+
+  function palpScatterSvg(points, what) {
+    const W = 320, H = 132, L = 24, R = 10, T = 8, B = 22;
+    const maxH = Math.max(1, Math.ceil(Math.max(0, ...points.map(p => p.x)) / 60));
+    const x = m => L + (m / (maxH * 60)) * (W - L - R);
+    const y = v => T + (1 - v / 3) * (H - T - B);
+    let g = '';
+    for (let v = 0; v <= 3; v++) {
+      g += `<line class="ax" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="tk" x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${v}</text>`;
+    }
+    const mid = Math.round(maxH / 2);
+    [0, mid, maxH].filter((h, i, a) => a.indexOf(h) === i).forEach(h => {
+      g += `<text class="tk" x="${x(h * 60)}" y="${H - 6}" text-anchor="middle">${h}h</text>`;
+    });
+    const dots = points.map(p => `<circle class="dot" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="4"/>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Palpitations against hours since last ${what}">${g}${dots}</svg>`;
+  }
+
+  function palpHtml(group, all) {
+    const reads = group.flatMap(s => s.ciwaReads).filter(e => typeof e.ciwa.palp === 'number');
+    if (!reads.length) return '<div class="empty">No CIWA readings in this period.</div>';
+    const ghb = reads.filter(e => typeof e.ciwa.minSinceGhb === 'number').map(e => ({ x: e.ciwa.minSinceGhb, y: e.ciwa.palp }));
+    const stim = reads.filter(e => typeof e.ciwa.minSinceStim === 'number').map(e => ({ x: e.ciwa.minSinceStim, y: e.ciwa.palp }));
+    // Dose response: of doses logged at palp 2 or more, how many had a Check
+    // within 45 min showing palp down by 1 or more.
+    const checks = all.filter(e => e.type === 'check' && e.ciwa && typeof e.ciwa.palp === 'number');
+    const high = reads.filter(e => isDoseEntry(e) && e.ml > 0 && e.ciwa.palp >= 2);
+    let dropped = 0, noCheck = 0;
+    high.forEach(d => {
+      const follow = checks.filter(c => c.timestamp > d.timestamp && c.timestamp <= d.timestamp + PALP_FOLLOWUP_MIN * 60000);
+      if (!follow.length) noCheck++;
+      else if (follow.some(c => c.ciwa.palp <= d.ciwa.palp - 1)) dropped++;
+    });
+    const response = high.length
+      ? `Dose response: <b>${dropped} of ${high.length}</b> doses at palp 2+ had a Check within ${PALP_FOLLOWUP_MIN} min showing palp down by 1 or more.${noCheck ? ` ${noCheck} had no Check in that window.` : ''}`
+      : 'Dose response: no doses at palp 2+ in this period.';
+    return `<div class="pt">Palp vs hours since last G (${ghb.length})</div>${palpScatterSvg(ghb, 'G dose')}
+      <div class="pt">Palp vs hours since last stimulant (${stim.length})</div>${palpScatterSvg(stim, 'stimulant')}
+      <div class="pr">${response}</div>
+      <div class="pn">Rising with G time and dropping after a dose points to withdrawal. Tracking stimulant time and not dropping points to the stimulant.</div>`;
+  }
+
+  // ===== Doctor export =====
+  // One copy-to-clipboard block for the visit. From defaults to 14 days ago
+  // and can be moved back to the first Clonazepam; notes can be left out.
+  const DOCTOR_DAYS = 14;
+  let docFromPicked = null;   // a From date he chose; null = 14 days ago, worked out fresh
+  let docNotes = true;
+
+  function docDefaultFrom() {
+    const d = new Date();
+    d.setDate(d.getDate() - DOCTOR_DAYS);
+    return ymdLocal(d);
+  }
+
+  async function buildDoctorText() {
+    const fromStr = docFromPicked || docDefaultFrom();
+    const fromTs = new Date(fromStr + 'T00:00:00').getTime();
+    const sessions = (await computeSessions()).filter(s => s.startTs >= fromTs);
+    const fD = ts => new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const fDT = ts => new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const fromLbl = new Date(fromStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const toLbl = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    let out = `G Tracker · doctor summary\n${fromLbl} to ${toLbl} · ${sessions.length} day${sessions.length === 1 ? '' : 's'} logged\n`;
+    if (!sessions.length) return out + '\nNo days logged in this range.\n';
+
+    out += '\nPer day\n';
+    sessions.forEach(s => {
+      const g = s.capMl > 0
+        ? `${fmtMl(s.totalDailyMl)} / ${fmtMl(s.capMl)} ml cap${overCap(s.totalDailyMl, s.capMl) ? ' (over)' : ''}`
+        : `${fmtMl(s.totalDailyMl)} ml (no cap set)`;
+      out += `\n${fD(s.startTs)} · Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n`;
+      out += `G ${g} · avg interval ${s.avgGapMin != null ? fmtGap(s.avgGapMin) : '—'}\n`;
+      out += s.ciwaReads.length
+        ? `CIWA max ${s.ciwaMax} · avg ${fmtCiwaAvg(s.ciwaAvg)} (${s.ciwaReads.length} reading${s.ciwaReads.length === 1 ? '' : 's'}, ${s.checkCount} check${s.checkCount === 1 ? '' : 's'})\n`
+        : 'CIWA none recorded\n';
+      out += `Clonazepam ${benzoDayText(s)} · Methylphenidate ${s.ritalinMg + s.concertaMg} mg\n`;
+    });
+
+    const hard = sessions.flatMap(s => s.ciwaReads.filter(e => e.ciwa.hardStop));
+    // The reading's own note is left off here: it prints under Notes, so the
+    // Include notes switch covers it.
+    const hardLine = e => ciwaSummary({ ...e, ciwa: { ...e.ciwa, note: undefined } });
+    out += '\nHard stops\n' + (hard.length ? hard.map(e => `${fDT(e.timestamp)} · ${hardLine(e)}`).join('\n') : 'None') + '\n';
+
+    if (docNotes) {
+      // Free-text notes, plus the one-line note on any CIWA reading.
+      const notes = [];
+      sessions.forEach(s => {
+        s.notes.forEach(n => notes.push({ ts: n.timestamp, text: String(n.text || '').trim().replace(/\s*\n\s*/g, ' / ') }));
+        s.ciwaReads.forEach(e => { if (e.ciwa.note) notes.push({ ts: e.timestamp, text: `${e.ciwa.note} (with CIWA ${e.ciwa.total})` }); });
+      });
+      notes.sort((a, b) => a.ts - b.ts);
+      out += '\nNotes\n' + (notes.length ? notes.map(n => `${fDT(n.ts)} · ${n.text}`).join('\n') : 'None') + '\n';
+    }
+    return out;
+  }
+
+  async function renderDoctor() {
+    const fromStr = docFromPicked || docDefaultFrom();
+    const input = document.getElementById('docFrom');
+    if (input.value !== fromStr) input.value = fromStr;
+    const tgl = document.getElementById('docNotes');
+    tgl.classList.toggle('on', docNotes);
+    tgl.setAttribute('aria-pressed', String(docNotes));
+    document.getElementById('docPreview').textContent = await buildDoctorText();
   }
 
   // ===== Data management (Settings) =====
