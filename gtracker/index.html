@@ -44,6 +44,10 @@
   html,body{height:100%;}
   /* Vertical scrolling only — no pinch/double-tap zoom */
   html{touch-action:pan-y;-webkit-text-size-adjust:100%;}
+  /* iPhone zooms the page into any typing box whose text is under 16px, and
+     with pinch zoom locked above it could not be zoomed back out. At 16px it
+     never zooms in. !important so every box, on every tab, stays covered. */
+  input,select,textarea{font-size:16px !important;}
   body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:pan-y;}
   .phone{width:100%;max-width:432px;margin:0 auto;background:var(--app);min-height:100vh;display:flex;flex-direction:column;}
   .scroll{padding:14px 24px 40px;}
@@ -1151,8 +1155,14 @@
     if (d.minSinceGhb != null) since.push(fmtGap(d.minSinceGhb) + ' since last G');
     if (d.minSinceStim != null) since.push(fmtGap(d.minSinceStim) + ' since last stimulant');
     const ctxLine = since.length ? ctx + ' · ' + since.join(' · ') : ctx;
+    // Every tap re-renders the whole sheet, so only a new step starts at the
+    // top. Resetting on every tap threw him back up after each chip, and he
+    // had to scroll down again to reach Next.
+    const scroller = body.parentElement;
+    const keep = d.renderedStep === d.step ? scroller.scrollTop : 0;
     body.innerHTML = d.step === 1 ? ciwaStep1Html(d, ctxLine) : ciwaStep2Html(d, ctxLine);
-    body.parentElement.scrollTop = 0;
+    scroller.scrollTop = keep;
+    d.renderedStep = d.step;
   }
 
   function ciwaStep1Html(d, ctxLine) {
