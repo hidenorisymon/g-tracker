@@ -518,6 +518,8 @@
   .csame{width:100%;height:38px;border-radius:11px;border:1.5px solid var(--hair);background:var(--surface);
     color:var(--txt2);font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;margin-bottom:14px;}
   .csame[hidden]{display:none;}
+  .clast{font-size:12px;line-height:1.45;color:var(--txt2);background:var(--hair-2);border-radius:11px;padding:9px 11px;margin-bottom:6px;}
+  .clast .h{font-weight:700;color:var(--ink);margin-bottom:2px;}
   .ctotal{font-family:var(--mono);font-size:13px;font-weight:700;padding:5px 11px;border-radius:10px;flex:none;}
   .ctotal.grn{background:rgba(26,160,111,.12);color:#146e4d;}
   .ctotal.amb{background:rgba(209,144,42,.14);color:#7d520f;}
@@ -1099,8 +1101,10 @@
       checked: {}, scores: {}, factors: {}, stage: 0, hr: '', note: '',
       minSinceGhb: ciwaMinutesSince(data, e => isDoseEntry(e) && Number(e.ml) > 0, nowTs),
       minSinceStim: ciwaMinutesSince(data, e => isMedEntry(e), nowTs),
-      last: ciwaMostRecent(data, nowTs),
     };
+    const lastEntry = ciwaMostRecent(data, nowTs);
+    ciwaDraft.last = lastEntry ? lastEntry.ciwa : null;
+    ciwaDraft.minSinceLast = lastEntry ? Math.round((nowTs - lastEntry.timestamp) / 60000) : null;
     renderCiwaSheet();
     document.getElementById('ciwaModal').hidden = false;
   }
@@ -1110,7 +1114,26 @@
     data.forEach(e => {
       if (e.ciwa && e.timestamp < beforeTs && (best == null || e.timestamp > best.timestamp)) best = e;
     });
-    return best ? best.ciwa : null;
+    return best;
+  }
+
+  // Exactly what "Same as last" would copy, spelled out above the button so he
+  // can see whether it still holds before tapping. HR and the note are left
+  // out because the button does not copy them.
+  function ciwaLastText(c) {
+    const it = c.items || {};
+    const sig = c.signals || {};
+    const parts = ['CIWA ' + (c.total || 0)];
+    CIWA_ITEMS.forEach(x => { if (Number(it[x.k]) > 0) parts.push(x.label + ' ' + it[x.k]); });
+    CIWA_PERSONAL.forEach(x => {
+      if (x.max) { if (Number(c.palp) > 0) parts.push(x.label + ' ' + c.palp); }
+      else if (sig[x.k]) parts.push(x.label);
+    });
+    if (parts.length === 1) parts.push('nothing present');
+    if (Number(c.stage) > 0) parts.push('got to ' + CIWA_STAGES[c.stage - 1].toLowerCase());
+    const facs = (c.factors || []).map(f => CIWA_FACTOR_LABELS[f] || f);
+    if (facs.length) parts.push('during: ' + facs.join(', ').toLowerCase());
+    return parts.join(' · ');
   }
 
   // Copy the previous sheet's answers in so a night where nothing has changed is
@@ -1180,7 +1203,8 @@
     return `
       <div class="chead"><h3>What do you feel?</h3><div class="cstep">Step 1 of 2</div></div>
       <div class="cctx">${ctxLine}</div>
-      ${d.last ? `<button class="csame" id="ciwaSameAsLast">Same as last</button>` : ''}
+      ${d.last ? `<div class="clast"><div class="h">Last check-in${d.minSinceLast != null ? ' · ' + fmtGap(d.minSinceLast) + ' ago' : ''}</div>${escapeHtml(ciwaLastText(d.last))}</div>
+      <button class="csame" id="ciwaSameAsLast">Same as last</button>` : ''}
       <div class="cgroup">CIWA</div>
       <div class="cchips">${CIWA_ITEMS.map(it => chip(it.k, it.label)).join('')}</div>
       <div class="cgroup">My signals · not in the total</div>
@@ -1333,6 +1357,9 @@
         const n = Number(stage.dataset.ciwaStage);
         d.stage = d.stage === n ? 0 : n;
         renderCiwaSheet();
+        // The stage is the last symptom he answers, so picking one brings the
+        // "going on" question and Next into view. Clearing a stage stays put.
+        if (d.stage) body.parentElement.scrollTo({ top: body.parentElement.scrollHeight, behavior: 'smooth' });
         return;
       }
       const num = t.closest('[data-ciwa-score]');
