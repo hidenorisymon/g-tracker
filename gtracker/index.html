@@ -303,6 +303,7 @@
   .palpcard .pn{font-size:11px;color:var(--muted);line-height:1.45;margin-top:8px;}
   .docrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--hair-2);font-size:14px;font-weight:500;}
   .docrow:last-child{border-bottom:none;}
+  .docseg{margin-bottom:12px;}
   .docrow input[type=date]{border:1px solid var(--hair);border-radius:11px;padding:7px 10px;font-family:var(--mono);font-size:14px;background:var(--surface);color:var(--ink);}
   .tgl{width:46px;height:28px;border-radius:14px;border:none;background:var(--neutral);position:relative;cursor:pointer;flex:none;transition:background .15s;}
   .tgl::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s;}
@@ -705,8 +706,13 @@
 
       <div id="taperDoctorWrap" hidden>
         <div class="glabel">Doctor export</div>
+        <div class="seg docseg" id="docFmtSeg">
+          <button data-docfmt="summary" class="on">Summary</button>
+          <button data-docfmt="daily">Daily logs</button>
+        </div>
         <div class="breakdown">
           <div class="docrow"><label for="docFrom">From</label><input type="date" id="docFrom"></div>
+          <div class="docrow"><label for="docTo">To</label><input type="date" id="docTo"></div>
           <div class="docrow"><span>Include notes</span><button class="tgl on" id="docNotes" aria-pressed="true" aria-label="Include notes"></button></div>
         </div>
         <button class="docbtn" id="copyDoctor">Copy for doctor</button>
@@ -3434,6 +3440,14 @@
       docFromPicked = e.target.value || null;
       renderDoctor();
     });
+    document.getElementById('docTo').addEventListener('change', e => {
+      docToPicked = e.target.value || null;
+      renderDoctor();
+    });
+    document.querySelectorAll('#docFmtSeg button').forEach(b => b.addEventListener('click', () => {
+      docFormat = b.dataset.docfmt;
+      renderDoctor();
+    }));
     document.getElementById('docNotes').addEventListener('click', () => {
       docNotes = !docNotes;
       renderDoctor();
@@ -3530,12 +3544,19 @@
     if (!sessions.length) return 'G Tracker — no sessions yet';
     const idx = logDayIdx == null ? sessions.length - 1 : Math.min(logDayIdx, sessions.length - 1);
     const s = sessions[idx];
+    return `G Tracker — Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n` + sessionText(s);
+  }
+
+  // One day's log as text, everything under the title line. Shared by the Log
+  // tab's copy button and the Doctor tab's daily export, so both read the
+  // same. `notes: false` leaves out Note rows and the note on a CIWA reading.
+  function sessionText(s, { notes = true } = {}) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     const fmtDate = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const range = s.isOpen
       ? `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ongoing`
       : `${fmtDate(s.startTs)} ${fmtTime(s.startTs)} – ${fmtTime(s.endTs)}`;
-    let out = `G Tracker — Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n${range}\n`;
+    let out = `${range}\n`;
     out += `Session length   ${fmtGap(Math.round(s.durationHours * 60))}\n`;
     const allow = allowanceOf(s);
     if (allow) out += `Allowance   ${allow.text}${allow.over ? ' (over)' : ''}\n`;
@@ -3550,9 +3571,9 @@
     out += `Total cost   ${fmtPeso(s.grandCost)}\n\nTimeline\n`;
     // Every row type gets its own line here. Anything left to the dose
     // fallthrough at the bottom would copy as a fake "Dose 0.0 ml".
-    out += s.timeline.map(e => {
+    out += s.timeline.filter(e => notes || e.type !== 'note').map(e => {
       const t = fmtTime(e.timestamp);
-      const cs = e.ciwa ? ciwaSummary(e) : '';
+      const cs = e.ciwa ? ciwaSummary(notes ? e : { ...e, ciwa: { ...e.ciwa, note: undefined } }) : '';
       const ciwa = cs ? `   ${cs}` : '';
       if (isMedEntry(e)) return `${t}   ${e.name}${e.part ? ' · Part ' + e.part : ''}   ${e.mg > 0 ? e.mg + ' mg' : '—'}`;
       if (e.type === 'hr') return `${t}   Heart rate   ${e.bpm} bpm`;
@@ -4257,7 +4278,9 @@
   // and can be moved back to the first Clonazepam; notes can be left out.
   const DOCTOR_DAYS = 14;
   let docFromPicked = null;   // a From date he chose; null = 14 days ago, worked out fresh
+  let docToPicked = null;     // a To date he chose; null = today, worked out fresh
   let docNotes = true;
+  let docFormat = 'summary';  // 'summary' or 'daily'
 
   function docDefaultFrom() {
     const d = new Date();
@@ -4265,14 +4288,48 @@
     return ymdLocal(d);
   }
 
+  // The picked range as From and To strings, earliest first, so a To set
+  // before the From still reads as a range instead of an empty one.
+  function docRange() {
+    const a = docFromPicked || docDefaultFrom();
+    const b = docToPicked || ymdLocal(new Date());
+    return a <= b ? [a, b] : [b, a];
+  }
+
+  // A day belongs to the date its session started (the Wake Up), the same
+  // rule the summary uses. Every calendar date in the range gets a block,
+  // oldest first; a date with no session says "no log" so gaps show.
+  async function buildDoctorDailyText() {
+    const [fromStr, toStr] = docRange();
+    const start = new Date(fromStr + 'T00:00:00');
+    const end = new Date(toStr + 'T00:00:00');
+    const sessions = await computeSessions();
+    const fLong = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const blocks = [];
+    let logged = 0, empty = 0;
+    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const ymd = ymdLocal(d);
+      const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const daySessions = sessions.filter(s => ymdLocal(new Date(s.startTs)) === ymd);
+      if (!daySessions.length) { empty++; blocks.push(`${label} · no log\n`); continue; }
+      logged++;
+      daySessions.forEach(s => blocks.push(`${label} · Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n` + sessionText(s, { notes: docNotes })));
+    }
+    const head = `G Tracker · daily taper logs\n${fLong(start)} to ${fLong(end)} · ${logged} day${logged === 1 ? '' : 's'} logged, ${empty} with no log\n`;
+    return head + '\n' + blocks.join('\n----------\n\n');
+  }
+
   async function buildDoctorText() {
-    const fromStr = docFromPicked || docDefaultFrom();
+    if (docFormat === 'daily') return buildDoctorDailyText();
+    const [fromStr, toStr] = docRange();
     const fromTs = new Date(fromStr + 'T00:00:00').getTime();
-    const sessions = (await computeSessions()).filter(s => s.startTs >= fromTs);
+    const toEnd = new Date(toStr + 'T00:00:00');
+    toEnd.setDate(toEnd.getDate() + 1);
+    const sessions = (await computeSessions()).filter(s => s.startTs >= fromTs && s.startTs < toEnd.getTime());
     const fD = ts => new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     const fDT = ts => new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     const fromLbl = new Date(fromStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const toLbl = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const toLbl = new Date(toStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     let out = `G Tracker · doctor summary\n${fromLbl} to ${toLbl} · ${sessions.length} day${sessions.length === 1 ? '' : 's'} logged\n`;
     if (!sessions.length) return out + '\nNo days logged in this range.\n';
 
@@ -4312,6 +4369,10 @@
     const fromStr = docFromPicked || docDefaultFrom();
     const input = document.getElementById('docFrom');
     if (input.value !== fromStr) input.value = fromStr;
+    const toStr = docToPicked || ymdLocal(new Date());
+    const toInput = document.getElementById('docTo');
+    if (toInput.value !== toStr) toInput.value = toStr;
+    document.querySelectorAll('#docFmtSeg button').forEach(b => b.classList.toggle('on', b.dataset.docfmt === docFormat));
     const tgl = document.getElementById('docNotes');
     tgl.classList.toggle('on', docNotes);
     tgl.setAttribute('aria-pressed', String(docNotes));
