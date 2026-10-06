@@ -193,17 +193,24 @@
     box-shadow:0 6px 16px rgba(22,138,96,.25);transition:transform .12s;-webkit-tap-highlight-color:transparent;}
   .logbtn:active{transform:scale(.97);}
   .logbtn .mlpill{font-family:var(--mono);font-size:14px;font-weight:600;background:rgba(255,255,255,.18);padding:8px 12px;border-radius:11px;}
-  .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px;}
-  .tile{height:66px;min-width:0;padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px;}
+  .tile{height:58px;min-width:0;padding:0 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     border:none;border-radius:16px;background:var(--card);box-shadow:0 1px 2px rgba(20,20,15,.05);
-    font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;
+    font-family:var(--sans);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;
     transition:transform .12s;-webkit-tap-highlight-color:transparent;}
   .tile:active{transform:scale(.97);}
-  .tile svg{width:20px;height:20px;flex:none;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .tile svg{width:18px;height:18px;flex:none;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
   .tile span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   /* Clonazepam is held down to log "missed", so the iOS text callout and the
      selection magnifier must not claim that press first. */
   .tile.hold{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+  /* A tile's small second line: the Log Dose amount, and on BP the
+     stimulant peak window. */
+  .tile .hint{font-size:10px;font-weight:600;color:var(--mut);line-height:1;}
+  /* Log Dose keeps its green so the one dose button still stands out. */
+  .tile.go{background:#168a60;color:#fff;box-shadow:0 4px 12px rgba(22,138,96,.25);}
+  .tile.go .hint{color:rgba(255,255,255,.85);font-family:var(--mono);}
+  .tile .hint:empty{display:none;}
 
   .glabel{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 2px 9px;}
 
@@ -516,6 +523,30 @@
   .cactions button{height:48px;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--sans);}
   .cbtn-soft{flex:1;background:var(--hair-2);color:var(--ink);}
   .cbtn-go{flex:2;background:var(--ink);color:#fff;font-weight:700;}
+  .cbtn-go:disabled{opacity:.35;}
+  /* Meal and BP sheets: a time box (defaults to now, for logging after the
+     fact) and BP's three number boxes per reading. */
+  .qtime{border:1px solid var(--hair);border-radius:12px;padding:8px 12px;background:var(--bg);
+    font-family:var(--mono);font-weight:600;color:var(--ink);}
+  .bprow{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+  .bprow[hidden]{display:none;}
+  .bprow .n{font-size:11px;font-weight:700;color:var(--mut);width:14px;flex:none;}
+  .bpin{width:0;flex:1;min-width:0;height:48px;border:1px solid var(--hair);border-radius:12px;background:var(--bg);
+    text-align:center;font-family:var(--mono);font-weight:700;color:var(--ink);}
+  .bprow .sl{font-family:var(--mono);font-size:18px;color:var(--mut);}
+  .bpflag{font-size:12.5px;line-height:1.45;border-radius:11px;padding:9px 11px;margin-bottom:10px;
+    background:var(--hair-2);color:var(--txt2);}
+  .bpflag.amb{background:#fcf2e0;color:#7d520f;font-weight:600;}
+  .bpflag.red{background:#fbeaea;color:#a33636;font-weight:700;border:1.5px solid #c94a4a;}
+  .tlciwa.amb{background:#fcf2e0;color:#7d520f;font-weight:600;}
+  .smrow{border-top:1px solid var(--line2);padding-top:12px;margin-bottom:6px;}
+  .smh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .smh .nm{font-size:14px;font-weight:700;}
+  .smh .mg{font-family:var(--mono);font-size:12px;color:var(--mut);}
+  .cchips.sm2{margin-bottom:10px;}
+  .smwhy[hidden],.smother[hidden]{display:none;}
+  .smother{width:100%;border:1px solid var(--hair);border-radius:12px;padding:10px 12px;margin-bottom:10px;
+    font-family:var(--sans);color:var(--ink);background:var(--bg);}
   .csame{width:100%;height:38px;border-radius:11px;border:1.5px solid var(--hair);background:var(--surface);
     color:var(--txt2);font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;margin-bottom:14px;}
   .csame[hidden]{display:none;}
@@ -625,15 +656,17 @@
       <div class="ameds" id="activeMedsWrap" hidden></div>
       <button class="restoreCard" id="restoreMedCard" hidden>↺ Restore <span class="rname"></span></button>
 
-      <button class="logbtn" id="chipLogDose"><span>Log Dose</span><span class="mlpill" id="logDoseAmt">0.8 ml</span></button>
-
+      <!-- One grid of same-size tiles, Log Dose first. Sleep dose, Custom dose,
+           Note and the Clonazepam tile are gone: Sleep closes the night, a Note
+           goes in the Check sheet, and Clonazepam is a row in Sleep meds. -->
       <div class="tiles">
-        <button class="tile" id="chipCustom"><svg viewBox="0 0 24 24" stroke="#b07a12" aria-hidden="true"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg><span>Custom dose</span></button>
+        <button class="tile go" id="chipLogDose"><svg viewBox="0 0 24 24" stroke="#fff" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Log Dose</span><span class="hint" id="logDoseAmt">0.8 ml</span></button>
         <button class="tile" id="chipCheck"><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
-        <button class="tile" id="chipSleepDose"><svg viewBox="0 0 24 24" stroke="#0f7c75" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep dose</span></button>
+        <button class="tile" id="chipMeal"><svg viewBox="0 0 24 24" stroke="#b5642a" aria-hidden="true"><path d="M5 3v5a2 2 0 0 0 4 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2 1.2-3 3.4-3 6.5 0 1.6 1.2 2.5 3 2.5"/></svg><span>Meal</span></button>
+        <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
         <button class="tile" id="chipWakeUp"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake up</span></button>
-        <button class="tile hold" id="chipBenzo"><svg viewBox="0 0 24 24" stroke="#141517" aria-hidden="true"><g transform="rotate(-35 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/></g></svg><span id="benzoLabel">Clonazepam</span></button>
-        <button class="tile" id="chipNote"><svg viewBox="0 0 24 24" stroke="#6f6d66" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Note</span></button>
+        <button class="tile" id="chipAsleep"><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></button>
+        <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#141517" aria-hidden="true"><g transform="rotate(-35 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/></g></svg><span>Sleep meds</span></button>
       </div>
 
       <div class="btnrow meds">
@@ -804,10 +837,14 @@
 
       <div class="setgroup">
         <div class="glabel">Notifications</div>
-        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged only when you log a Sleep Dose. Dose-ready reminders are gone: with no target interval there is nothing to remind against</small></div>
+        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged only when you tap Sleep. Dose-ready reminders are gone: with no target interval there is nothing to remind against</small></div>
           <div class="field cost wide"><input type="text" id="setWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-dose"></div></div>
         <div class="setrow"><div class="sk">Medication lapse webhook URL<small>Pinged when you log Ritalin/Concerta — one alert 30 min before it wears off, one when it does</small></div>
           <div class="field cost wide"><input type="text" id="setMedWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-med-lapse"></div></div>
+        <div class="setrow"><div class="sk">BP reminder topic<small>Private ntfy topic. Each Concerta or Ritalin tap schedules a "BP check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
+          <div class="field cost wide"><input type="text" id="setBpTopic" placeholder="tap New topic" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
+        <div class="setrow"><div class="sk"></div>
+          <div style="display:flex;gap:8px"><button class="b pill" id="bpTopicNew" type="button">New topic</button><button class="b pill" id="bpTopicTest" type="button">Send test</button></div></div>
       </div>
 
       <div class="setgroup">
@@ -816,8 +853,12 @@
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Custom dose start<small id="rescueHint">Where the Custom dose stepper starts. Adjust it there in steps of 0.05</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
-        <div class="setrow"><div class="sk">Clonazepam dose<small>What one tap on the Clonazepam tile logs</small></div>
+        <div class="setrow"><div class="sk">Clonazepam dose<small>What Clonazepam logs from Sleep meds</small></div>
           <div class="field cost"><input type="number" id="setBenzoMg" step="0.05" min="0" placeholder="0.25"><span class="cur">mg</span></div></div>
+        <div class="setrow"><div class="sk">Clonidine dose<small>What Clonidine logs from Sleep meds. Blank = no mg saved</small></div>
+          <div class="field cost"><input type="number" id="setClonidineMg" step="25" min="0" placeholder="mcg"><span class="cur">mcg</span></div></div>
+        <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Sleep meds. Blank = no mg saved</small></div>
+          <div class="field cost"><input type="number" id="setQuetiapineMg" step="0.5" min="0" placeholder="mg"><span class="cur">mg</span></div></div>
         <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
           <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
@@ -1095,6 +1136,15 @@
     return best == null ? null : Math.round((beforeTs - best) / 60000);
   }
 
+  // The newest matching entry strictly before beforeTs, or null.
+  function latestBefore(data, pred, beforeTs) {
+    let best = null;
+    data.forEach(e => {
+      if (e.timestamp < beforeTs && pred(e) && (!best || e.timestamp > best.timestamp)) best = e;
+    });
+    return best;
+  }
+
   // How long a freshly opened sheet ignores taps, so the second tap of a
   // double tap cannot land on it.
   const TAP_THROUGH_MS = 350;
@@ -1108,6 +1158,11 @@
       minSinceGhb: ciwaMinutesSince(data, e => isDoseEntry(e) && Number(e.ml) > 0, nowTs),
       minSinceStim: ciwaMinutesSince(data, e => isMedEntry(e), nowTs),
     };
+    // v3.1: how long since the last meal, and how big it was, ride on every
+    // reading next to minSinceGhb and minSinceStim.
+    const meal = latestBefore(data, e => e.type === 'meal', nowTs);
+    ciwaDraft.minSinceMeal = meal ? Math.round((nowTs - meal.timestamp) / 60000) : null;
+    ciwaDraft.lastMealSize = meal ? meal.size : null;
     const lastEntry = ciwaMostRecent(data, nowTs);
     ciwaDraft.last = lastEntry ? lastEntry.ciwa : null;
     ciwaDraft.minSinceLast = lastEntry ? Math.round((nowTs - lastEntry.timestamp) / 60000) : null;
@@ -1226,6 +1281,7 @@
         <div class="chint">Optional · pick all that apply</div>
         <div class="cchips">${CIWA_FACTORS.map(facChip).join('')}</div>
       </div>
+      <div class="cnote"><input type="text" id="ciwaNote" value="${(d.note || '').replace(/"/g, '&quot;')}" placeholder="Note (optional)"></div>
       <div class="cactions${d.kind === 'sleep' ? ' bigskip' : ''}">
         <button class="cbtn-soft" id="ciwaSkip">Skip</button>
         <button class="cbtn-go" id="ciwaNext">${anyChecked ? 'Next' : 'Nothing present · Save'}</button>
@@ -1301,6 +1357,7 @@
     if (d.stage > 0) out.stage = d.stage;
     if (d.minSinceGhb != null) out.minSinceGhb = d.minSinceGhb;
     if (d.minSinceStim != null) out.minSinceStim = d.minSinceStim;
+    if (d.minSinceMeal != null) { out.minSinceMeal = d.minSinceMeal; out.lastMealSize = d.lastMealSize; }
     const note = (d.note || '').trim();
     if (note) out.note = note;
     return out;
@@ -1433,6 +1490,11 @@
   const TAPER_KEY = 'taperPlanSettings';
   const WEBHOOK_KEY = 'n8nWebhookUrl';
   const MED_WEBHOOK_KEY = 'n8nMedWebhookUrl';
+  const BP_TOPIC_KEY = 'bpNtfyTopic';
+  const BP_REMIND_KEY = 'bpReminders';
+  // Symon's topic. Never stored = this default; stored blank = reminders off.
+  const BP_TOPIC_DEFAULT = 'bp-check';
+  function bpTopic() { const t = localStorage.getItem(BP_TOPIC_KEY); return (t == null ? BP_TOPIC_DEFAULT : t).trim(); }
   const GITHUB_API = 'https://api.github.com';
 
   const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
@@ -1544,10 +1606,12 @@
   const TAPER_EVERY_DAYS = 7;
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }] — one per
   // edit to Current dose, so past weeks keep showing what was actually taken.
-  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [] };
+  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [], clonidineMg: 0.075, quetiapineMg: 25 };
   // Two later additions ride in taperPlan too, so the Gist backup carries
   // them with no change to its format:
   // benzoMg: what one Clonazepam tap logs (blank = BENZO_DEFAULT_MG).
+  // clonidineMg, quetiapineMg: what Sleep meds logs for each (blank = no mg).
+  // Their defaults (75 mcg, 25 mg) are Symon's fixed doses, as he gave them.
   // capHistory: [{ from: ms, cap }], one per change to Daily cap, oldest
   // first. A day is held to the cap in force when it ended, so lowering the
   // cap never re-judges past days, and a day from before this history began
@@ -1578,6 +1642,15 @@
 
   const isDoseEntry = (e) => !e.type || e.type === 'dose' || e.type === 'wake' || e.type === 'log' || e.type === 'sleep' || e.type === 'rescue';
   const isMedEntry = (e) => e.type === 'med';
+  // v3.1: falling asleep, a meal and a BP reading are events of their own,
+  // never doses, so none of them is in isDoseEntry and none reaches a total.
+  // 'sleep' was already taken by the Sleep dose, so falling asleep is stored
+  // as 'asleep'.
+  const isAsleep = (e) => e.type === 'asleep';
+  const MEAL_SIZES = { s: 'Small', m: 'Medium', b: 'Big' };
+  const BP_SLOTS = { pre: 'Pre-stimulant', peak: 'Stim peak', symptoms: 'Symptoms', other: 'Other' };
+  const BP_ACTS = { rested: 'Rested 5 min', talking: 'Talking / call', deepwork: 'Deep work', meal: 'After a meal', moving: 'Moving around', other: 'Other' };
+  const BP_ACTS_SHORT = { rested: 'rested', talking: 'talking', deepwork: 'deep work', meal: 'after a meal', moving: 'moving', other: 'other activity' };
   // Legacy dose entries (written before Wake Up/Sleep existed) have no type at all —
   // treat those as 'log' so old data keeps counting toward taper adherence as before.
   const doseKind = (e) => (e.type === 'wake' || e.type === 'sleep' || e.type === 'rescue') ? e.type : 'log';
@@ -1878,6 +1951,7 @@
     const tsSet = Array.isArray(ts) ? new Set(ts) : new Set([ts]);
     data = data.filter(e => !tsSet.has(e.timestamp));
     saveData(data);
+    cancelBpReminders([...tsSet]);
     if (prevSession !== undefined) {
       if (prevSession === null) localStorage.removeItem(SESSION_KEY);
       else localStorage.setItem(SESSION_KEY, prevSession);
@@ -1900,6 +1974,7 @@
 
     document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
     document.getElementById('setMedWebhookUrl').value = localStorage.getItem(MED_WEBHOOK_KEY) || '';
+    document.getElementById('setBpTopic').value = bpTopic();
 
     const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
     if (savedWearOff) { try { medWearOff = { ...medWearOff, ...JSON.parse(savedWearOff) }; } catch (e) {} }
@@ -1938,6 +2013,8 @@
       }
     }
     document.getElementById('setBenzoMg').value = getBenzoMg();
+    document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
+    document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     renderGistRow();
@@ -2008,6 +2085,9 @@
     if (medWebhookUrl) localStorage.setItem(MED_WEBHOOK_KEY, medWebhookUrl);
     else localStorage.removeItem(MED_WEBHOOK_KEY);
 
+    const bpTopic = (document.getElementById('setBpTopic').value || '').trim();
+    localStorage.setItem(BP_TOPIC_KEY, bpTopic);
+
     medWearOff = {
       concerta: parseHM(document.getElementById('setConcertaWearOff').value),
       ritalin: parseHM(document.getElementById('setRitalinWearOff').value),
@@ -2040,6 +2120,7 @@
     const lastCap = capHistory.length ? capHistory[capHistory.length - 1].cap : 0;
     if (Math.abs(newCap - lastCap) > 0.0001) capHistory.push({ from: Date.now(), cap: newCap });
     const benzoIn = parseFloat(document.getElementById('setBenzoMg').value);
+    const mgOrNull = id => { const v = parseFloat(document.getElementById(id).value); return v > 0 ? Math.round(v * 1000) / 1000 : null; };
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
       startDose: taperPlan.startDose || 0.8,
@@ -2048,6 +2129,9 @@
       adjustments: taperPlan.adjustments || [],
       capHistory,
       benzoMg: benzoIn > 0 ? Math.round(benzoIn * 1000) / 1000 : null,
+      // Typed in mcg, stored in mg like every other dose.
+      clonidineMg: mgOrNull('setClonidineMg') ? Math.round(mgOrNull('setClonidineMg')) / 1000 : null,
+      quetiapineMg: mgOrNull('setQuetiapineMg'),
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
     // records an override when the number really differs from the automatic one.
@@ -2056,6 +2140,8 @@
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     document.getElementById('setBenzoMg').value = getBenzoMg();
+    document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
+    document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
     silentBackupToGitHub();
 
     showToast('✓ Settings saved');
@@ -2263,7 +2349,9 @@
     // The sheet covers the bottom of the screen, which is exactly where the
     // toast lives, so the Undo waits until the sheet is gone rather than
     // appearing underneath it.
-    if (kind === 'wake') showToast(toast, undo);
+    // v3.1: Wake Up is followed by the BP sheet set to Pre-stimulant, so
+    // the before-stimulant reading is one tap away. Skip shows the Undo.
+    if (kind === 'wake') await openBpSheet({ slot: 'pre', skip: true, onClose: () => showToast(toast, undo) });
     else await openCiwaSheet({ kind, ts: resolvedTs, ml, onClose: () => showToast(toast, undo) });
   }
 
@@ -2286,8 +2374,9 @@
     data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost: medCost[name] || 0, timestamp: tm, durationMin: null });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
-    showToast(`Logged ${name}`, () => undoLog(tm, undefined));
+    showToast(`Logged ${name}${await stackNote(name, tm)}`, () => undoLog(tm, undefined));
     notifyN8nMedLapse(name, tm);
+    scheduleBpForEntry(data.find(e => e.timestamp === tm));
     await renderLog();
     await renderActiveMeds();
   }
@@ -2339,6 +2428,368 @@
 
   function logNote(text) {
     return logPlainEntry(ts => ({ type: 'note', timestamp: ts, text }), 'Note saved');
+  }
+
+  // ===== v3.1: Sleep, Meal, BP =====
+  // Sleep is one tap: lights out. It closes the day like a Sleep dose (see
+  // computeSessions), so it flips the awake flag the same way, and Undo puts
+  // the flag back.
+  async function logAsleep() {
+    const data = await getAllData();
+    let ts = Date.now();
+    while (data.some(e => e.timestamp === ts)) ts += 1;
+    const prevSession = localStorage.getItem(SESSION_KEY);
+    data.push({ type: 'asleep', timestamp: ts });
+    data.sort((a, b) => a.timestamp - b.timestamp);
+    saveData(data);
+    localStorage.setItem(SESSION_KEY, 'false');
+    // The Sleep dose button is gone, so Sleep sends the "day closed" ping n8n
+    // used to get from it.
+    notifyN8nDoseLogged(ts, 'sleep');
+    logDayIdx = null;
+    showToast('Sleep logged', () => undoLog(ts, prevSession));
+    await paintRing();
+    await renderLog();
+    await renderActiveMeds();
+  }
+
+  // "HH:MM" for a time box. Meal and BP default to now and can be moved back
+  // for logging after the fact. A time later than now means last night (a
+  // 11 PM meal logged at 1 AM), never tomorrow.
+  function hhmm(d) { return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+  function tsFromTimeBox(val, openedVal) {
+    if (!val || val === openedVal) return Date.now();
+    const [h, m] = val.split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    if (d.getTime() > Date.now() + 60000) d.setDate(d.getDate() - 1);
+    return d.getTime();
+  }
+
+  // Saves with a unique timestamp near ts and an Undo, like logPlainEntry,
+  // but at a chosen time rather than now.
+  async function logEventAt(build, ts, toastText) {
+    const data = await getAllData();
+    while (data.some(e => e.timestamp === ts)) ts += 1;
+    data.push(build(ts, data));
+    data.sort((a, b) => a.timestamp - b.timestamp);
+    saveData(data);
+    logDayIdx = null;
+    showToast(toastText, () => undoLog(ts, undefined));
+    await paintRing();
+    await renderLog();
+  }
+
+  function openMealSheet() {
+    const now = hhmm(new Date());
+    openQuick(`
+      <div class="chead"><h3>Meal</h3></div>
+      <div class="qsub">Never counts toward any total.</div>
+      <div class="cfield"><label for="qMealTime">Time</label><input type="time" id="qMealTime" class="qtime" value="${now}"></div>
+      <div class="cgroup">Size</div>
+      <div class="cchips">${Object.keys(MEAL_SIZES).map(k => `<button class="cchip" data-q="meal-size" data-v="${k}">${MEAL_SIZES[k]}</button>`).join('')}</div>
+      <div class="cchips"><button class="cchip fac" data-q="meal-heavy">Heavy or fatty</button></div>
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">Cancel</button>
+        <button class="cbtn-go" data-q="save-meal" id="qGo" disabled>Save meal</button>
+      </div>`, { mode: 'meal', size: null, heavy: false, openedTime: now });
+  }
+
+  function paintMealSheet() {
+    const st = quickState;
+    if (!st || st.mode !== 'meal') return;
+    document.querySelectorAll('#quickBody [data-q="meal-size"]').forEach(b => b.classList.toggle('on', b.dataset.v === st.size));
+    document.querySelector('#quickBody [data-q="meal-heavy"]').classList.toggle('on', st.heavy);
+    document.getElementById('qGo').disabled = !st.size;
+  }
+
+  // BP flags use general ACC/AHA thresholds, not Doc JD's. The category flags
+  // (130/80, 140/90, a 20+ rise at the stim peak) apply to Rested readings
+  // only: an active reading is real-world load, not a category. The 180/120
+  // and under 90/60 safety notes show on every reading, rested or not.
+  function bpFlags(b, preSys) {
+    const out = [];
+    if (!(b.sys > 0 && b.dia > 0)) return out;
+    if (b.sys >= 180 || b.dia >= 120) out.push({ lvl: 'red', text: '180/120 or higher. Recheck in 5 minutes. If still this high with chest pain, severe headache, or vision changes, get care now.' });
+    if (b.sys < 90 || b.dia < 60) out.push({ lvl: 'amb', text: 'Under 90/60. Sit or lie down.' });
+    if (b.activity !== 'rested') return out;
+    if (b.sys < 180 && b.dia < 120) {
+      if (b.sys >= 140 || b.dia >= 90) out.push({ lvl: 'amb', text: '140/90 or higher.' });
+      else if (b.sys >= 130 || b.dia >= 80) out.push({ lvl: 'grey', text: 'In the 130 to 139 / 80 to 89 range.' });
+    }
+    if (b.slot === 'peak' && preSys != null && b.sys - preSys >= 20) {
+      out.push({ lvl: 'amb', text: `Up ${b.sys - preSys} from this shift's pre-stimulant reading (${preSys}).` });
+    }
+    return out;
+  }
+  function bpWorstFlag(e) {
+    const fl = bpFlags(e, null);
+    return fl.find(f => f.lvl === 'red') || fl.find(f => f.lvl === 'amb') || fl[0] || null;
+  }
+
+  function mealText(e) { return `${MEAL_SIZES[e.size] || '?'}${e.heavy ? ' · heavy' : ''}`; }
+  function bpSubText(e) {
+    const bits = [e.pulse ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), BP_ACTS_SHORT[e.activity] || ''];
+    if (Array.isArray(e.readings) && e.readings.length > 1) bits.push(`avg of ${e.readings.length}`);
+    return bits.filter(Boolean).join(' · ');
+  }
+
+  // Plausible ranges for a box to count as filled. Wider than any flag, so a
+  // real extreme still saves; the doctor report screens the impossible ones.
+  const BP_RANGE = { sys: [40, 300], dia: [20, 200], pulse: [20, 250] };
+  function bpReadRow(r) {
+    const get = f => {
+      const el = document.querySelector(`#quickBody .bprow[data-r="${r}"] [data-f="${f}"]`);
+      const v = el ? parseInt(el.value, 10) : NaN;
+      return v >= BP_RANGE[f][0] && v <= BP_RANGE[f][1] ? v : null;
+    };
+    const any = ['sys', 'dia', 'pulse'].some(f => {
+      const el = document.querySelector(`#quickBody .bprow[data-r="${r}"] [data-f="${f}"]`);
+      return el && el.value !== '';
+    });
+    const v = [get('sys'), get('dia'), get('pulse')];
+    return { any, ok: v.every(x => x != null), v };
+  }
+
+  function bpRowHtml(r, hidden) {
+    const box = (f, ph) => `<input class="bpin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" data-f="${f}" placeholder="${ph}" aria-label="${ph}">`;
+    return `<div class="bprow" data-r="${r}"${hidden ? ' hidden' : ''}><span class="n">${r + 1}</span>${box('sys', 'SYS')}<span class="sl">/</span>${box('dia', 'DIA')}${box('pulse', 'Pulse')}</div>`;
+  }
+
+  // slot pre-sets the When chip (Wake Up opens this with Pre-stimulant).
+  // skip relabels Cancel, for the prompt that opens on its own.
+  async function openBpSheet({ slot = null, skip = false, onClose = null } = {}) {
+    const sessions = await computeSessions();
+    const cur = sessions.length ? sessions[sessions.length - 1] : null;
+    // The same shift's pre-stimulant rested reading, for the rise flag.
+    const pre = cur ? cur.bps.filter(e => e.slot === 'pre' && e.activity === 'rested').pop() : null;
+    const now = hhmm(new Date());
+    openQuick(`
+      <div class="chead"><h3>Blood pressure</h3></div>
+      <div class="qsub">Take it as you are and tag it. If you can, sit quietly 5 min and take a second one tagged Rested. Both are kept.</div>
+      ${bpRowHtml(0, false)}
+      ${bpRowHtml(1, true)}
+      <button class="csame" data-q="bp-second">+ Second reading (saves the average)</button>
+      <div id="bpFlag"></div>
+      <div class="cgroup">When</div>
+      <div class="cchips">${Object.keys(BP_SLOTS).map(k => `<button class="cchip sm" data-q="bp-slot" data-v="${k}">${BP_SLOTS[k]}</button>`).join('')}</div>
+      <div class="cgroup">What were you doing?</div>
+      <div class="cchips">${Object.keys(BP_ACTS).map(k => `<button class="cchip sm fac" data-q="bp-act" data-v="${k}">${BP_ACTS[k]}</button>`).join('')}</div>
+      <div class="cfield"><label for="qBpTime">Time</label><input type="time" id="qBpTime" class="qtime" value="${now}"></div>
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">${skip ? 'Skip' : 'Cancel'}</button>
+        <button class="cbtn-go" data-q="save-bp" id="qGo" disabled>Save</button>
+      </div>`, { mode: 'bp', slot, activity: null, second: false, preSys: pre ? pre.sys : null, openedTime: now, onClose });
+    paintBpSheet();
+  }
+
+  function bpDraft() {
+    const st = quickState;
+    const rows = [bpReadRow(0)];
+    if (st.second) rows.push(bpReadRow(1));
+    const good = rows.filter(r => r.ok).map(r => r.v);
+    const avg = i => good.length ? Math.round(good.reduce((s, v) => s + v[i], 0) / good.length) : null;
+    // Ready when row 1 is complete, and a started second row is complete too.
+    const ready = rows[0].ok && rows.every(r => r.ok || !r.any) && !!st.slot && !!st.activity;
+    return { ready, readings: good, sys: avg(0), dia: avg(1), pulse: avg(2) };
+  }
+
+  function paintBpSheet() {
+    const st = quickState;
+    if (!st || st.mode !== 'bp') return;
+    document.querySelectorAll('#quickBody [data-q="bp-slot"]').forEach(b => b.classList.toggle('on', b.dataset.v === st.slot));
+    document.querySelectorAll('#quickBody [data-q="bp-act"]').forEach(b => b.classList.toggle('on', b.dataset.v === st.activity));
+    document.querySelector('#quickBody .bprow[data-r="1"]').hidden = !st.second;
+    document.querySelector('#quickBody [data-q="bp-second"]').hidden = st.second;
+    const d = bpDraft();
+    const flags = d.sys != null ? bpFlags({ sys: d.sys, dia: d.dia, slot: st.slot, activity: st.activity }, st.preSys) : [];
+    let html = flags.map(f => `<div class="bpflag ${f.lvl}">${escapeHtml(f.text)}</div>`).join('');
+    if (d.sys != null && st.activity && st.activity !== 'rested') {
+      html += `<div class="bpflag">Active reading: kept as real-world load, not compared with the BP ranges.</div>`;
+    }
+    if (d.readings.length > 1) html = `<div class="bpflag">Average ${d.sys}/${d.dia} · pulse ${d.pulse}</div>` + html;
+    document.getElementById('bpFlag').innerHTML = html;
+    document.getElementById('qGo').disabled = !d.ready;
+  }
+
+  // Typing moves on by itself once a box cannot take another digit: "95"
+  // can only be 95, "12" may still become 120.
+  function bpAutoAdvance(el) {
+    const f = el.dataset.f;
+    const v = el.value.replace(/\D/g, '');
+    if (v !== el.value) el.value = v;
+    const full = v.length >= 3 || (v.length === 2 && Number(v) * 10 > BP_RANGE[f][1]);
+    if (!full) return;
+    const boxes = [...document.querySelectorAll('#quickBody .bprow:not([hidden]) .bpin')];
+    const next = boxes[boxes.indexOf(el) + 1];
+    if (next) next.focus(); else el.blur();
+  }
+
+  async function saveBp() {
+    const st = quickState;
+    const d = bpDraft();
+    if (!d.ready) return;
+    const ts0 = tsFromTimeBox(document.getElementById('qBpTime').value, st.openedTime);
+    const { slot, activity } = st;
+    const flags = bpFlags({ sys: d.sys, dia: d.dia, slot, activity }, st.preSys);
+    // The BP toast (with its own Undo) replaces whatever the sheet would
+    // have shown on Skip, so that is dropped here.
+    st.onClose = null;
+    closeQuick();
+    await logEventAt((ts, data) => {
+      const e = { type: 'bp', timestamp: ts, sys: d.sys, dia: d.dia, pulse: d.pulse, slot, activity, readings: d.readings };
+      const ghb = ciwaMinutesSince(data, x => isDoseEntry(x) && Number(x.ml) > 0, ts);
+      const stim = ciwaMinutesSince(data, x => isMedEntry(x), ts);
+      if (ghb != null) e.minSinceGhb = ghb;
+      if (stim != null) e.minSinceStim = stim;
+      return e;
+    }, ts0, `BP ${d.sys}/${d.dia} saved` + (flags.some(f => f.lvl === 'red') ? ' · recheck in 5 min' : ''));
+  }
+
+  // ----- Sleep meds: one button, one row per med -----
+  // Clonidine and Quetiapine are 'sleepmed', never 'med', so no mg of theirs
+  // ever reaches a stimulant total. Clonazepam stays 'benzo' (taken, or
+  // missed when Skipped), exactly the shape the old tile wrote. Nothing is
+  // pre-selected: every row is answered before Save, so the record shows
+  // what was actually taken instead of assuming it.
+  // Clonazepam joins on Oct 12, or earlier if one has already been logged.
+  const CLONAZEPAM_FROM = new Date('2026-10-12T00:00:00').getTime();
+  const SM_REASONS = ['Already drowsy', 'Forgot', 'Ran out', 'Other'];
+  const SLEEPINESS = { 1: 'Alert', 2: 'Heavy-eyed', 3: 'Falling asleep' };
+
+  // Under 1 mg reads in mcg: clonidine is 75 mcg, not 0.075 mg.
+  function doseLabel(mg) { return mg < 1 ? `${Math.round(mg * 1000)} mcg` : `${mg} mg`; }
+
+  function sleepmedSubText(e) {
+    const bits = [];
+    if (!e.taken && e.reason) bits.push(e.reason.toLowerCase());
+    if (e.sleepiness) bits.push(`sleepiness ${e.sleepiness}`);
+    return bits.join(' · ');
+  }
+
+  async function openSleepMedsSheet() {
+    const all = await getAllData();
+    const rows = [
+      { k: 'clonidine', name: 'Clonidine', mg: taperPlan.clonidineMg || null },
+      { k: 'quetiapine', name: 'Quetiapine', mg: taperPlan.quetiapineMg || null },
+    ];
+    if (Date.now() >= CLONAZEPAM_FROM || all.some(e => e.type === 'benzo' && !e.missed)) {
+      rows.push({ k: 'clonazepam', name: BENZO_NAME, mg: getBenzoMg() });
+    }
+    const rowHtml = r => `
+      <div class="smrow" data-k="${r.k}">
+        <div class="smh"><span class="nm">${r.name}</span><span class="mg">${r.mg ? doseLabel(r.mg) : ''}</span></div>
+        <div class="cchips sm2">
+          <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="1">Taken</button>
+          <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="0">Skipped</button>
+        </div>
+        <div class="smwhy" hidden>
+          <div class="cchips sm2">${SM_REASONS.map(t => `<button class="cchip sm fac" data-q="sm-why" data-k="${r.k}" data-v="${t}">${t}</button>`).join('')}</div>
+          <input type="text" class="smother" data-k="${r.k}" placeholder="What happened?" hidden>
+          ${r.k === 'clonidine' ? `<div class="bpflag">Log BP tonight and tomorrow. Stopping clonidine suddenly can cause rebound BP and HR. (General clinical caution, not Doc JD's.)</div>` : ''}
+        </div>
+      </div>`;
+    openQuick(`
+      <div class="chead"><h3>Sleep meds</h3></div>
+      <div class="qsub">Answer every row. Nothing is pre-selected.</div>
+      <div class="cgroup">Sleepiness now</div>
+      <div class="cchips">${Object.keys(SLEEPINESS).map(n => `<button class="cchip sm" data-q="sm-sleepy" data-v="${n}">${n} ${SLEEPINESS[n]}</button>`).join('')}</div>
+      ${rows.map(rowHtml).join('')}
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">Cancel</button>
+        <button class="cbtn-go" data-q="save-sm" id="qGo" disabled>Save</button>
+      </div>`, { mode: 'smeds', rows, ans: {}, why: {}, sleepiness: null });
+  }
+
+  function paintSleepMeds() {
+    const st = quickState;
+    if (!st || st.mode !== 'smeds') return;
+    document.querySelectorAll('#quickBody [data-q="sm-sleepy"]').forEach(b => b.classList.toggle('on', Number(b.dataset.v) === st.sleepiness));
+    st.rows.forEach(r => {
+      const box = document.querySelector(`#quickBody .smrow[data-k="${r.k}"]`);
+      box.querySelectorAll('[data-q="sm-ans"]').forEach(b => b.classList.toggle('on', st.ans[r.k] === (b.dataset.v === '1')));
+      box.querySelector('.smwhy').hidden = st.ans[r.k] !== false;
+      box.querySelectorAll('[data-q="sm-why"]').forEach(b => b.classList.toggle('on', st.why[r.k] === b.dataset.v));
+      box.querySelector('.smother').hidden = st.why[r.k] !== 'Other';
+    });
+    document.getElementById('qGo').disabled = !st.rows.every(r => typeof st.ans[r.k] === 'boolean');
+  }
+
+  // force: the "Log another?" ask was answered, so Clonazepam saves anyway.
+  // skipBenzo: it was answered "Save without it".
+  async function saveSleepMeds({ force = false, skipBenzo = false } = {}) {
+    const st = quickState;
+    if (!st || st.mode !== 'smeds') return;
+    const all = await getAllData();
+    const benzoRow = st.rows.find(r => r.k === 'clonazepam');
+    // Same guard the Clonazepam tile had: a second one the same day is
+    // asked about first.
+    if (benzoRow && st.ans.clonazepam === true && !force && !skipBenzo) {
+      const taken = benzoTakenToday(all, await computeSessions());
+      if (taken.length) {
+        const at = new Date(taken[taken.length - 1].timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        st.held = document.getElementById('quickBody').innerHTML;
+        st.asking = true;
+        document.getElementById('quickBody').innerHTML = `
+          <div class="chead"><h3>Log another?</h3></div>
+          <div class="qsub">${BENZO_NAME} already logged today at ${at}. Don't double up to catch up.</div>
+          <div class="cactions">
+            <button class="cbtn-soft" data-q="sm-benzo-again" style="flex:1">Log another</button>
+            <button class="cbtn-go" data-q="sm-benzo-skip" style="flex:2">Save without it</button>
+          </div>`;
+        return;
+      }
+    }
+    const reasonOf = k => {
+      if (st.ans[k] !== false || !st.why[k]) return null;
+      if (st.why[k] !== 'Other') return st.why[k];
+      const el = document.querySelector(`#quickBody .smother[data-k="${k}"]`);
+      const txt = (st.otherText && st.otherText[k]) || (el ? el.value.trim() : '');
+      return txt ? `Other: ${txt}` : 'Other';
+    };
+    const reasons = {};
+    st.rows.forEach(r => { reasons[r.k] = reasonOf(r.k); });
+    const { rows, ans, sleepiness } = st;
+    closeQuick();
+    let ts = Date.now();
+    const stamps = [];
+    rows.forEach(r => {
+      if (r.k === 'clonazepam' && skipBenzo) return;
+      while (all.some(e => e.timestamp === ts)) ts += 1;
+      const e = r.k === 'clonazepam'
+        ? { type: 'benzo', name: BENZO_NAME, mg: r.mg, timestamp: ts, missed: !ans[r.k] }
+        : { type: 'sleepmed', name: r.name, timestamp: ts, taken: ans[r.k] };
+      if (r.k !== 'clonazepam' && r.mg) e.mg = r.mg;
+      if (reasons[r.k]) e.reason = reasons[r.k];
+      if (sleepiness) e.sleepiness = sleepiness;
+      all.push(e);
+      stamps.push(ts);
+      ts += 1;
+    });
+    all.sort((a, b) => a.timestamp - b.timestamp);
+    saveData(all);
+    logDayIdx = null;
+    const skipped = rows.filter(r => ans[r.k] === false && !(r.k === 'clonazepam' && skipBenzo)).length;
+    showToast(`Sleep meds saved${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps, undefined));
+    await paintRing();
+    await renderLog();
+  }
+
+  // The BP tile's second line: Concerta's expected peak, 6 to 8 h after the
+  // last Concerta, shown until that window has passed.
+  async function paintBpHint() {
+    const el = document.getElementById('bpHint');
+    if (!el) return;
+    const data = await getAllData();
+    const c = latestBefore(data, e => isMedEntry(e) && /^Concerta/.test(e.name || '') && e.mg > 0, Date.now() + 1);
+    const from = c ? c.timestamp + 6 * 3600000 : 0, to = c ? c.timestamp + 8 * 3600000 : 0;
+    if (!c || Date.now() > to) { el.textContent = ''; return; }
+    const part = d => {
+      const h = d.getHours() % 12 || 12, m = d.getMinutes();
+      return { t: m ? `${h}:${String(m).padStart(2, '0')}` : `${h}`, ap: d.getHours() < 12 ? 'AM' : 'PM' };
+    };
+    const a = part(new Date(from)), b = part(new Date(to));
+    // Just the times, to fit a quarter-width tile: "3:50-5:50 AM".
+    el.textContent = a.ap === b.ap ? `${a.t}-${b.t} ${b.ap}` : `${a.t}${a.ap}-${b.t}${b.ap}`;
   }
 
   // A second Clonazepam the same day is allowed, but asked about first.
@@ -2398,8 +2849,10 @@
   }
 
   function closeQuick() {
+    const cb = quickState && quickState.onClose;
     document.getElementById('quickModal').hidden = true;
     quickState = null;
+    if (cb) cb();
   }
 
   // Stepper bounds in hundredths of a ml, so repeated steps never drift to
@@ -2466,7 +2919,18 @@
       if (performance.now() - quickState.openedAt < TAP_THROUGH_MS) return;
       const note = document.getElementById('qNote');
       if (quickState.mode === 'note' && note && note.value.trim()) { note.blur(); return; }
+      // Same for a BP with a number typed in: the dim tap drops the keyboard.
+      if (quickState.mode === 'bp' && bpReadRow(0).any) { document.activeElement && document.activeElement.blur(); return; }
       closeQuick();
+    });
+    document.getElementById('quickBody').addEventListener('input', ev => {
+      if (quickState && quickState.mode === 'smeds' && ev.target.classList.contains('smother')) {
+        quickState.otherText = { ...(quickState.otherText || {}), [ev.target.dataset.k]: ev.target.value.trim() };
+        return;
+      }
+      if (!quickState || quickState.mode !== 'bp' || !ev.target.classList.contains('bpin')) return;
+      bpAutoAdvance(ev.target);
+      paintBpSheet();
     });
     document.getElementById('quickBody').addEventListener('click', async ev => {
       const btn = ev.target.closest('[data-q]');
@@ -2498,7 +2962,40 @@
       if (q === 'benzo-again') {
         closeQuick();
         await logBenzo(false);
+        return;
       }
+      if (q === 'meal-size') { quickState.size = btn.dataset.v; paintMealSheet(); return; }
+      if (q === 'meal-heavy') { quickState.heavy = !quickState.heavy; paintMealSheet(); return; }
+      if (q === 'save-meal') {
+        const { size, heavy, openedTime } = quickState;
+        if (!size) return;
+        const ts0 = tsFromTimeBox(document.getElementById('qMealTime').value, openedTime);
+        closeQuick();
+        await logEventAt(ts => ({ type: 'meal', timestamp: ts, size, heavy }), ts0, `Meal logged · ${MEAL_SIZES[size]}${heavy ? ' · heavy' : ''}`);
+        return;
+      }
+      if (q === 'bp-slot') { quickState.slot = btn.dataset.v; paintBpSheet(); return; }
+      if (q === 'bp-act') { quickState.activity = btn.dataset.v; paintBpSheet(); return; }
+      if (q === 'bp-second') {
+        quickState.second = true;
+        paintBpSheet();
+        const first = document.querySelector('#quickBody .bprow[data-r="1"] .bpin');
+        if (first) first.focus();
+        return;
+      }
+      if (q === 'save-bp') { await saveBp(); return; }
+      if (q === 'sm-sleepy') { const n = Number(btn.dataset.v); quickState.sleepiness = quickState.sleepiness === n ? null : n; paintSleepMeds(); return; }
+      if (q === 'sm-ans') { quickState.ans[btn.dataset.k] = btn.dataset.v === '1'; paintSleepMeds(); return; }
+      if (q === 'sm-why') {
+        const k = btn.dataset.k;
+        quickState.why[k] = quickState.why[k] === btn.dataset.v ? null : btn.dataset.v;
+        paintSleepMeds();
+        if (quickState.why[k] === 'Other') { const el = document.querySelector(`#quickBody .smother[data-k="${k}"]`); if (el) el.focus(); }
+        return;
+      }
+      if (q === 'save-sm') { await saveSleepMeds(); return; }
+      if (q === 'sm-benzo-again') { await saveSleepMeds({ force: true }); return; }
+      if (q === 'sm-benzo-skip') { await saveSleepMeds({ skipBenzo: true }); return; }
     });
   }
 
@@ -2524,10 +3021,137 @@
     data.push({ type: 'med', name: 'Ritalin 20', mg: 10, part: 2, cl, cost: cost2, timestamp: tm2, durationMin: null });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
-    showToast('Logged Ritalin 20 LA', () => undoLog([tm, tm2], undefined));
+    showToast(`Logged Ritalin 20 LA${await stackNote('Ritalin 20', tm)}`, () => undoLog([tm, tm2], undefined));
     notifyN8nMedLapse('Ritalin 20', tm);
+    data.filter(e => e.timestamp === tm || e.timestamp === tm2).forEach(scheduleBpForEntry);
     await renderLog();
     await renderActiveMeds();
+  }
+
+  // ===== BP peak reminders (ntfy) =====
+  // Each stimulant tap schedules one "BP check" at its LABEL peak (the heart
+  // follows blood level, not the felt effect). The PWA posts straight to
+  // ntfy.sh with an At time, so nothing runs on n8n. Every reminder carries
+  // its own sequence id, so Undo, Delete or a time edit can cancel it before
+  // it fires. Text stays generic: no drug names, no numbers.
+  // Peak offsets, minutes after the entry's own timestamp. Ritalin 20 LA is
+  // stored as two entries (part 2 is tm+1), so each part gets its own peak:
+  // part 1 at +1.5 h, part 2 at +5.5 h after the capsule.
+  function bpPeakMin(e) {
+    if (!e || e.type !== 'med' || !(e.mg > 0)) return null;
+    if (/^Concerta/.test(e.name)) return 390;
+    if (e.name === 'Ritalin 20') return e.part === 2 ? 330 : 90;
+    if (/^Ritalin/.test(e.name)) return 90;
+    return null;
+  }
+  function bpReminderList() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(BP_REMIND_KEY) || '[]'); } catch (e) {}
+    // Fired more than 2 h ago: nothing left to cancel or prompt for.
+    return list.filter(r => r.at > Date.now() - 2 * 3600000);
+  }
+  function saveBpReminderList(list) { localStorage.setItem(BP_REMIND_KEY, JSON.stringify(list)); }
+  function ntfyTopicUrl() {
+    const t = bpTopic();
+    return t ? `https://ntfy.sh/${encodeURIComponent(t)}` : null;
+  }
+  function clockText(ts) { return new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); }
+
+  // One at a time: Ritalin 20 LA schedules two at once, and two overlapping
+  // read-then-save rounds on the list would drop one of them.
+  let bpQueue = Promise.resolve();
+  function scheduleBpForEntry(e) { bpQueue = bpQueue.then(() => scheduleBpNow(e)); return bpQueue; }
+  function cancelBpReminders(tsList) { bpQueue = bpQueue.then(() => cancelBpNow(tsList)); return bpQueue; }
+
+  async function scheduleBpNow(e) {
+    const url = ntfyTopicUrl();
+    const off = bpPeakMin(e);
+    if (!url || off == null) return;
+    const at = e.timestamp + off * 60000;
+    // ntfy needs at least 10 s ahead and at most 3 days.
+    if (at < Date.now() + 60000 || at > Date.now() + 3 * 86400000) return;
+    const list = bpReminderList();
+    // Reminders within 30 min of each other merge into one.
+    const near = list.find(r => Math.abs(r.at - at) <= 30 * 60000);
+    if (near) {
+      if (!near.medTs.includes(e.timestamp)) near.medTs.push(e.timestamp);
+      saveBpReminderList(list);
+      return;
+    }
+    const rnd = new Uint8Array(8); crypto.getRandomValues(rnd);
+    const seq = 'bp' + [...rnd].map(b => b.toString(36).padStart(2, '0')).join('');
+    try {
+      const res = await fetch(`${url}/${seq}`, {
+        method: 'POST',
+        body: 'Stimulant peak. Open G Tracker and log it.',
+        headers: {
+          'Title': 'BP check',
+          'Tags': 'heart',
+          'At': String(Math.round(at / 1000)),
+          'Actions': `http, Snooze 15 min, ${url}, method=POST, headers.In=15m, headers.Title=BP check, body=Snoozed stimulant peak. Open G Tracker and log it., clear=true`,
+        },
+      });
+      if (!res.ok) throw new Error(res.status);
+      list.push({ seq, at, medTs: [e.timestamp] });
+      saveBpReminderList(list);
+    } catch (err) {
+      showToast('BP reminder not scheduled (offline?)');
+    }
+  }
+
+  // tsList: entries that were undone, deleted or moved. A reminder whose
+  // every entry is gone is cancelled. If ntfy refuses the cancel, a short
+  // "ignore" note goes out instead, so a stray reminder is never a mystery.
+  async function cancelBpNow(tsList) {
+    const url = ntfyTopicUrl();
+    let list = bpReminderList();
+    const gone = new Set(tsList);
+    const drop = [];
+    list.forEach(r => {
+      if (!r.medTs.some(t => gone.has(t))) return;
+      r.medTs = r.medTs.filter(t => !gone.has(t));
+      if (!r.medTs.length) drop.push(r);
+    });
+    list = list.filter(r => !drop.includes(r));
+    saveBpReminderList(list);
+    if (!url) return;
+    for (const r of drop) {
+      if (r.at <= Date.now()) continue;
+      try {
+        const res = await fetch(`${url}/${r.seq}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(res.status);
+      } catch (err) {
+        fetch(url, { method: 'POST', body: `Ignore the BP check due at ${clockText(r.at)}.`, headers: { 'Title': 'BP check cancelled' } }).catch(() => {});
+      }
+    }
+  }
+
+  // Opening the app within an hour after a reminder fired, with no BP logged
+  // since, opens the BP sheet on Stim peak. This is the "Log now": a tap on
+  // an iPhone notification can't open the home screen app itself.
+  async function bpReminderPrompt() {
+    if (quickState) return;
+    const list = bpReminderList();
+    const now = Date.now();
+    const due = list.find(r => !r.prompted && r.at <= now && now - r.at <= 3600000);
+    if (!due) return;
+    due.prompted = true;
+    saveBpReminderList(list);
+    const data = await getAllData();
+    if (data.some(e => e.type === 'bp' && e.timestamp >= due.at - 30 * 60000)) return;
+    openBpSheet({ slot: 'peak' });
+  }
+
+  // Information only, never blocks: a Ritalin tapped inside Concerta's peak
+  // window (6 to 8 h after it) stacks on that peak.
+  async function stackNote(name, ts) {
+    if (!/^Ritalin/.test(name)) return '';
+    const data = await getAllData();
+    const c = latestBefore(data, e => isMedEntry(e) && /^Concerta/.test(e.name || '') && e.mg > 0, ts);
+    if (!c) return '';
+    const from = c.timestamp + 6 * 3600000, to = c.timestamp + 8 * 3600000;
+    if (ts < from || ts > to) return '';
+    return `. Concerta peak window until ${clockText(to)}. This dose will stack on it`;
   }
 
   // Pings a SEPARATE webhook from the GHB dose reminder — different topic,
@@ -2860,6 +3484,7 @@
   // it used to carry lives in History → Daily.
   async function renderLog() {
     await renderCurrentSession();
+    await paintBpHint();
   }
 
 
@@ -2869,7 +3494,9 @@
     const d = new Date(ts);
     document.getElementById('editDate').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('editTime').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    const titles = { dose: 'Edit Dose', check: 'Edit Check', note: 'Edit Note', benzo: 'Edit Clonazepam' };
+    // Sleep, Meal and BP edit their time here; a wrong size or reading is
+    // fixed by deleting the row and logging it again.
+    const titles = { dose: 'Edit Dose', check: 'Edit Check', note: 'Edit Note', benzo: 'Edit Clonazepam', asleep: 'Edit Sleep', meal: 'Edit Meal', bp: 'Edit BP', sleepmed: 'Edit Sleep med' };
     document.getElementById('editModalTitle').textContent = titles[kind] || 'Edit Med';
     const textGroup = document.getElementById('editTextGroup');
     const textEl = document.getElementById('editText');
@@ -2963,6 +3590,11 @@
     }
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
+    // A stimulant moved in time moves its BP reminder with it.
+    if (entry.type === 'med' && newTs !== editingTs) {
+      cancelBpReminders([editingTs]);
+      scheduleBpForEntry({ ...entry, timestamp: newTs });
+    }
     showToast('✓ Updated');
     closeEntryEdit();
     await refreshActiveView();
@@ -2993,6 +3625,7 @@
     let data = await getAllData();
     data = data.filter(e => e.timestamp !== ts);
     saveData(data);
+    cancelBpReminders([ts]);
     showToast('✓ Entry deleted');
     await refreshActiveView();
   }
@@ -3261,8 +3894,10 @@
     // accumulated interval ticks: iOS suspends the timers outright while the
     // PWA is backgrounded, so the ring, countdown and medication states can
     // all be minutes stale at the moment it comes back.
+    bpReminderPrompt();
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
+      bpReminderPrompt();
       silentBackupToGitHub();
       checkHeartRateMailbox();
       paintRing();
@@ -3322,18 +3957,32 @@
       const target = getTaperTargetForDate(new Date());
       logDose(target != null ? target : taperPlan.startDose, undefined, 'log');
     });
-    document.getElementById('chipSleepDose').addEventListener('click', () => {
-      const target = getTaperTargetForDate(new Date());
-      logDose(target != null ? target : taperPlan.startDose, undefined, 'sleep');
-    });
-    document.getElementById('chipCustom').addEventListener('click', () => openCustomSheet());
-    document.getElementById('chipNote').addEventListener('click', () => openNoteSheet());
-    attachBenzoHold(document.getElementById('chipBenzo'));
+    document.getElementById('chipAsleep').addEventListener('click', () => logAsleep());
+    document.getElementById('chipMeal').addEventListener('click', () => openMealSheet());
+    document.getElementById('chipBp').addEventListener('click', () => openBpSheet());
+    document.getElementById('chipSleepMeds').addEventListener('click', () => openSleepMedsSheet());
     initQuickSheet();
 
     document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
     document.getElementById('chipRitalin20').addEventListener('click', () => logRitalin20LA());
+    // A long random name is the privacy: anyone who knows a ntfy topic can read it.
+    document.getElementById('bpTopicNew').addEventListener('click', () => {
+      const rnd = new Uint8Array(12); crypto.getRandomValues(rnd);
+      const t = 'gt-' + [...rnd].map(b => b.toString(36).padStart(2, '0')).join('');
+      document.getElementById('setBpTopic').value = t;
+      localStorage.setItem(BP_TOPIC_KEY, t);
+      showToast('New topic saved. Subscribe to it in ntfy');
+    });
+    document.getElementById('bpTopicTest').addEventListener('click', async () => {
+      const t = (document.getElementById('setBpTopic').value || '').trim();
+      if (!t) { showToast('Tap New topic first'); return; }
+      localStorage.setItem(BP_TOPIC_KEY, t);
+      try {
+        const res = await fetch(`https://ntfy.sh/${encodeURIComponent(t)}`, { method: 'POST', body: 'Test from G Tracker. BP reminders will look like this.', headers: { 'Title': 'BP check', 'Tags': 'heart' } });
+        showToast(res.ok ? 'Test sent' : 'Test failed');
+      } catch (err) { showToast('Test failed (offline?)'); }
+    });
 
     document.getElementById('prevLogDay').addEventListener('click', async () => {
       const sessions = await computeSessions();
@@ -3579,7 +4228,14 @@
       if (e.type === 'hr') return `${t}   Heart rate   ${e.bpm} bpm`;
       if (e.type === 'check') return `${t}   Check${ciwa}`;
       if (e.type === 'note') return `${t}   Note   ${String(e.text || '').replace(/\s*\n\s*/g, ' / ')}`;
-      if (e.type === 'benzo') return `${t}   ${e.name || 'Clonazepam'}   ${e.missed ? 'missed' : e.mg + ' mg'}`;
+      if (e.type === 'benzo') return `${t}   ${e.name || 'Clonazepam'}   ${e.missed ? 'missed' : e.mg + ' mg'}${e.reason ? ' (' + e.reason.toLowerCase() + ')' : ''}`;
+      if (isAsleep(e)) return `${t}   Sleep`;
+      if (e.type === 'meal') return `${t}   Meal   ${mealText(e)}`;
+      if (e.type === 'sleepmed') {
+        const sub = sleepmedSubText(e);
+        return `${t}   ${e.name}   ${e.taken ? 'taken' + (e.mg > 0 ? ' ' + doseLabel(e.mg) : '') : 'skipped'}${sub ? ' · ' + sub : ''}`;
+      }
+      if (e.type === 'bp') return `${t}   BP   ${e.sys}/${e.dia} · ${bpSubText(e)}`;
       const kind = doseKind(e);
       const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : e.custom ? 'Custom' : 'Dose';
       return `${t}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}${ciwa}`;
@@ -3632,7 +4288,10 @@
   // data to retroactively group.
   async function computeSessions() {
     const allData = await getAllData();
-    const doses = allData.filter(isDoseEntry).slice().sort((a, b) => a.timestamp - b.timestamp);
+    // Sleep events ride the dose stream only because they close a day the
+    // way a Sleep dose does; the loop below takes them out before any ml
+    // bucket sees them.
+    const doses = allData.filter(e => isDoseEntry(e) || isAsleep(e)).slice().sort((a, b) => a.timestamp - b.timestamp);
     const meds = allData.filter(isMedEntry);
     const hrReadings = getHeartRateLog().map(r => ({ type: 'hr', timestamp: r.ts, bpm: r.bpm }));
     // Checks carry a CIWA score and no dose, so they are deliberately NOT in
@@ -3645,13 +4304,31 @@
     // 'benzo' type precisely so isMedEntry never picks it up.
     const notes = allData.filter(e => e.type === 'note');
     const benzos = allData.filter(e => e.type === 'benzo');
+    const meals = allData.filter(e => e.type === 'meal');
+    const bps = allData.filter(e => e.type === 'bp');
+    const sleepmeds = allData.filter(e => e.type === 'sleepmed');
 
     const sessions = [];
     let current = null;
     doses.forEach(e => {
+      // Sleep closes an open day the same way a Sleep dose does. One tapped
+      // after the day already closed (Sleep dose first, then lights out)
+      // joins that night and does not move its end, the same rule a top-up
+      // after the Sleep dose follows. Before the first-ever Wake Up it is
+      // pre-feature history and is dropped like any other entry there.
+      if (isAsleep(e)) {
+        if (current) {
+          current.asleeps.push(e);
+          current.endTs = e.timestamp;
+          current = null;
+        } else if (sessions.length) {
+          sessions[sessions.length - 1].asleeps.push(e);
+        }
+        return;
+      }
       const kind = doseKind(e);
       if (kind === 'wake') {
-        current = { startTs: e.timestamp, endTs: null, wake: e, logs: [], sleeps: [], rescues: [], implicit: false };
+        current = { startTs: e.timestamp, endTs: null, wake: e, logs: [], sleeps: [], rescues: [], asleeps: [], implicit: false };
         sessions.push(current);
         return;
       }
@@ -3680,7 +4357,7 @@
         // A Log Dose with no session open means Wake Up was never pressed.
         // Start the day at that dose rather than dropping it — a whole night
         // of doses used to vanish from Log, Taper and adherence entirely.
-        current = { startTs: e.timestamp, endTs: null, wake: null, logs: [], sleeps: [], rescues: [], implicit: true };
+        current = { startTs: e.timestamp, endTs: null, wake: null, logs: [], sleeps: [], rescues: [], asleeps: [], implicit: true };
         sessions.push(current);
       }
       if (kind === 'log') current.logs.push(e);
@@ -3725,6 +4402,9 @@
       const checksInSession = checks.filter(inDay);
       const notesInSession = notes.filter(inDay);
       const benzosInSession = benzos.filter(inDay);
+      const mealsInSession = meals.filter(inDay);
+      const bpsInSession = bps.filter(inDay);
+      const sleepmedsInSession = sleepmeds.filter(inDay);
       const isRitalin = m => m.name === 'Ritalin 5' || m.name === 'Ritalin 10' || m.name === 'Ritalin 20';
       const isConcerta = m => m.name === 'Concerta 27' || m.name === 'Concerta 36';
       const ritalinMg = medsInSession.filter(isRitalin).reduce((sum, m) => sum + (m.mg || 0), 0);
@@ -3745,8 +4425,13 @@
       // there is no previous session, when that session never logged a sleep
       // dose, or when edited timestamps put bedtime after the wake, since in
       // each case there is nothing honest to measure.
-      const prevSleeps = i > 0 ? sessions[i - 1].sleeps : null;
-      const bedTs = prevSleeps && prevSleeps.length ? prevSleeps[0].timestamp : null;
+      // v3.1: a Sleep event is the real lights-out, so the LAST one of the
+      // previous day wins (a Sleep tapped, up again, Sleep tapped later).
+      // With none logged it falls back to the first Sleep dose, as before.
+      const prevS = i > 0 ? sessions[i - 1] : null;
+      const bedTs = !prevS ? null
+        : prevS.asleeps.length ? prevS.asleeps[prevS.asleeps.length - 1].timestamp
+        : prevS.sleeps.length ? prevS.sleeps[0].timestamp : null;
       const sleepHours = bedTs != null && s.startTs > bedTs
         ? (s.startTs - bedTs) / 3600000
         : null;
@@ -3755,7 +4440,7 @@
       // adherence. Meds are included so their times are visible here too.
       // Each entry's own `trigger` field (if any) rides along here and is
       // rendered inline on its row in sessionCardHtml — not aggregated.
-      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession, ...notesInSession, ...benzosInSession]
+      const timeline = [...(s.wake ? [s.wake] : []), ...s.logs, ...s.sleeps, ...s.rescues, ...medsInSession, ...hrInSession, ...checksInSession, ...notesInSession, ...benzosInSession, ...s.asleeps, ...mealsInSession, ...bpsInSession, ...sleepmedsInSession]
         .sort((a, b) => a.timestamp - b.timestamp);
       // The day's CIWA picture for Taper and the doctor export: every scored
       // reading, from a dose or a Check.
@@ -3781,6 +4466,7 @@
         ciwaReads, ciwaMax, ciwaAvg, checkCount: checksInSession.length,
         benzoTaken: benzosInSession.filter(e => !e.missed), benzoMissed: benzosInSession.filter(e => e.missed),
         notes: notesInSession, avgGapMin,
+        asleeps: s.asleeps, meals: mealsInSession, bps: bpsInSession, sleepmeds: sleepmedsInSession,
         targetDose: getTaperTargetForDate(new Date(s.startTs)),
         timeline
       };
@@ -3870,6 +4556,19 @@
       if (e.type === 'note') {
         const first = String(e.text || '').split('\n')[0];
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="note"><span class="sllabel">${fmtTime(e.timestamp)} · Note</span><span></span></div><div class="slciwa tlnote">${escapeHtml(first)}</div>`;
+      }
+      if (isAsleep(e)) {
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="asleep"><span class="sllabel">${fmtTime(e.timestamp)} · Sleep</span><span>&mdash;</span></div>`;
+      }
+      if (e.type === 'sleepmed') {
+        const sub = sleepmedSubText(e);
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="sleepmed"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.taken ? (e.mg > 0 ? doseLabel(e.mg) : 'taken') : 'skipped'}</span></div>${sub ? `<div class="slciwa">${escapeHtml(sub)}</div>` : ''}`;
+      }
+      if (e.type === 'meal') {
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="meal"><span class="sllabel">${fmtTime(e.timestamp)} · Meal</span><span>${escapeHtml(mealText(e))}</span></div>`;
+      }
+      if (e.type === 'bp') {
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="bp"><span class="sllabel">${fmtTime(e.timestamp)} · BP</span><span>${e.sys}/${e.dia}</span></div><div class="slciwa">${escapeHtml(bpSubText(e))}</div>`;
       }
       if (e.type === 'benzo') {
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="benzo"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name || 'Clonazepam')}</span><span>${e.missed ? 'missed' : e.mg + ' mg'}</span></div>`;
@@ -4010,6 +4709,40 @@
         <span class="tltime">${fmtTime(e.timestamp)}</span>
         <div class="tlbody"><div class="tltext">${escapeHtml(e.name || 'Clonazepam')}</div></div>
         <span class="tlamt">${e.missed ? 'missed' : e.mg + ' mg'}</span>
+      </div>`;
+    }
+    if (isAsleep(e)) {
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="asleep">
+        <span class="tldot" style="background:#5a5fa8"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Sleep</div></div>
+        <span class="tlamt">&mdash;</span>
+      </div>`;
+    }
+    if (e.type === 'sleepmed') {
+      const sub = sleepmedSubText(e);
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="sleepmed">
+        <span class="tldot" style="background:${e.taken ? 'var(--ink)' : 'var(--neutral)'}"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}</div>${sub ? `<div class="tlciwa">${escapeHtml(sub)}</div>` : ''}</div>
+        <span class="tlamt">${e.taken ? (e.mg > 0 ? doseLabel(e.mg) : 'taken') : 'skipped'}</span>
+      </div>`;
+    }
+    if (e.type === 'meal') {
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="meal">
+        <span class="tldot" style="background:#b5642a"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Meal</div></div>
+        <span class="tlamt">${escapeHtml(mealText(e))}</span>
+      </div>`;
+    }
+    if (e.type === 'bp') {
+      const fl = bpWorstFlag(e);
+      return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="bp">
+        <span class="tldot" style="background:${fl && fl.lvl === 'red' ? 'var(--red)' : '#c4425e'}"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">BP</div><div class="tlciwa${fl && fl.lvl === 'red' ? ' hard' : fl && fl.lvl === 'amb' ? ' amb' : ''}">${escapeHtml(bpSubText(e))}</div></div>
+        <span class="tlamt">${e.sys}/${e.dia}</span>
       </div>`;
     }
     if (isMedEntry(e)) {
