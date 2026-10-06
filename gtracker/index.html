@@ -837,11 +837,7 @@
 
       <div class="setgroup">
         <div class="glabel">Notifications</div>
-        <div class="setrow"><div class="sk">n8n webhook URL<small>Pinged only when you tap Sleep. Dose-ready reminders are gone: with no target interval there is nothing to remind against</small></div>
-          <div class="field cost wide"><input type="text" id="setWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-dose"></div></div>
-        <div class="setrow"><div class="sk">Medication lapse webhook URL<small>Pinged when you log Ritalin/Concerta — one alert 30 min before it wears off, one when it does</small></div>
-          <div class="field cost wide"><input type="text" id="setMedWebhookUrl" placeholder="https://your-n8n.example.com/webhook/g-med-lapse"></div></div>
-        <div class="setrow"><div class="sk">BP reminder topic<small>Private ntfy topic. Each Concerta or Ritalin tap schedules a "BP check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
+        <div class="setrow"><div class="sk">BP reminder topic<small>ntfy topic. Each Concerta or Ritalin tap schedules a "BP Check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
           <div class="field cost wide"><input type="text" id="setBpTopic" placeholder="tap New topic" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
         <div class="setrow"><div class="sk"></div>
           <div style="display:flex;gap:8px"><button class="b pill" id="bpTopicNew" type="button">New topic</button><button class="b pill" id="bpTopicTest" type="button">Send test</button></div></div>
@@ -1488,13 +1484,17 @@
     return parts.join(' · ');
   }
   const TAPER_KEY = 'taperPlanSettings';
-  const WEBHOOK_KEY = 'n8nWebhookUrl';
-  const MED_WEBHOOK_KEY = 'n8nMedWebhookUrl';
   const BP_TOPIC_KEY = 'bpNtfyTopic';
   const BP_REMIND_KEY = 'bpReminders';
   // Symon's topic. Never stored = this default; stored blank = reminders off.
-  const BP_TOPIC_DEFAULT = 'bp-check';
-  function bpTopic() { const t = localStorage.getItem(BP_TOPIC_KEY); return (t == null ? BP_TOPIC_DEFAULT : t).trim(); }
+  // Topics are case sensitive; v23 shipped 'bp-check', so a stored copy of
+  // that is read as the right name.
+  const BP_TOPIC_DEFAULT = 'bp-Check';
+  function bpTopic() {
+    const t = localStorage.getItem(BP_TOPIC_KEY);
+    if (t == null || t.trim() === 'bp-check') return BP_TOPIC_DEFAULT;
+    return t.trim();
+  }
   const GITHUB_API = 'https://api.github.com';
 
   const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
@@ -1972,8 +1972,6 @@
       if (medCost[inp.dataset.med] != null) inp.value = medCost[inp.dataset.med];
     });
 
-    document.getElementById('setWebhookUrl').value = localStorage.getItem(WEBHOOK_KEY) || '';
-    document.getElementById('setMedWebhookUrl').value = localStorage.getItem(MED_WEBHOOK_KEY) || '';
     document.getElementById('setBpTopic').value = bpTopic();
 
     const savedWearOff = localStorage.getItem(WEAR_OFF_KEY);
@@ -2077,13 +2075,6 @@
     });
     localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost));
 
-    const webhookUrl = (document.getElementById('setWebhookUrl').value || '').trim();
-    if (webhookUrl) localStorage.setItem(WEBHOOK_KEY, webhookUrl);
-    else localStorage.removeItem(WEBHOOK_KEY);
-
-    const medWebhookUrl = (document.getElementById('setMedWebhookUrl').value || '').trim();
-    if (medWebhookUrl) localStorage.setItem(MED_WEBHOOK_KEY, medWebhookUrl);
-    else localStorage.removeItem(MED_WEBHOOK_KEY);
 
     const bpTopic = (document.getElementById('setBpTopic').value || '').trim();
     localStorage.setItem(BP_TOPIC_KEY, bpTopic);
@@ -2328,9 +2319,6 @@
     saveData(data);
     if (kind === 'wake') localStorage.setItem(SESSION_KEY, 'true');
     if (kind === 'sleep') localStorage.setItem(SESSION_KEY, 'false');
-    // Rescue must not touch the reminder schedule — it's off-schedule, so the
-    // already-scheduled next Log Dose reminder keeps its original anchor.
-    notifyN8nDoseLogged(resolvedTs, kind);
     const undo = () => undoLog(resolvedTs, prevSession);
     const toast = kind === 'wake' ? 'Wake up logged'
       : kind === 'rescue' ? `Rescue ${fmtMl(ml)} ml`
@@ -2355,19 +2343,6 @@
     else await openCiwaSheet({ kind, ts: resolvedTs, ml, onClose: () => showToast(toast, undo) });
   }
 
-  // The dose webhook used to schedule a "ready to dose" push a target interval
-  // after each dose. There is no target interval any more (dosing is
-  // CIWA-triggered, not clock-triggered), so nothing is scheduled and nothing
-  // has to be suspended on Wake Up. The sleep ping is all that is left: it
-  // tells n8n the day has closed.
-  function notifyN8nDoseLogged(ts, kind) {
-    if (kind !== 'sleep') return;
-    const webhookUrl = localStorage.getItem(WEBHOOK_KEY);
-    if (!webhookUrl) return;
-    const sep = webhookUrl.includes('?') ? '&' : '?';
-    fetch(`${webhookUrl}${sep}ts=${encodeURIComponent(ts)}&type=sleep`).catch(() => {});
-  }
-
   async function logMed(name) {
     const data = await getAllData();
     const tm = Date.now();
@@ -2375,7 +2350,6 @@
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     showToast(`Logged ${name}${await stackNote(name, tm)}`, () => undoLog(tm, undefined));
-    notifyN8nMedLapse(name, tm);
     scheduleBpForEntry(data.find(e => e.timestamp === tm));
     await renderLog();
     await renderActiveMeds();
@@ -2443,9 +2417,6 @@
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     localStorage.setItem(SESSION_KEY, 'false');
-    // The Sleep dose button is gone, so Sleep sends the "day closed" ping n8n
-    // used to get from it.
-    notifyN8nDoseLogged(ts, 'sleep');
     logDayIdx = null;
     showToast('Sleep logged', () => undoLog(ts, prevSession));
     await paintRing();
@@ -3022,7 +2993,6 @@
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     showToast(`Logged Ritalin 20 LA${await stackNote('Ritalin 20', tm)}`, () => undoLog([tm, tm2], undefined));
-    notifyN8nMedLapse('Ritalin 20', tm);
     data.filter(e => e.timestamp === tm || e.timestamp === tm2).forEach(scheduleBpForEntry);
     await renderLog();
     await renderActiveMeds();
@@ -3085,10 +3055,10 @@
         method: 'POST',
         body: 'Stimulant peak. Open G Tracker and log it.',
         headers: {
-          'Title': 'BP check',
+          'Title': 'BP Check',
           'Tags': 'heart',
           'At': String(Math.round(at / 1000)),
-          'Actions': `http, Snooze 15 min, ${url}, method=POST, headers.In=15m, headers.Title=BP check, body=Snoozed stimulant peak. Open G Tracker and log it., clear=true`,
+          'Actions': `http, Snooze 15 min, ${url}, method=POST, headers.In=15m, headers.Title=BP Check, body=Snoozed stimulant peak. Open G Tracker and log it., clear=true`,
         },
       });
       if (!res.ok) throw new Error(res.status);
@@ -3121,7 +3091,7 @@
         const res = await fetch(`${url}/${r.seq}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(res.status);
       } catch (err) {
-        fetch(url, { method: 'POST', body: `Ignore the BP check due at ${clockText(r.at)}.`, headers: { 'Title': 'BP check cancelled' } }).catch(() => {});
+        fetch(url, { method: 'POST', body: `Ignore the BP Check due at ${clockText(r.at)}.`, headers: { 'Title': 'BP Check cancelled' } }).catch(() => {});
       }
     }
   }
@@ -3152,25 +3122,6 @@
     const from = c.timestamp + 6 * 3600000, to = c.timestamp + 8 * 3600000;
     if (ts < from || ts > to) return '';
     return `. Concerta peak window until ${clockText(to)}. This dose will stack on it`;
-  }
-
-  // Pings a SEPARATE webhook from the GHB dose reminder — different topic,
-  // different urgency (one-shot, not a repeating nag). Uses the med's LAST
-  // wear-off part as "when it lapses": for Ritalin 5/Concerta that's the
-  // only part; for Ritalin 20 LA that's Part 2 finishing, since that's when
-  // there's actually no methylphenidate left in you, not when Part 1 alone
-  // ends. n8n does the two waits (T-30, then T-0) and fires once each — no
-  // "still current" check needed here, since a missed med dose isn't the
-  // same safety stakes as a missed G dose.
-  function notifyN8nMedLapse(name, ts) {
-    const medWebhookUrl = localStorage.getItem(MED_WEBHOOK_KEY);
-    if (!medWebhookUrl) return;
-    const parts = wearOffPartsFor(name);
-    if (!parts.length) return;
-    const lapseTs = ts + Math.max(...parts.map(p => p.startOffsetMin + p.durationMin)) * 60000;
-    if (lapseTs <= Date.now()) return;
-    const sep = medWebhookUrl.includes('?') ? '&' : '?';
-    fetch(`${medWebhookUrl}${sep}name=${encodeURIComponent(name)}&ts=${encodeURIComponent(ts)}&lapseTs=${encodeURIComponent(lapseTs)}`).catch(() => {});
   }
 
   // Dismissed doses are remembered by timestamp so an X'd card doesn't come
@@ -3875,6 +3826,23 @@
   }
 
   // ===== Init =====
+  // iPhone can still zoom in on a tapped box or a pinch, and with pinch
+  // blocked it then stays zoomed. Block the pinch, and snap back to 100%
+  // whenever a box loses focus or the app comes back to the front.
+  function lockZoom() {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
+      document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+    const vp = document.querySelector('meta[name="viewport"]');
+    const base = vp.getAttribute('content');
+    const reset = () => {
+      vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no');
+      setTimeout(() => vp.setAttribute('content', base), 50);
+    };
+    document.addEventListener('focusout', e => { if (e.target.matches('input, select, textarea')) setTimeout(reset, 50); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reset(); });
+    document.addEventListener('click', e => { if (e.target.closest('[data-view]')) reset(); });
+  }
+
   async function init() {
     loadSettings();
     updateStamp();
@@ -3895,6 +3863,7 @@
     // PWA is backgrounded, so the ring, countdown and medication states can
     // all be minutes stale at the moment it comes back.
     bpReminderPrompt();
+    lockZoom();
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
       bpReminderPrompt();
@@ -3979,7 +3948,7 @@
       if (!t) { showToast('Tap New topic first'); return; }
       localStorage.setItem(BP_TOPIC_KEY, t);
       try {
-        const res = await fetch(`https://ntfy.sh/${encodeURIComponent(t)}`, { method: 'POST', body: 'Test from G Tracker. BP reminders will look like this.', headers: { 'Title': 'BP check', 'Tags': 'heart' } });
+        const res = await fetch(`https://ntfy.sh/${encodeURIComponent(t)}`, { method: 'POST', body: 'Test from G Tracker. BP reminders will look like this.', headers: { 'Title': 'BP Check', 'Tags': 'heart' } });
         showToast(res.ok ? 'Test sent' : 'Test failed');
       } catch (err) { showToast('Test failed (offline?)'); }
     });
