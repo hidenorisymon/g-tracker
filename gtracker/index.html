@@ -322,42 +322,8 @@
   .tgl.on::after{transform:translateX(18px);}
   .docbtn{width:100%;height:50px;border:none;border-radius:14px;background:var(--ink);color:#fff;font-size:15px;font-weight:600;margin:14px 0 20px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;justify-content:center;}
   .docbtn.done{background:var(--green);}
-  .docbtn.alt{background:var(--surface);color:var(--ink);border:1px solid var(--hair);margin-top:-6px;}
-  .docpg.brk{margin-top:14px;padding-top:14px;border-top:1px dashed var(--hair);}
-  @media print{
-    @page{size:A4;margin:14mm;}
-    body.printdoc *{visibility:hidden !important;}
-    body.printdoc #docPreview,body.printdoc #docPreview *{visibility:visible !important;}
-    body.printdoc .view:not(#view-taper){display:none !important;}
-    body.printdoc #view-taper > :not(#taperDoctorWrap){display:none !important;}
-    body.printdoc #taperDoctorWrap > :not(#docPreview){display:none !important;}
-    body.printdoc .phone,body.printdoc .scroll{height:auto !important;max-height:none !important;overflow:visible !important;}
-    body.printdoc #docPreview{position:absolute;left:0;top:0;width:100%;}
-    body.printdoc .docprev{border:none;background:#fff;color:#000;padding:0;font-size:9pt;line-height:1.35;}
-    body.printdoc .docscroll{overflow:visible;}
-    body.printdoc .doctbl.day td{white-space:normal;}
-    body.printdoc .doctbl .chg{color:#000 !important;}
-    body.printdoc .docpg.brk{break-before:page;border:none;margin:0;padding:0;}
-    body.printdoc,body.printdoc *{background:#fff !important;color:#000 !important;}
-  }
   .docbtn svg{width:20px;height:20px;}
-  .docprev{font-size:12px;line-height:1.45;color:var(--ink-2);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;}
-  .docprev .dochead{font-family:var(--mono);font-size:11.5px;line-height:1.6;margin-bottom:12px;}
-  .docprev .docempty{color:var(--muted);}
-  .docscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;}
-  .doctbl{border-collapse:collapse;width:100%;font-size:11.5px;}
-  .doctbl th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;letter-spacing:.04em;padding:6px 8px;border-bottom:1.5px solid var(--hair);white-space:nowrap;}
-  .doctbl td{padding:6px 8px;border-bottom:1px solid var(--hair-2);vertical-align:top;}
-  .doctbl.sum{table-layout:fixed;font-size:11px;}
-  .doctbl.sum th,.doctbl.sum td{padding:5px 4px;word-break:break-word;}
-  .doctbl.sum th{white-space:normal;}
-  .doctbl.sum th:nth-child(1){width:33%;}
-  .doctbl.sum th:nth-child(2){width:29%;}
-  .doctbl.sum th:nth-child(3){width:20%;}
-  .doctbl.sum th:nth-child(4){width:18%;}
-  .doctbl.day td{white-space:nowrap;}
-  .doctbl tr.sec td{font-weight:700;font-size:10.5px;letter-spacing:.05em;color:var(--ink);padding-top:12px;border-bottom:1.5px solid var(--hair);}
-  .doctbl .chg{white-space:nowrap;}
+  .docprev{font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--ink);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;white-space:pre;overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .docprev .docsec{font-weight:700;font-size:10.5px;letter-spacing:.05em;margin:16px 0 6px;color:var(--ink);}
   .docprev .docline{font-family:var(--mono);font-size:11px;line-height:1.6;}
   .breakdown{border:1px solid var(--hair);border-radius:14px;padding:2px 14px;background:var(--surface);}
@@ -788,9 +754,8 @@
           <div class="docrow"><span>Include notes</span><button class="tgl on" id="docNotes" aria-pressed="true" aria-label="Include notes"></button></div>
         </div>
         <button class="docbtn" id="copyDoctor">Copy as text</button>
-        <button class="docbtn alt" id="printDoctor">Print / save as PDF</button>
         <div class="glabel">Preview</div>
-        <div class="docprev" id="docPreview"></div>
+        <pre class="docprev" id="docPreview"></pre>
       </div>
     </div>
 
@@ -4103,13 +4068,6 @@
       docView = b.dataset.docview;
       renderDoctor();
     }));
-    document.getElementById('printDoctor').addEventListener('click', async () => {
-      await renderDoctor();
-      document.body.classList.add('printdoc');
-      const done = () => { document.body.classList.remove('printdoc'); window.removeEventListener('afterprint', done); };
-      window.addEventListener('afterprint', done);
-      window.print();
-    });
     document.getElementById('docNotes').addEventListener('click', () => {
       docNotes = !docNotes;
       renderDoctor();
@@ -5290,7 +5248,7 @@
     } },
   ];
 
-  // The whole report as data; the preview, copy and print all read this.
+  // The whole report as data; the preview and copy both read this.
   async function buildDoctorReport() {
     const [fromStr, toStr] = docRange();
     const from = new Date(fromStr + 'T00:00:00'), to = new Date(toStr + 'T00:00:00');
@@ -5331,40 +5289,26 @@
       });
       notes.sort((a, b) => a.ts - b.ts);
     }
-    return { head, summary, cols: cols.map(c => c.h), rows, excl, notes: notes.map(n => `${docDate(n.ts)}, ${docClock(n.ts)} · ${n.text}`), empty: !days.length };
+    return { week: spanDays === 7, head, summary, cols: cols.map(c => c.h), rows, excl, notes: notes.map(n => `${docDate(n.ts)}, ${docClock(n.ts)} · ${n.text}`), empty: !days.length };
   }
 
   function docReportText(r) {
     let out = r.head.join('\n') + '\n';
     if (r.empty) return out + '\nNo sessions in this range.\n';
     const all = r.summary.flatMap(sec => sec.rows);
-    const w1 = Math.max(...all.map(x => x.l.length + 2), 14) + 2, w2 = Math.max(...all.map(x => x.c.length), 11) + 2, w3 = Math.max(...all.map(x => x.p.length), 11) + 2;
-    out += '\n' + 'WEEKLY SUMMARY'.padEnd(w1) + 'this period'.padEnd(w2) + 'prev period'.padEnd(w3) + 'change\n';
+    // Fixed columns like his template; a long value just runs past its column.
+    const w1 = Math.max(...all.map(x => x.l.length + 2), 14) + 3, w2 = 24, w3 = 24;
+    const pad = (t, w) => t.length < w - 1 ? t.padEnd(w) : t + '  ';
+    const [tc, tp] = r.week ? ['this week', 'prev week'] : ['this period', 'prev period'];
+    out += '\n' + 'WEEKLY SUMMARY'.padEnd(w1) + tc.padEnd(w2) + tp.padEnd(w3) + 'change\n';
     r.summary.forEach(sec => {
       out += sec.t + '\n';
-      sec.rows.forEach(x => { out += ('  ' + x.l).padEnd(w1) + x.c.padEnd(w2) + x.p.padEnd(w3) + x.x + '\n'; });
+      sec.rows.forEach(x => { out += (('  ' + x.l).padEnd(w1) + pad(x.c, w2) + pad(x.p, w3) + x.x).trimEnd() + '\n'; });
     });
     out += '\nDAILY\n' + r.cols.join(' | ') + '\n' + r.rows.map(x => x.join(' | ')).join('\n') + '\n';
     out += '\nEXCLUDED FROM AVERAGES\n' + (r.excl.length ? r.excl.map(x => '  ' + x).join('\n') : '  None') + '\n';
     if (docNotes) out += '\nNOTES\n' + (r.notes.length ? r.notes.map(x => '  ' + x).join('\n') : '  None') + '\n';
     return out;
-  }
-
-  const docEsc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  // Page 1 (header + weekly summary) and page 2 on (daily table, excluded,
-  // notes), as tables for the screen and for print.
-  function docReportHtml(r) {
-    const head = `<div class="dochead">${r.head.map((l, i) => i === 0 ? `<b>${docEsc(l)}</b>` : docEsc(l)).join('<br>')}</div>`;
-    if (r.empty) return head + '<p class="docempty">No sessions in this range.</p>';
-    const sum = `<div class="docscroll"><table class="doctbl sum"><thead><tr><th>WEEKLY SUMMARY</th><th>this period</th><th>prev period</th><th>change</th></tr></thead><tbody>`
-      + r.summary.map(sec => `<tr class="sec"><td colspan="4">${docEsc(sec.t)}</td></tr>` + sec.rows.map(x =>
-        `<tr><td>${docEsc(x.l)}</td><td>${docEsc(x.c)}</td><td>${docEsc(x.p)}</td><td class="chg ${x.x.startsWith('↑') ? 'up' : x.x.startsWith('↓') ? 'dn' : ''}">${docEsc(x.x)}</td></tr>`).join('')).join('')
-      + '</tbody></table></div>';
-    const daily = `<div class="docsec">DAILY</div><div class="docscroll"><table class="doctbl day"><thead><tr>${r.cols.map(c => `<th>${docEsc(c)}</th>`).join('')}</tr></thead><tbody>`
-      + r.rows.map(x => `<tr>${x.map(c => `<td>${docEsc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
-    const excl = `<div class="docsec">EXCLUDED FROM AVERAGES</div><div class="docline">${r.excl.length ? r.excl.map(docEsc).join('<br>') : 'None'}</div>`;
-    const notes = docNotes ? `<div class="docsec">NOTES</div><div class="docline">${r.notes.length ? r.notes.map(docEsc).join('<br>') : 'None'}</div>` : '';
-    return `<div class="docpg">${head}${sum}</div><div class="docpg brk">${daily}${excl}${notes}</div>`;
   }
 
   async function buildDoctorText() { return docReportText(await buildDoctorReport()); }
@@ -5381,7 +5325,7 @@
     tgl.setAttribute('aria-pressed', String(docNotes));
     const rep = await buildDoctorReport();
     docLastText = docReportText(rep);
-    document.getElementById('docPreview').innerHTML = docReportHtml(rep);
+    document.getElementById('docPreview').textContent = docLastText;
   }
 
   // ===== Data management (Settings) =====
