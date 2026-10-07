@@ -309,6 +309,7 @@
   .palpcard .ax{stroke:var(--hair);stroke-width:1;}
   .palpcard .tk{fill:var(--muted);font-size:9px;font-family:var(--mono);}
   .palpcard .dot{fill:var(--red);fill-opacity:.45;}
+  .palpcard .dot.heavy{fill:none;stroke:var(--ink);stroke-width:1.6;fill-opacity:1;}
   .palpcard .pr{font-size:13px;color:var(--ink-2);line-height:1.45;margin-top:12px;}
   .palpcard .pn{font-size:11px;color:var(--muted);line-height:1.45;margin-top:8px;}
   .docrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--hair-2);font-size:14px;font-weight:500;}
@@ -321,8 +322,44 @@
   .tgl.on::after{transform:translateX(18px);}
   .docbtn{width:100%;height:50px;border:none;border-radius:14px;background:var(--ink);color:#fff;font-size:15px;font-weight:600;margin:14px 0 20px;cursor:pointer;font-family:var(--sans);display:flex;align-items:center;justify-content:center;}
   .docbtn.done{background:var(--green);}
+  .docbtn.alt{background:var(--surface);color:var(--ink);border:1px solid var(--hair);margin-top:-6px;}
+  .docpg.brk{margin-top:14px;padding-top:14px;border-top:1px dashed var(--hair);}
+  @media print{
+    @page{size:A4;margin:14mm;}
+    body.printdoc *{visibility:hidden !important;}
+    body.printdoc #docPreview,body.printdoc #docPreview *{visibility:visible !important;}
+    body.printdoc .view:not(#view-taper){display:none !important;}
+    body.printdoc #view-taper > :not(#taperDoctorWrap){display:none !important;}
+    body.printdoc #taperDoctorWrap > :not(#docPreview){display:none !important;}
+    body.printdoc .phone,body.printdoc .scroll{height:auto !important;max-height:none !important;overflow:visible !important;}
+    body.printdoc #docPreview{position:absolute;left:0;top:0;width:100%;}
+    body.printdoc .docprev{border:none;background:#fff;color:#000;padding:0;font-size:9pt;line-height:1.35;}
+    body.printdoc .docscroll{overflow:visible;}
+    body.printdoc .doctbl.day td{white-space:normal;}
+    body.printdoc .doctbl .chg{color:#000 !important;}
+    body.printdoc .docpg.brk{break-before:page;border:none;margin:0;padding:0;}
+    body.printdoc,body.printdoc *{background:#fff !important;color:#000 !important;}
+  }
   .docbtn svg{width:20px;height:20px;}
-  .docprev{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--ink-2);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;}
+  .docprev{font-size:12px;line-height:1.45;color:var(--ink-2);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;}
+  .docprev .dochead{font-family:var(--mono);font-size:11.5px;line-height:1.6;margin-bottom:12px;}
+  .docprev .docempty{color:var(--muted);}
+  .docscroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px;}
+  .doctbl{border-collapse:collapse;width:100%;font-size:11.5px;}
+  .doctbl th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;letter-spacing:.04em;padding:6px 8px;border-bottom:1.5px solid var(--hair);white-space:nowrap;}
+  .doctbl td{padding:6px 8px;border-bottom:1px solid var(--hair-2);vertical-align:top;}
+  .doctbl.sum{table-layout:fixed;font-size:11px;}
+  .doctbl.sum th,.doctbl.sum td{padding:5px 4px;word-break:break-word;}
+  .doctbl.sum th{white-space:normal;}
+  .doctbl.sum th:nth-child(1){width:33%;}
+  .doctbl.sum th:nth-child(2){width:29%;}
+  .doctbl.sum th:nth-child(3){width:20%;}
+  .doctbl.sum th:nth-child(4){width:18%;}
+  .doctbl.day td{white-space:nowrap;}
+  .doctbl tr.sec td{font-weight:700;font-size:10.5px;letter-spacing:.05em;color:var(--ink);padding-top:12px;border-bottom:1.5px solid var(--hair);}
+  .doctbl .chg{white-space:nowrap;}
+  .docprev .docsec{font-weight:700;font-size:10.5px;letter-spacing:.05em;margin:16px 0 6px;color:var(--ink);}
+  .docprev .docline{font-family:var(--mono);font-size:11px;line-height:1.6;}
   .breakdown{border:1px solid var(--hair);border-radius:14px;padding:2px 14px;background:var(--surface);}
   .sessioncard{border:1px solid var(--hair);border-radius:14px;padding:14px;background:var(--surface);margin-bottom:14px;}
   .sessioncard .shead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
@@ -739,19 +776,21 @@
       </div>
 
       <div id="taperDoctorWrap" hidden>
-        <div class="glabel">Doctor export</div>
-        <div class="seg docseg" id="docFmtSeg">
-          <button data-docfmt="summary" class="on">Summary</button>
-          <button data-docfmt="daily">Daily logs</button>
+        <div class="glabel">Doctor report</div>
+        <div class="seg docseg" id="docViewSeg">
+          <button data-docview="taper">Taper</button>
+          <button data-docview="stim">Stimulant</button>
+          <button data-docview="full" class="on">Full</button>
         </div>
         <div class="breakdown">
           <div class="docrow"><label for="docFrom">From</label><input type="date" id="docFrom"></div>
           <div class="docrow"><label for="docTo">To</label><input type="date" id="docTo"></div>
           <div class="docrow"><span>Include notes</span><button class="tgl on" id="docNotes" aria-pressed="true" aria-label="Include notes"></button></div>
         </div>
-        <button class="docbtn" id="copyDoctor">Copy for doctor</button>
+        <button class="docbtn" id="copyDoctor">Copy as text</button>
+        <button class="docbtn alt" id="printDoctor">Print / save as PDF</button>
         <div class="glabel">Preview</div>
-        <pre class="docprev" id="docPreview"></pre>
+        <div class="docprev" id="docPreview"></div>
       </div>
     </div>
 
@@ -4060,10 +4099,17 @@
       docToPicked = e.target.value || null;
       renderDoctor();
     });
-    document.querySelectorAll('#docFmtSeg button').forEach(b => b.addEventListener('click', () => {
-      docFormat = b.dataset.docfmt;
+    document.querySelectorAll('#docViewSeg button').forEach(b => b.addEventListener('click', () => {
+      docView = b.dataset.docview;
       renderDoctor();
     }));
+    document.getElementById('printDoctor').addEventListener('click', async () => {
+      await renderDoctor();
+      document.body.classList.add('printdoc');
+      const done = () => { document.body.classList.remove('printdoc'); window.removeEventListener('afterprint', done); };
+      window.addEventListener('afterprint', done);
+      window.print();
+    });
     document.getElementById('docNotes').addEventListener('click', () => {
       docNotes = !docNotes;
       renderDoctor();
@@ -4072,8 +4118,7 @@
       const btn = e.currentTarget;
       // Copy the preview as shown, with no wait first, so iOS still treats
       // the copy as part of the tap.
-      const shown = document.getElementById('docPreview').textContent;
-      copyText(shown || await buildDoctorText(), btn);
+      copyText(docLastText || await buildDoctorText(), btn);
     });
     document.getElementById('prevTaper').addEventListener('click', () => {
       if (document.getElementById('prevTaper').classList.contains('off')) return;
@@ -4959,7 +5004,9 @@
     [0, mid, maxH].filter((h, i, a) => a.indexOf(h) === i).forEach(h => {
       g += `<text class="tk" x="${x(h * 60)}" y="${H - 6}" text-anchor="middle">${h}h</text>`;
     });
-    const dots = points.map(p => `<circle class="dot" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="4"/>`).join('');
+    const dots = points.map(p => p.heavy
+      ? `<circle class="dot heavy" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="5"/>`
+      : `<circle class="dot" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="4"/>`).join('');
     return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Palpitations against hours since last ${what}">${g}${dots}</svg>`;
   }
 
@@ -4968,6 +5015,14 @@
     if (!reads.length) return '<div class="empty">No CIWA readings in this period.</div>';
     const ghb = reads.filter(e => typeof e.ciwa.minSinceGhb === 'number').map(e => ({ x: e.ciwa.minSinceGhb, y: e.ciwa.palp }));
     const stim = reads.filter(e => typeof e.ciwa.minSinceStim === 'number').map(e => ({ x: e.ciwa.minSinceStim, y: e.ciwa.palp }));
+    // Heavy meals are ringed: the reading's last meal is the logged meal
+    // closest to (reading time - minutes since meal).
+    const heavyMeals = all.filter(m => m.type === 'meal' && m.heavy);
+    const meal = reads.filter(e => typeof e.ciwa.minSinceMeal === 'number').map(e => ({
+      x: e.ciwa.minSinceMeal, y: e.ciwa.palp,
+      heavy: heavyMeals.some(m => Math.abs(m.timestamp - (e.timestamp - e.ciwa.minSinceMeal * 60000)) < 60000),
+    }));
+    const heavyN = meal.filter(p => p.heavy).length;
     // Dose response: of doses logged at palp 2 or more, how many had a Check
     // within 45 min showing palp down by 1 or more.
     const checks = all.filter(e => e.type === 'check' && e.ciwa && typeof e.ciwa.palp === 'number');
@@ -4983,114 +5038,350 @@
       : 'Dose response: no doses at palp 2+ in this period.';
     return `<div class="pt">Palp vs hours since last G (${ghb.length})</div>${palpScatterSvg(ghb, 'G dose')}
       <div class="pt">Palp vs hours since last stimulant (${stim.length})</div>${palpScatterSvg(stim, 'stimulant')}
+      <div class="pt">Palp vs hours since last meal (${meal.length}${heavyN ? `, ${heavyN} after a heavy meal, ringed` : ''})</div>${palpScatterSvg(meal, 'meal')}
       <div class="pr">${response}</div>
       <div class="pn">Rising with G time and dropping after a dose points to withdrawal. Tracking stimulant time and not dropping points to the stimulant.</div>`;
   }
 
-  // ===== Doctor export =====
-  // One copy-to-clipboard block for the visit. From defaults to 14 days ago
-  // and can be moved back to the first Clonazepam; notes can be left out.
-  const DOCTOR_DAYS = 14;
-  let docFromPicked = null;   // a From date he chose; null = 14 days ago, worked out fresh
-  let docToPicked = null;     // a To date he chose; null = today, worked out fresh
+  // ===== Doctor report =====
+  // One report for the visit, laid out as Symon specified: header, weekly
+  // summary (this period against the period just before it), one table row
+  // per session, then Excluded and Notes. He picks the From and To dates.
+  // Three views share the same numbers: Taper (Doc JD), Stimulant
+  // (prescriber), Full. Averages carry n; medians sit next to them.
+  let docFromPicked = null;   // null = 6 days ago, worked out fresh
+  let docToPicked = null;     // null = today
   let docNotes = true;
-  let docFormat = 'summary';  // 'summary' or 'daily'
+  let docLastText = '';        // the text shown last, so Copy needs no wait
+  let docView = 'full';       // 'taper', 'stim' or 'full'
+  const DOC_MAX_HOURS = 36, DOC_MAX_STIM_MG = 100, DOC_BP_SYS = [60, 250];
+  const DOC_NAME = 'Symon';
+  const DOC_PHASE = 'Supervised · Doc JD';
+  const DOC_VIEWS = { taper: 'Taper (Doc JD)', stim: 'Stimulant (prescriber)', full: 'Full (Taper / Stimulant)' };
 
-  function docDefaultFrom() {
-    const d = new Date();
-    d.setDate(d.getDate() - DOCTOR_DAYS);
-    return ymdLocal(d);
-  }
-
-  // The picked range as From and To strings, earliest first, so a To set
-  // before the From still reads as a range instead of an empty one.
   function docRange() {
-    const a = docFromPicked || docDefaultFrom();
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    const a = docFromPicked || ymdLocal(d);
     const b = docToPicked || ymdLocal(new Date());
     return a <= b ? [a, b] : [b, a];
   }
 
-  // A day belongs to the date its session started (the Wake Up), the same
-  // rule the summary uses. Every calendar date in the range gets a block,
-  // oldest first; a date with no session says "no log" so gaps show.
-  async function buildDoctorDailyText() {
-    const [fromStr, toStr] = docRange();
-    const start = new Date(fromStr + 'T00:00:00');
-    const end = new Date(toStr + 'T00:00:00');
-    const sessions = await computeSessions();
-    const fLong = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const blocks = [];
-    let logged = 0, empty = 0;
-    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const ymd = ymdLocal(d);
-      const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const daySessions = sessions.filter(s => ymdLocal(new Date(s.startTs)) === ymd);
-      if (!daySessions.length) { empty++; blocks.push(`${label} · no log\n`); continue; }
-      logged++;
-      daySessions.forEach(s => blocks.push(`${label} · Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n` + sessionText(s, { notes: docNotes })));
-    }
-    const head = `G Tracker · daily taper logs\n${fLong(start)} to ${fLong(end)} · ${logged} day${logged === 1 ? '' : 's'} logged, ${empty} with no log\n`;
-    return head + '\n' + blocks.join('\n----------\n\n');
+  const docAvg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const docMedian = a => {
+    if (!a.length) return null;
+    const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  const docR1 = v => Math.round(v * 10) / 10;
+  const docClock = ts => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  // 'Thu Oct 8': toLocaleDateString puts a comma after the weekday.
+  const docNoComma = t => t.replace(/^(\w+),/, '$1');
+  const docDate = ts => docNoComma(new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+  // Median clock time of a list of timestamps. Times before noon count as
+  // after midnight (a 1 AM bedtime sits after 11 PM, not before it).
+  function docMedClock(list, wrap) {
+    if (!list.length) return null;
+    const mins = list.map(ts => { const d = new Date(ts); let m = d.getHours() * 60 + d.getMinutes(); if (wrap && m < 720) m += 1440; return m; });
+    const m = Math.round(docMedian(mins)) % 1440;
+    const d = new Date(); d.setHours(Math.floor(m / 60), m % 60, 0, 0);
+    return docClock(d.getTime());
+  }
+  const docBpTxt = b => b ? `${Math.round(b.sys)}/${Math.round(b.dia)}${b.pulse != null ? ' p' + Math.round(b.pulse) : ''}` : '-';
+  const docAbbr = m => String(m.name || '').replace('Concerta ', 'C').replace('Ritalin ', 'R');
+
+  // Everything a table row or a summary line needs, worked out once per session.
+  function docDay(s) {
+    const asleepTs = s.asleeps.length ? s.asleeps[0].timestamp : null;
+    const ml = s.timeline.filter(e => isDoseEntry(e) && Number(e.ml) > 0).sort((a, b) => a.timestamp - b.timestamp);
+    // Awake doses: before the Sleep tap, and never an old Sleep dose.
+    const awake = ml.filter(e => doseKind(e) !== 'sleep' && (asleepTs == null || e.timestamp < asleepTs));
+    const midSleep = ml.filter(e => doseKind(e) !== 'sleep' && asleepTs != null && e.timestamp >= asleepTs).length;
+    // A sleep dose is an old-style Sleep dose, or the last awake dose within
+    // an hour before the Sleep tap.
+    const oldSleep = ml.filter(e => doseKind(e) === 'sleep').length;
+    const lastAwake = awake[awake.length - 1];
+    const sleepDoses = oldSleep + (!oldSleep && asleepTs != null && lastAwake && asleepTs - lastAwake.timestamp <= 3600000 ? 1 : 0);
+    // The first dose after Wake Up is not an interval: gaps are only between
+    // two awake doses.
+    const gaps = [];
+    for (let i = 1; i < awake.length; i++) gaps.push((awake[i].timestamp - awake[i - 1].timestamp) / 60000);
+    const stimMg = s.ritalinMg + s.concertaMg;
+    const meds = s.timeline.filter(e => isMedEntry(e) && e.mg > 0).sort((a, b) => a.timestamp - b.timestamp);
+    const concerta = meds.filter(m => /^Concerta/.test(m.name || ''));
+    const ritalin = meds.filter(m => /^Ritalin/.test(m.name || ''));
+    const peakBoosters = ritalin.filter(m => concerta.some(c => m.timestamp >= c.timestamp + 6 * 3600000 && m.timestamp <= c.timestamp + 8 * 3600000)).length;
+    const when = docDate(s.startTs);
+    const exclusions = [];
+    let excluded = null;
+    if (s.durationHours > DOC_MAX_HOURS) excluded = `session ${Math.round(s.durationHours)} h, over ${DOC_MAX_HOURS} h`;
+    else if (stimMg > DOC_MAX_STIM_MG) excluded = `stimulant ${stimMg} mg in a day, over ${DOC_MAX_STIM_MG} mg`;
+    if (excluded) exclusions.push({ date: when, entry: 'whole day', reason: excluded });
+    const bps = [];
+    s.bps.forEach(b => {
+      if (b.sys < DOC_BP_SYS[0] || b.sys > DOC_BP_SYS[1]) exclusions.push({ date: when, entry: `BP ${b.sys}/${b.dia} at ${docClock(b.timestamp)}`, reason: `systolic outside ${DOC_BP_SYS[0]} to ${DOC_BP_SYS[1]}` });
+      else bps.push(b);
+    });
+    const rested = b => b.activity === 'rested';
+    const mean = (arr, f) => { const v = arr.map(x => x[f]).filter(x => typeof x === 'number'); return v.length ? docAvg(v) : null; };
+    const bucket = arr => arr.length ? { sys: mean(arr, 'sys'), dia: mean(arr, 'dia'), pulse: mean(arr, 'pulse'), n: arr.length } : null;
+    const preR = bps.filter(b => b.slot === 'pre' && rested(b));
+    const peakR = bps.filter(b => b.slot === 'peak' && rested(b));
+    const palps = s.ciwaReads.map(e => e.ciwa.palp).filter(v => typeof v === 'number');
+    const sm = name => s.sleepmeds.filter(e => e.name === name);
+    return {
+      s, excluded, exclusions, asleepTs, awake, awakeH: asleepTs != null ? (asleepTs - s.startTs) / 3600000 : s.durationHours,
+      midSleep, sleepDoses, gaps, stimMg, meds, concerta, ritalin, peakBoosters,
+      preR: bucket(preR), peakR: bucket(peakR), preRn: preR, peakRn: peakR, restedAll: bps.filter(rested),
+      bothBp: preR.length > 0 && peakR.length > 0,
+      palpMax: palps.length ? Math.max(...palps) : null,
+      hardReads: s.ciwaReads.filter(e => e.ciwa.hardStop),
+      mealN: s.meals.length, bigN: s.meals.filter(m => m.size === 'b').length,
+      clonidine: sm('Clonidine'), quetiapine: sm('Quetiapine'),
+      ciwaDoses: awake.filter(e => e.ciwa),
+      hasWakeSleep: !s.implicit && s.asleeps.length > 0,
+    };
   }
 
-  async function buildDoctorText() {
-    if (docFormat === 'daily') return buildDoctorDailyText();
+  // Numbers for a set of days. Excluded days stay out of every average.
+  function docStats(days) {
+    const ok = days.filter(D => !D.excluded);
+    const reads = ok.flatMap(D => D.s.ciwaReads);
+    const rested = ok.flatMap(D => D.restedAll);
+    const pre = ok.map(D => D.preR).filter(Boolean), peak = ok.map(D => D.peakR).filter(Boolean);
+    const dosePt = loadCiwaSettings().doseAt;
+    const ciwaDoses = ok.flatMap(D => D.ciwaDoses);
+    const doses = ok.reduce((t, D) => t + D.awake.length, 0);
+    const reasons = {};
+    ok.flatMap(D => D.quetiapine.filter(e => !e.taken)).forEach(e => { const r = (e.reason || 'no reason').toLowerCase(); reasons[r] = (reasons[r] || 0) + 1; });
+    const taken = f => ok.filter(D => D[f].some(e => e.taken)).length;
+    const pct = (a, b) => b ? Math.round(100 * a / b) : null;
+    return {
+      n: days.length, ok, excludedN: days.length - ok.length,
+      ml: ok.map(D => D.s.totalDailyMl), capDays: ok.filter(D => D.s.capMl > 0).length,
+      overCapDays: ok.filter(D => overCap(D.s.totalDailyMl, D.s.capMl)).length,
+      gaps: ok.flatMap(D => D.gaps),
+      sleepDoses: ok.reduce((t, D) => t + D.sleepDoses, 0), midSleep: ok.reduce((t, D) => t + D.midSleep, 0),
+      ciwa: reads.map(e => e.ciwa.total), ciwaMax: reads.length ? Math.max(...reads.map(e => e.ciwa.total)) : null,
+      dosePt, belowDose: dosePt > 0 ? ciwaDoses.filter(e => e.ciwa.total < dosePt).length : null, ciwaDoseN: ciwaDoses.length,
+      palpDays: ok.filter(D => D.palpMax != null && D.palpMax >= 2).length,
+      hard: ok.flatMap(D => D.hardReads),
+      sleepH: ok.map(D => D.s.sleepHours).filter(v => v != null),
+      sleepStarts: ok.filter(D => D.asleepTs != null).map(D => D.asleepTs),
+      benzoTimes: ok.flatMap(D => D.s.benzoTaken.map(e => e.timestamp)),
+      benzoDays: ok.filter(D => D.s.benzoTaken.length).length,
+      quetDays: taken('quetiapine'), clonidDays: taken('clonidine'), quetReasons: reasons,
+      concertaDays: ok.filter(D => D.concerta.length).length, concertaTimes: ok.flatMap(D => D.concerta.map(m => m.timestamp)),
+      ritalinMg: ok.map(D => D.s.ritalinMg),
+      boosters: ok.filter(D => D.concerta.length).reduce((t, D) => t + D.ritalin.length, 0),
+      peakBoosters: ok.reduce((t, D) => t + D.peakBoosters, 0),
+      preSys: pre.map(b => b.sys), preDia: pre.map(b => b.dia), preP: pre.map(b => b.pulse).filter(v => v != null),
+      peakSys: peak.map(b => b.sys), peakDia: peak.map(b => b.dia), peakP: peak.map(b => b.pulse).filter(v => v != null),
+      bp130: rested.filter(b => b.sys >= 130 || b.dia >= 80).length, bp140: rested.filter(b => b.sys >= 140 || b.dia >= 90).length,
+      lowest: rested.length ? rested.reduce((m, b) => b.sys < m.sys ? b : m) : null,
+      bothBpPct: pct(ok.filter(D => D.bothBp).length, ok.length), ciwaDosePct: pct(ciwaDoses.length, doses),
+      wakeSleepPct: pct(ok.filter(D => D.hasWakeSleep).length, ok.length),
+    };
+  }
+
+  // "↑ +0.4" / "↓ -0.4" / "=" for a number that has a previous-period number.
+  function docChg(cur, prev, dp, unit) {
+    if (cur == null || prev == null) return '';
+    const d = Math.round((cur - prev) * Math.pow(10, dp)) / Math.pow(10, dp);
+    if (d === 0) return '=';
+    return `${d > 0 ? '↑ +' : '↓ '}${dp ? d.toFixed(dp) : d}${unit || ''}`;
+  }
+
+  // The weekly summary as sections of rows: { l: label, c: this period,
+  // p: previous period, x: change }. Missing numbers read "-".
+  function docSummary(w, p, view) {
+    const taper = view !== 'stim', stim = view !== 'taper';
+    const dash = v => v == null ? '-' : v;
+    const gap = v => v == null ? '-' : fmtGap(Math.round(v));
+    const ml = a => a.length ? docR1(docAvg(a)) : null;
+    const N = (a, f) => a.length ? `${f(docAvg(a))} (n=${a.length})` : '-';
+    const avgOf = (st, k) => st && st[k].length ? docAvg(st[k]) : null;
+    const secs = [];
+    const row = (l, c, pv, x) => ({ l, c, p: pv == null ? '-' : pv, x: x || '' });
+    const pOk = p && p.ok.length ? p : null;
+    if (taper) {
+      secs.push({ t: 'GHB', rows: [
+        row('Average per day (ml)', N(w.ml, docR1), pOk && pOk.ml.length ? N(pOk.ml, docR1) : null, docChg(ml(w.ml), pOk ? ml(pOk.ml) : null, 1)),
+        row('Days over cap', w.capDays ? `${w.overCapDays} of ${w.ok.length}` : 'no cap set', pOk && pOk.capDays ? `${pOk.overCapDays} of ${pOk.ok.length}` : null,
+          docChg(w.capDays ? w.overCapDays : null, pOk && pOk.capDays ? pOk.overCapDays : null, 0)),
+        row('Awake interval, median / longest', w.gaps.length ? `${gap(docMedian(w.gaps))} / ${gap(Math.max(...w.gaps))} (n=${w.gaps.length})` : '-',
+          pOk && pOk.gaps.length ? `${gap(docMedian(pOk.gaps))} / ${gap(Math.max(...pOk.gaps))}` : null,
+          docChg(w.gaps.length ? docMedian(w.gaps) : null, pOk && pOk.gaps.length ? docMedian(pOk.gaps) : null, 0, ' min')),
+        row('Sleep doses / mid-sleep doses', `${w.sleepDoses} / ${w.midSleep}`, pOk ? `${pOk.sleepDoses} / ${pOk.midSleep}` : null, ''),
+      ] });
+      secs.push({ t: 'CIWA', rows: [
+        row('Average / max', w.ciwa.length ? `${docR1(docAvg(w.ciwa))} / ${w.ciwaMax} (n=${w.ciwa.length})` : '-',
+          pOk && pOk.ciwa.length ? `${docR1(docAvg(pOk.ciwa))} / ${pOk.ciwaMax}` : null,
+          docChg(w.ciwa.length ? docR1(docAvg(w.ciwa)) : null, pOk && pOk.ciwa.length ? docR1(docAvg(pOk.ciwa)) : null, 1)),
+        row(`Doses below CIWA ${w.dosePt || '?'}`, w.belowDose != null ? `${w.belowDose} of ${w.ciwaDoseN}` : 'dose point not set', pOk && pOk.belowDose != null ? `${pOk.belowDose} of ${pOk.ciwaDoseN}` : null, ''),
+        row('Days with palpitations 2+', String(w.palpDays), pOk ? String(pOk.palpDays) : null, docChg(w.palpDays, pOk ? pOk.palpDays : null, 0)),
+        row('Hard stops', w.hard.length ? `${w.hard.length} (${w.hard.map(e => docDate(e.timestamp) + ' ' + docClock(e.timestamp)).join('; ')})` : '0', pOk ? String(pOk.hard.length) : null, docChg(w.hard.length, pOk ? pOk.hard.length : null, 0)),
+      ] });
+      const rs = Object.keys(w.quetReasons).map(r => `${r} ${w.quetReasons[r]}`).join(', ');
+      secs.push({ t: 'SLEEP', rows: [
+        row('Average hours / median sleep start', w.sleepH.length ? `${docR1(docAvg(w.sleepH))} h / ${docMedClock(w.sleepStarts, true) || '-'} (n=${w.sleepH.length})` : '-',
+          pOk && pOk.sleepH.length ? `${docR1(docAvg(pOk.sleepH))} h / ${docMedClock(pOk.sleepStarts, true) || '-'}` : null,
+          docChg(w.sleepH.length ? docR1(docAvg(w.sleepH)) : null, pOk && pOk.sleepH.length ? docR1(docAvg(pOk.sleepH)) : null, 1, ' h')),
+        row('Clonazepam taken', `${w.benzoDays} of ${w.ok.length} · median time ${docMedClock(w.benzoTimes, true) || '-'}`, pOk ? `${pOk.benzoDays} of ${pOk.ok.length}` : null, ''),
+        row('Quetiapine taken', `${w.quetDays} of ${w.ok.length}${rs ? ' · skip reasons: ' + rs : ''}`, pOk ? `${pOk.quetDays} of ${pOk.ok.length}` : null, ''),
+        row('Clonidine taken', `${w.clonidDays} of ${w.ok.length}`, pOk ? `${pOk.clonidDays} of ${pOk.ok.length}` : null, ''),
+      ] });
+    }
+    if (stim) {
+      secs.push({ t: 'STIMULANTS', rows: [
+        row('Concerta', `${w.concertaDays} of ${w.ok.length} days · median time ${docMedClock(w.concertaTimes, false) || '-'}`, pOk ? `${pOk.concertaDays} of ${pOk.ok.length} days` : null, ''),
+        row('Ritalin', `avg ${w.ritalinMg.length ? Math.round(docAvg(w.ritalinMg)) : '-'} mg/day (n=${w.ritalinMg.length}) · boosters ${w.boosters} (${w.peakBoosters} during Concerta peak)`,
+          pOk ? `avg ${pOk.ritalinMg.length ? Math.round(docAvg(pOk.ritalinMg)) : '-'} mg/day` : null,
+          docChg(w.ritalinMg.length ? Math.round(docAvg(w.ritalinMg)) : null, pOk && pOk.ritalinMg.length ? Math.round(docAvg(pOk.ritalinMg)) : null, 0, ' mg')),
+        row('Felt duration, Concerta', 'not logged (label 10-12 h)', null, ''),
+      ] });
+      const bpTxt = (s, d, pu) => s.length ? `${Math.round(docAvg(s))}/${Math.round(docAvg(d))}${pu.length ? ' · pulse ' + Math.round(docAvg(pu)) : ''} (n=${s.length})` : '-';
+      secs.push({ t: 'BP AND PULSE (rested readings only)', rows: [
+        row('Pre-stimulant', bpTxt(w.preSys, w.preDia, w.preP), pOk && pOk.preSys.length ? bpTxt(pOk.preSys, pOk.preDia, pOk.preP) : null,
+          docChg(w.preSys.length ? Math.round(docAvg(w.preSys)) : null, pOk && pOk.preSys.length ? Math.round(docAvg(pOk.preSys)) : null, 0)),
+        row('Stimulant peak', bpTxt(w.peakSys, w.peakDia, w.peakP), pOk && pOk.peakSys.length ? bpTxt(pOk.peakSys, pOk.peakDia, pOk.peakP) : null,
+          docChg(w.peakSys.length ? Math.round(docAvg(w.peakSys)) : null, pOk && pOk.peakSys.length ? Math.round(docAvg(pOk.peakSys)) : null, 0)),
+        row('Readings 130/80+ · 140/90+ · lowest', `${w.bp130} · ${w.bp140} · ${w.lowest ? w.lowest.sys + '/' + w.lowest.dia : '-'}`, pOk ? `${pOk.bp130} · ${pOk.bp140} · ${pOk.lowest ? pOk.lowest.sys + '/' + pOk.lowest.dia : '-'}` : null, ''),
+      ] });
+    }
+    const pc = v => v == null ? '-' : v + '%';
+    secs.push({ t: 'DATA COMPLETENESS', rows: [
+      row('Days with both BP readings', pc(w.bothBpPct), pOk ? pc(pOk.bothBpPct) : null, docChg(w.bothBpPct, pOk ? pOk.bothBpPct : null, 0, '%')),
+      row('Doses with CIWA', pc(w.ciwaDosePct), pOk ? pc(pOk.ciwaDosePct) : null, docChg(w.ciwaDosePct, pOk ? pOk.ciwaDosePct : null, 0, '%')),
+      row('Days with Sleep + Wake logged', pc(w.wakeSleepPct), pOk ? pc(pOk.wakeSleepPct) : null, docChg(w.wakeSleepPct, pOk ? pOk.wakeSleepPct : null, 0, '%')),
+    ] });
+    return secs;
+  }
+
+  // Daily table: column headers and one cell function each, in his order.
+  const DOC_COLS = [
+    { h: 'Date', v: 'both', f: D => docDate(D.s.startTs) + (D.s.isOpen ? ' (ongoing)' : '') },
+    { h: 'Slept', v: 'taper', f: D => D.s.sleepHours != null ? docR1(D.s.sleepHours) + ' h' : '-' },
+    { h: 'GHB ml/cap', v: 'taper', f: D => `${fmtMl(D.s.totalDailyMl)}/${D.s.capMl > 0 ? fmtMl(D.s.capMl) : '-'}` },
+    { h: 'Doses', v: 'taper', f: D => String(D.awake.length) },
+    { h: 'Interval med/longest', v: 'taper', f: D => D.gaps.length ? `${fmtGap(Math.round(docMedian(D.gaps)))}/${fmtGap(Math.round(Math.max(...D.gaps)))}` : '-' },
+    { h: 'CIWA avg/max', v: 'taper', f: D => D.s.ciwaReads.length ? `${fmtCiwaAvg(D.s.ciwaAvg)}/${D.s.ciwaMax}` : '-' },
+    { h: 'Palp max', v: 'taper', f: D => D.palpMax != null ? String(D.palpMax) : '-' },
+    { h: 'Clonazepam', v: 'taper', f: D => D.s.benzoTaken.length ? '✓ ' + docClock(D.s.benzoTaken[0].timestamp) : D.s.benzoMissed.length ? '✗' : '-' },
+    { h: 'Sleep meds', v: 'taper', f: D => {
+      const one = (list, nm) => list.length ? `${nm} ${list.some(e => e.taken) ? '✓' : '✗' + (list[0].reason ? ' (' + list[0].reason.toLowerCase() + ')' : '')}` : '';
+      return [one(D.clonidine, 'Clonid'), one(D.quetiapine, 'Quet')].filter(Boolean).join(' ') || '-';
+    } },
+    { h: 'Stimulants (mg @ time)', v: 'stim', f: D => D.meds.length ? D.meds.map(m => `${docAbbr(m)} @ ${docClock(m.timestamp)}`).join(' · ') : '-' },
+    { h: 'Felt fade', v: 'stim', f: () => '-' },
+    { h: 'BP pre', v: 'stim', f: D => docBpTxt(D.preR) },
+    { h: 'BP peak', v: 'stim', f: D => docBpTxt(D.peakR) },
+    { h: 'Meals', v: 'both', f: D => `${D.mealN}${D.bigN ? ` (${D.bigN} big)` : ''}` },
+    { h: 'Flags', v: 'both', f: D => {
+      const f = [];
+      if (D.excluded) f.push('EXCLUDED: ' + D.excluded);
+      if (overCap(D.s.totalDailyMl, D.s.capMl)) f.push('over cap');
+      if (D.hardReads.length) f.push('hard stop');
+      if (D.palpMax != null && D.palpMax >= 3) f.push('palp 3');
+      if (D.restedAll.some(b => b.sys >= 140 || b.dia >= 90)) f.push('BP 140/90+');
+      if (D.restedAll.some(b => b.sys < 90 || b.dia < 60)) f.push('BP under 90/60');
+      if (!D.s.isOpen && !D.hasWakeSleep) f.push('no Sleep/Wake');
+      if (!D.bothBp && !D.s.isOpen) f.push('BP missing');
+      return f.length ? f.join('; ') : '-';
+    } },
+  ];
+
+  // The whole report as data; the preview, copy and print all read this.
+  async function buildDoctorReport() {
     const [fromStr, toStr] = docRange();
-    const fromTs = new Date(fromStr + 'T00:00:00').getTime();
-    const toEnd = new Date(toStr + 'T00:00:00');
-    toEnd.setDate(toEnd.getDate() + 1);
-    const sessions = (await computeSessions()).filter(s => s.startTs >= fromTs && s.startTs < toEnd.getTime());
-    const fD = ts => new Date(ts).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-    const fDT = ts => new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-    const fromLbl = new Date(fromStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const toLbl = new Date(toStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    let out = `G Tracker · doctor summary\n${fromLbl} to ${toLbl} · ${sessions.length} day${sessions.length === 1 ? '' : 's'} logged\n`;
-    if (!sessions.length) return out + '\nNo days logged in this range.\n';
-
-    out += '\nPer day\n';
-    sessions.forEach(s => {
-      const g = s.capMl > 0
-        ? `${fmtMl(s.totalDailyMl)} / ${fmtMl(s.capMl)} ml cap${overCap(s.totalDailyMl, s.capMl) ? ' (over)' : ''}`
-        : `${fmtMl(s.totalDailyMl)} ml (no cap set)`;
-      out += `\n${fD(s.startTs)} · Day ${s.day}${s.isOpen ? ' (ongoing)' : ''}\n`;
-      out += `G ${g} · avg interval ${s.avgGapMin != null ? fmtGap(s.avgGapMin) : '—'}\n`;
-      out += s.ciwaReads.length
-        ? `CIWA max ${s.ciwaMax} · avg ${fmtCiwaAvg(s.ciwaAvg)} (${s.ciwaReads.length} reading${s.ciwaReads.length === 1 ? '' : 's'}, ${s.checkCount} check${s.checkCount === 1 ? '' : 's'})\n`
-        : 'CIWA none recorded\n';
-      out += `Clonazepam ${benzoDayText(s)} · Methylphenidate ${s.ritalinMg + s.concertaMg} mg\n`;
-    });
-
-    const hard = sessions.flatMap(s => s.ciwaReads.filter(e => e.ciwa.hardStop));
-    // The reading's own note is left off here: it prints under Notes, so the
-    // Include notes switch covers it.
-    const hardLine = e => ciwaSummary({ ...e, ciwa: { ...e.ciwa, note: undefined } });
-    out += '\nHard stops\n' + (hard.length ? hard.map(e => `${fDT(e.timestamp)} · ${hardLine(e)}`).join('\n') : 'None') + '\n';
-
+    const from = new Date(fromStr + 'T00:00:00'), to = new Date(toStr + 'T00:00:00');
+    const spanDays = Math.round((to - from) / 86400000) + 1;
+    const toEnd = new Date(to); toEnd.setDate(toEnd.getDate() + 1);
+    const prevFrom = new Date(from); prevFrom.setDate(prevFrom.getDate() - spanDays);
+    const everyone = (await computeSessions()).map(docDay);
+    const days = everyone.filter(D => D.s.startTs >= from.getTime() && D.s.startTs < toEnd.getTime());
+    const prevDays = everyone.filter(D => D.s.startTs >= prevFrom.getTime() && D.s.startTs < from.getTime());
+    const fShort = d => docNoComma(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+    const fFull = d => docNoComma(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+    // Clonazepam Day 1 is the first day one was taken.
+    const firstBenzo = everyone.filter(D => D.s.benzoTaken.length).map(D => ymdLocal(new Date(D.s.startTs)))[0];
+    let benzoDays = 'not started';
+    if (firstBenzo && firstBenzo <= toStr) {
+      const dayNo = ymd => Math.round((new Date(ymd + 'T00:00:00') - new Date(firstBenzo + 'T00:00:00')) / 86400000) + 1;
+      benzoDays = `Days ${dayNo(firstBenzo > fromStr ? firstBenzo : fromStr)}-${dayNo(toStr)}`;
+    }
+    const last = everyone.length ? everyone[everyone.length - 1].s : null;
+    const capNow = capAt(toEnd.getTime() - 1);
+    const dosePt = loadCiwaSettings().doseAt;
+    const gen = docNoComma(new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }));
+    const head = [
+      `G TRACKER REPORT · ${DOC_NAME}`,
+      `Range: ${fShort(from)} to ${fFull(to)} · ${days.length} session${days.length === 1 ? '' : 's'} · Clonazepam ${benzoDays}`,
+      `Phase: ${DOC_PHASE} · Cap ${capNow > 0 ? fmtMl(capNow) + ' ml' : 'none'} · Dose ${last && last.targetDose != null ? fmtMl(last.targetDose) + ' ml' : '-'} · Dose point CIWA ${dosePt > 0 ? dosePt : 'not set'}`,
+      `Generated: ${gen} +08:00 · View: ${DOC_VIEWS[docView]}`,
+    ];
+    const summary = days.length ? docSummary(docStats(days), docStats(prevDays), docView) : [];
+    const cols = DOC_COLS.filter(c => c.v === 'both' || docView === 'full' || c.v === docView);
+    const rows = days.map(D => cols.map(c => c.f(D)));
+    const excl = days.flatMap(D => D.exclusions).map(x => `${x.date} · ${x.entry} · ${x.reason}`);
+    const notes = [];
     if (docNotes) {
-      // Free-text notes, plus the one-line note on any CIWA reading.
-      const notes = [];
-      sessions.forEach(s => {
-        s.notes.forEach(n => notes.push({ ts: n.timestamp, text: String(n.text || '').trim().replace(/\s*\n\s*/g, ' / ') }));
-        s.ciwaReads.forEach(e => { if (e.ciwa.note) notes.push({ ts: e.timestamp, text: `${e.ciwa.note} (with CIWA ${e.ciwa.total})` }); });
+      days.forEach(D => {
+        D.s.notes.forEach(n => notes.push({ ts: n.timestamp, text: String(n.text || '').trim().replace(/\s*\n\s*/g, ' / ') }));
+        D.s.ciwaReads.forEach(e => { if (e.ciwa.note) notes.push({ ts: e.timestamp, text: `${e.ciwa.note} (with CIWA ${e.ciwa.total})` }); });
       });
       notes.sort((a, b) => a.ts - b.ts);
-      out += '\nNotes\n' + (notes.length ? notes.map(n => `${fDT(n.ts)} · ${n.text}`).join('\n') : 'None') + '\n';
     }
+    return { head, summary, cols: cols.map(c => c.h), rows, excl, notes: notes.map(n => `${docDate(n.ts)}, ${docClock(n.ts)} · ${n.text}`), empty: !days.length };
+  }
+
+  function docReportText(r) {
+    let out = r.head.join('\n') + '\n';
+    if (r.empty) return out + '\nNo sessions in this range.\n';
+    const all = r.summary.flatMap(sec => sec.rows);
+    const w1 = Math.max(...all.map(x => x.l.length + 2), 14) + 2, w2 = Math.max(...all.map(x => x.c.length), 11) + 2, w3 = Math.max(...all.map(x => x.p.length), 11) + 2;
+    out += '\n' + 'WEEKLY SUMMARY'.padEnd(w1) + 'this period'.padEnd(w2) + 'prev period'.padEnd(w3) + 'change\n';
+    r.summary.forEach(sec => {
+      out += sec.t + '\n';
+      sec.rows.forEach(x => { out += ('  ' + x.l).padEnd(w1) + x.c.padEnd(w2) + x.p.padEnd(w3) + x.x + '\n'; });
+    });
+    out += '\nDAILY\n' + r.cols.join(' | ') + '\n' + r.rows.map(x => x.join(' | ')).join('\n') + '\n';
+    out += '\nEXCLUDED FROM AVERAGES\n' + (r.excl.length ? r.excl.map(x => '  ' + x).join('\n') : '  None') + '\n';
+    if (docNotes) out += '\nNOTES\n' + (r.notes.length ? r.notes.map(x => '  ' + x).join('\n') : '  None') + '\n';
     return out;
   }
 
+  const docEsc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  // Page 1 (header + weekly summary) and page 2 on (daily table, excluded,
+  // notes), as tables for the screen and for print.
+  function docReportHtml(r) {
+    const head = `<div class="dochead">${r.head.map((l, i) => i === 0 ? `<b>${docEsc(l)}</b>` : docEsc(l)).join('<br>')}</div>`;
+    if (r.empty) return head + '<p class="docempty">No sessions in this range.</p>';
+    const sum = `<div class="docscroll"><table class="doctbl sum"><thead><tr><th>WEEKLY SUMMARY</th><th>this period</th><th>prev period</th><th>change</th></tr></thead><tbody>`
+      + r.summary.map(sec => `<tr class="sec"><td colspan="4">${docEsc(sec.t)}</td></tr>` + sec.rows.map(x =>
+        `<tr><td>${docEsc(x.l)}</td><td>${docEsc(x.c)}</td><td>${docEsc(x.p)}</td><td class="chg ${x.x.startsWith('↑') ? 'up' : x.x.startsWith('↓') ? 'dn' : ''}">${docEsc(x.x)}</td></tr>`).join('')).join('')
+      + '</tbody></table></div>';
+    const daily = `<div class="docsec">DAILY</div><div class="docscroll"><table class="doctbl day"><thead><tr>${r.cols.map(c => `<th>${docEsc(c)}</th>`).join('')}</tr></thead><tbody>`
+      + r.rows.map(x => `<tr>${x.map(c => `<td>${docEsc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
+    const excl = `<div class="docsec">EXCLUDED FROM AVERAGES</div><div class="docline">${r.excl.length ? r.excl.map(docEsc).join('<br>') : 'None'}</div>`;
+    const notes = docNotes ? `<div class="docsec">NOTES</div><div class="docline">${r.notes.length ? r.notes.map(docEsc).join('<br>') : 'None'}</div>` : '';
+    return `<div class="docpg">${head}${sum}</div><div class="docpg brk">${daily}${excl}${notes}</div>`;
+  }
+
+  async function buildDoctorText() { return docReportText(await buildDoctorReport()); }
+
   async function renderDoctor() {
-    const fromStr = docFromPicked || docDefaultFrom();
+    const [fromStr, toStr] = docRange();
     const input = document.getElementById('docFrom');
     if (input.value !== fromStr) input.value = fromStr;
-    const toStr = docToPicked || ymdLocal(new Date());
     const toInput = document.getElementById('docTo');
     if (toInput.value !== toStr) toInput.value = toStr;
-    document.querySelectorAll('#docFmtSeg button').forEach(b => b.classList.toggle('on', b.dataset.docfmt === docFormat));
+    document.querySelectorAll('#docViewSeg button').forEach(b => b.classList.toggle('on', b.dataset.docview === docView));
     const tgl = document.getElementById('docNotes');
     tgl.classList.toggle('on', docNotes);
     tgl.setAttribute('aria-pressed', String(docNotes));
-    document.getElementById('docPreview').textContent = await buildDoctorText();
+    const rep = await buildDoctorReport();
+    docLastText = docReportText(rep);
+    document.getElementById('docPreview').innerHTML = docReportHtml(rep);
   }
 
   // ===== Data management (Settings) =====
