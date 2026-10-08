@@ -211,9 +211,10 @@
   .tile.go{background:#168a60;color:#fff;box-shadow:0 4px 12px rgba(22,138,96,.25);}
   .tile.go .hint{color:rgba(255,255,255,.85);font-family:var(--mono);}
   .tile .hint:empty{display:none;}
-  /* Wake up and Sleep share one full-width button: it shows Wake up while
-     you're asleep and Sleep while you're awake. */
-  .tile.wide{grid-column:1 / -1;flex-direction:row;gap:8px;font-size:14px;}
+  .tiles.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+  /* The one that doesn't fit right now (Wake while awake, Sleep while
+     asleep) is dimmed but still answers a tap with a toast. */
+  .tile.dim{opacity:.45;}
 
   .glabel{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 2px 9px;}
 
@@ -670,7 +671,13 @@
         <button class="tile" id="chipCheck"><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
         <button class="tile" id="chipMeal"><svg viewBox="0 0 24 24" stroke="#b5642a" aria-hidden="true"><path d="M5 3v5a2 2 0 0 0 4 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2 1.2-3 3.4-3 6.5 0 1.6 1.2 2.5 3 2.5"/></svg><span>Meal</span></button>
         <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
-        <button class="tile wide" id="chipSleepWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true" id="swSun"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true" id="swMoon" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span id="swLabel">Wake up</span></button>
+      </div>
+      <!-- Wake, Sleep meds and Sleep are three separate buttons (Symon,
+           2026-10-08). Sleep meds no longer logs Sleep with it. -->
+      <div class="tiles three">
+        <button class="tile" id="chipWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake</span></button>
+        <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#7a4fb5" aria-hidden="true"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l6-6a4.95 4.95 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg><span>Sleep meds</span></button>
+        <button class="tile" id="chipSleep"><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></button>
       </div>
 
       <div class="btnrow meds">
@@ -2413,9 +2420,8 @@
   function isAwake() { return localStorage.getItem(SESSION_KEY) === 'true'; }
   function paintSleepWake() {
     const awake = isAwake();
-    document.getElementById('swLabel').textContent = awake ? 'Sleep' : 'Wake up';
-    document.getElementById('swSun').style.display = awake ? 'none' : '';
-    document.getElementById('swMoon').style.display = awake ? '' : 'none';
+    document.getElementById('chipWake').classList.toggle('dim', awake);
+    document.getElementById('chipSleep').classList.toggle('dim', !awake);
   }
 
 
@@ -2656,12 +2662,12 @@
         </div>
       </div>`;
     openQuick(`
-      <div class="chead"><h3>Sleep</h3></div>
-      <div class="qsub">Mark each med, then Save. Sleep is logged with them.</div>
+      <div class="chead"><h3>Sleep meds</h3></div>
+      <div class="qsub">Mark each med, then Save. Tap Sleep separately when you lie down.</div>
       ${rows.map(rowHtml).join('')}
       <div class="cactions">
         <button class="cbtn-soft" data-q="cancel">Cancel</button>
-        <button class="cbtn-go" data-q="save-sm" id="qGo" disabled>Save · Sleep</button>
+        <button class="cbtn-go" data-q="save-sm" id="qGo" disabled>Save</button>
       </div>`, { mode: 'smeds', rows, ans: {}, why: {}, sleepiness: null });
   }
 
@@ -2730,18 +2736,30 @@
       stamps.push(ts);
       ts += 1;
     });
-    // Then Sleep itself, which closes the day (see computeSessions). Undo
-    // takes back the meds and the Sleep, and puts the awake flag back.
-    while (all.some(e => e.timestamp === ts)) ts += 1;
-    all.push({ type: 'asleep', timestamp: ts });
-    stamps.push(ts);
-    const prevSession = localStorage.getItem(SESSION_KEY);
-    localStorage.setItem(SESSION_KEY, 'false');
     all.sort((a, b) => a.timestamp - b.timestamp);
     saveData(all);
     logDayIdx = null;
     const skipped = rows.filter(r => ans[r.k] === false && !(r.k === 'clonazepam' && skipBenzo)).length;
-    showToast(`Sleep logged${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps, prevSession));
+    showToast(`Sleep meds saved${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps));
+    await paintRing();
+    await renderLog();
+    await renderActiveMeds();
+  }
+
+  // Sleep on its own: closes the day (see computeSessions). Undo takes it
+  // back and puts the awake flag back.
+  async function logSleep() {
+    if (!isAwake()) { showToast('Already asleep. Tap Wake first'); return; }
+    const all = await getAllData();
+    let ts = Date.now();
+    while (all.some(e => e.timestamp === ts)) ts += 1;
+    all.push({ type: 'asleep', timestamp: ts });
+    all.sort((a, b) => a.timestamp - b.timestamp);
+    const prevSession = localStorage.getItem(SESSION_KEY);
+    localStorage.setItem(SESSION_KEY, 'false');
+    saveData(all);
+    logDayIdx = null;
+    showToast('Sleep logged', () => undoLog(ts, prevSession));
     await paintRing();
     await renderLog();
     await renderActiveMeds();
@@ -3922,10 +3940,12 @@
   function setupListeners() {
     document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => show(el.dataset.view)));
 
-    document.getElementById('chipSleepWake').addEventListener('click', () => {
-      if (isAwake()) openSleepMedsSheet();
-      else logDose(0, undefined, 'wake');
+    document.getElementById('chipWake').addEventListener('click', () => {
+      if (isAwake()) { showToast('Already awake'); return; }
+      logDose(0, undefined, 'wake');
     });
+    document.getElementById('chipSleepMeds').addEventListener('click', () => openSleepMedsSheet());
+    document.getElementById('chipSleep').addEventListener('click', () => logSleep());
     document.getElementById('chipLogDose').addEventListener('click', () => {
       const target = getTaperTargetForDate(new Date());
       logDose(target != null ? target : taperPlan.startDose, undefined, 'log');
