@@ -2418,6 +2418,18 @@
 
   // ===== v3.1: Sleep, Meal, BP =====
   function isAwake() { return localStorage.getItem(SESSION_KEY) === 'true'; }
+  // The awake flag follows the log itself: awake when the latest Wake is
+  // newer than the latest Sleep (or old Sleep dose). Deleting a Wake by
+  // mistake then frees the Wake button again instead of leaving it stuck.
+  async function syncAwakeFlag() {
+    let last = null;
+    (await getAllData()).forEach(e => {
+      const k = isAsleep(e) ? 'sleep' : isDoseEntry(e) ? doseKind(e) : null;
+      if ((k === 'wake' || k === 'sleep') && (!last || e.timestamp >= last.timestamp)) last = { k, timestamp: e.timestamp };
+    });
+    const awake = !!last && last.k === 'wake';
+    if (awake !== isAwake()) localStorage.setItem(SESSION_KEY, String(awake));
+  }
   function paintSleepWake() {
     const awake = isAwake();
     document.getElementById('chipWake').classList.toggle('dim', awake);
@@ -2749,6 +2761,7 @@
   // Sleep on its own: closes the day (see computeSessions). Undo takes it
   // back and puts the awake flag back.
   async function logSleep() {
+    await syncAwakeFlag();
     if (!isAwake()) { showToast('Already asleep. Tap Wake first'); return; }
     const all = await getAllData();
     let ts = Date.now();
@@ -3456,6 +3469,7 @@
   async function renderLog() {
     await renderCurrentSession();
     await paintBpHint();
+    await syncAwakeFlag();
     paintSleepWake();
   }
 
@@ -3940,7 +3954,8 @@
   function setupListeners() {
     document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => show(el.dataset.view)));
 
-    document.getElementById('chipWake').addEventListener('click', () => {
+    document.getElementById('chipWake').addEventListener('click', async () => {
+      await syncAwakeFlag();
       if (isAwake()) { showToast('Already awake'); return; }
       logDose(0, undefined, 'wake');
     });
