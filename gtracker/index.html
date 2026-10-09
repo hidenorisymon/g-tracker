@@ -975,6 +975,10 @@
           <label for="editText">Note</label>
           <textarea id="editText" rows="4"></textarea>
         </div>
+        <div class="modal-field" id="editNoteGroup" hidden>
+          <label for="editNote">Note (optional)</label>
+          <input type="text" id="editNote">
+        </div>
         <div class="modal-actions">
           <button class="modal-btn-cancel" id="editCancel">Cancel</button>
           <button class="modal-btn-save" id="editSave">Save</button>
@@ -1225,6 +1229,21 @@
     renderCiwaSheet();
   }
 
+  // Skip drops the score but not a typed note: it goes on the dose itself,
+  // or, for a Check with no dose, becomes a Note row.
+  async function skipCiwaKeepNote() {
+    const d = ciwaDraft;
+    const note = d ? String(d.note || '').trim() : '';
+    if (note && d.kind === 'check') await logNote(note);
+    else if (note && d.ts != null) {
+      const data = await getAllData();
+      const e = data.find(x => x.timestamp === d.ts);
+      if (e) { e.note = note; saveData(data); }
+    }
+    closeCiwaSheet();
+    if (note) await refreshActiveView();
+  }
+
   function closeCiwaSheet() {
     document.getElementById('ciwaModal').hidden = true;
     const done = ciwaDraft && ciwaDraft.onClose;
@@ -1440,7 +1459,7 @@
         return;
       }
       if (t.closest('#ciwaSameAsLast')) { ciwaApplyLast(); return; }
-      if (t.closest('#ciwaSkip')) { closeCiwaSheet(); return; }
+      if (t.closest('#ciwaSkip')) { skipCiwaKeepNote(); return; }
       if (t.closest('#ciwaBack')) { d.step = 1; renderCiwaSheet(); return; }
       if (t.closest('#ciwaSave')) { saveCiwa(); return; }
       if (t.closest('#ciwaNoContact')) {
@@ -1474,7 +1493,7 @@
     const c = e.ciwa;
     if (!c) {
       const f = TRIGGER_TO_FACTOR[e.trigger];
-      return f ? 'during: ' + CIWA_FACTOR_LABELS[f].toLowerCase() : '';
+      return [f ? 'during: ' + CIWA_FACTOR_LABELS[f].toLowerCase() : '', e.note || ''].filter(Boolean).join(' · ');
     }
     const it = c.items || {};
     const parts = ['CIWA ' + (c.total || 0)];
@@ -2473,6 +2492,7 @@
       <div class="cgroup">Size</div>
       <div class="cchips">${Object.keys(MEAL_SIZES).map(k => `<button class="cchip" data-q="meal-size" data-v="${k}">${MEAL_SIZES[k]}</button>`).join('')}</div>
       <div class="cchips"><button class="cchip fac" data-q="meal-heavy">Heavy or fatty</button></div>
+      <div class="cnote"><input type="text" id="qNote" placeholder="Note (optional)"></div>
       <div class="cactions">
         <button class="cbtn-soft" data-q="cancel">Cancel</button>
         <button class="cbtn-go" data-q="save-meal" id="qGo" disabled>Save meal</button>
@@ -2511,10 +2531,13 @@
     return fl.find(f => f.lvl === 'red') || fl.find(f => f.lvl === 'amb') || fl[0] || null;
   }
 
+  // The optional note typed on the Meal or BP sheet.
+  function quickNote() { const el = document.getElementById('qNote'); return el ? el.value.trim() : ''; }
   function mealText(e) { return `${MEAL_SIZES[e.size] || '?'}${e.heavy ? ' · heavy' : ''}`; }
   function bpSubText(e) {
     const bits = [e.pulse ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), BP_ACTS_SHORT[e.activity] || ''];
     if (Array.isArray(e.readings) && e.readings.length > 1) bits.push(`avg of ${e.readings.length}`);
+    if (e.note) bits.push(e.note);
     return bits.filter(Boolean).join(' · ');
   }
 
@@ -2560,6 +2583,7 @@
       <div class="cgroup">What were you doing?</div>
       <div class="cchips">${Object.keys(BP_ACTS).map(k => `<button class="cchip sm fac" data-q="bp-act" data-v="${k}">${BP_ACTS[k]}</button>`).join('')}</div>
       <div class="cfield"><label for="qBpTime">Time</label><input type="time" id="qBpTime" class="qtime" value="${now}"></div>
+      <div class="cnote"><input type="text" id="qNote" placeholder="Note (optional)"></div>
       <div class="cactions">
         <button class="cbtn-soft" data-q="cancel">${skip ? 'Skip' : 'Cancel'}</button>
         <button class="cbtn-go" data-q="save-bp" id="qGo" disabled>Save</button>
@@ -2615,6 +2639,7 @@
     if (!d.ready) return;
     const ts0 = tsFromTimeBox(document.getElementById('qBpTime').value, st.openedTime);
     const { slot, activity } = st;
+    const note = quickNote();
     const flags = bpFlags({ sys: d.sys, dia: d.dia, slot, activity }, st.preSys);
     // The BP toast (with its own Undo) replaces whatever the sheet would
     // have shown on Skip, so that is dropped here.
@@ -2626,6 +2651,7 @@
       const stim = ciwaMinutesSince(data, x => isMedEntry(x), ts);
       if (ghb != null) e.minSinceGhb = ghb;
       if (stim != null) e.minSinceStim = stim;
+      if (note) e.note = note;
       return e;
     }, ts0, `BP ${d.sys}/${d.dia} saved` + (flags.some(f => f.lvl === 'red') ? ' · recheck in 5 min' : ''));
   }
@@ -2660,9 +2686,18 @@
     // Clonazepam is always listed. Before CLONAZEPAM_FROM it is optional:
     // left blank, nothing is logged, so no "missed" piles up before it starts.
     rows.push({ k: 'clonazepam', name: BENZO_NAME, mg: getBenzoMg(), optional: Date.now() < CLONAZEPAM_FROM });
+    // Already logged since the last Wake, so a second entry isn't a guess.
+    const wakeTs = Math.max(0, ...all.filter(e => isDoseEntry(e) && doseKind(e) === 'wake').map(e => e.timestamp));
+    const doneAt = r => {
+      const hit = all.filter(e => e.timestamp >= wakeTs && (r.k === 'clonazepam' ? e.type === 'benzo' : e.type === 'sleepmed' && e.name === r.name)).pop();
+      if (!hit) return '';
+      const t = new Date(hit.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const took = r.k === 'clonazepam' ? !hit.missed : hit.taken;
+      return ` <small style="color:var(--muted);font-weight:400">${took ? 'taken' : 'skipped'} ${t}</small>`;
+    };
     const rowHtml = r => `
       <div class="smrow" data-k="${r.k}">
-        <div class="smh"><span class="nm">${r.name}${r.optional ? ' <small style="color:var(--muted);font-weight:400">optional until Oct 12</small>' : ''}</span><span class="mg">${r.mg ? (r.k === 'clonazepam' ? r.mg + ' mg' : doseLabel(r.mg)) : ''}</span></div>
+        <div class="smh"><span class="nm">${r.name}${doneAt(r)}</span><span class="mg">${r.mg ? (r.k === 'clonazepam' ? r.mg + ' mg' : doseLabel(r.mg)) : ''}</span></div>
         <div class="cchips sm2">
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="1">Taken</button>
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="0">Skipped</button>
@@ -2675,7 +2710,7 @@
       </div>`;
     openQuick(`
       <div class="chead"><h3>Sleep meds</h3></div>
-      <div class="qsub">Mark each med, then Save. Tap Sleep separately when you lie down.</div>
+      <div class="qsub">Mark only what you took or skipped, then Save. Blank ones are not logged.</div>
       ${rows.map(rowHtml).join('')}
       <div class="cactions">
         <button class="cbtn-soft" data-q="cancel">Cancel</button>
@@ -2693,7 +2728,9 @@
       box.querySelectorAll('[data-q="sm-why"]').forEach(b => b.classList.toggle('on', st.why[r.k] === b.dataset.v));
       box.querySelector('.smother').hidden = st.why[r.k] !== 'Other';
     });
-    document.getElementById('qGo').disabled = !st.rows.every(r => r.optional || typeof st.ans[r.k] === 'boolean');
+    // One med at a time is fine: rows left blank log nothing (Symon,
+    // 2026-10-09), so a later Quetiapine is one tap, not three.
+    document.getElementById('qGo').disabled = !st.rows.some(r => typeof st.ans[r.k] === 'boolean');
   }
 
   // force: the "Log another?" ask was answered, so Clonazepam saves anyway.
@@ -2974,8 +3011,9 @@
         const { size, heavy, openedTime } = quickState;
         if (!size) return;
         const ts0 = tsFromTimeBox(document.getElementById('qMealTime').value, openedTime);
+        const note = quickNote();
         closeQuick();
-        await logEventAt(ts => ({ type: 'meal', timestamp: ts, size, heavy }), ts0, `Meal logged · ${MEAL_SIZES[size]}${heavy ? ' · heavy' : ''}`);
+        await logEventAt(ts => ({ type: 'meal', timestamp: ts, size, heavy, ...(note ? { note } : {}) }), ts0, `Meal logged · ${MEAL_SIZES[size]}${heavy ? ' · heavy' : ''}`);
         return;
       }
       if (q === 'bp-slot') { quickState.slot = btn.dataset.v; paintBpSheet(); return; }
@@ -3505,6 +3543,17 @@
         document.getElementById('editMg').value = entry && entry.mg > 0 ? entry.mg : '';
       });
     }
+    // Doses, Checks, Meals, BP and stimulants carry an optional note: on the CIWA score when there
+    // is one, on the entry itself when the check was skipped.
+    const noteGroup = document.getElementById('editNoteGroup');
+    noteGroup.hidden = !['dose', 'check', 'meal', 'bp', 'med'].includes(kind);
+    document.getElementById('editNote').value = '';
+    if (!noteGroup.hidden) {
+      getAllData().then(data => {
+        const entry = data.find(e => e.timestamp === ts);
+        document.getElementById('editNote').value = entry ? String((entry.ciwa && entry.ciwa.note) || entry.note || '') : '';
+      });
+    }
     const mlGroup = document.getElementById('editMlGroup');
     if (kind === 'dose') {
       getAllData().then(data => {
@@ -3540,6 +3589,11 @@
     let data = await getAllData();
     const entry = data.find(e => e.timestamp === editingTs);
     if (!entry) { closeEntryEdit(); return; }
+    if (['dose', 'check', 'meal', 'bp', 'med'].includes(editingKind)) {
+      const note = document.getElementById('editNote').value.trim();
+      if (entry.ciwa) { entry.ciwa = { ...entry.ciwa }; if (note) entry.ciwa.note = note; else delete entry.ciwa.note; }
+      else if (note) entry.note = note; else delete entry.note;
+    }
 
     if (editingKind === 'dose') {
       const isWake = doseKind(entry) === 'wake';
@@ -4564,7 +4618,7 @@
           const endTs = e.timestamp + (part.startOffsetMin + part.durationMin) * 60000;
           return `<div class="slwear">${label} ${fmtTime(endTs)}</div>`;
         }).join('');
-        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}`;
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}${e.note ? `<div class="slciwa">${escapeHtml(e.note)}</div>` : ''}`;
       }
       if (e.type === 'hr') {
         return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate</span><span>${e.bpm} bpm</span></div>`;
@@ -4584,7 +4638,7 @@
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="sleepmed"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}</span><span>${e.taken ? (e.mg > 0 ? doseLabel(e.mg) : 'taken') : 'skipped'}</span></div>${sub ? `<div class="slciwa">${escapeHtml(sub)}</div>` : ''}`;
       }
       if (e.type === 'meal') {
-        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="meal"><span class="sllabel">${fmtTime(e.timestamp)} · Meal</span><span>${escapeHtml(mealText(e))}</span></div>`;
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="meal"><span class="sllabel">${fmtTime(e.timestamp)} · Meal</span><span>${escapeHtml(mealText(e))}</span></div>${e.note ? `<div class="slciwa">${escapeHtml(e.note)}</div>` : ''}`;
       }
       if (e.type === 'bp') {
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="bp"><span class="sllabel">${fmtTime(e.timestamp)} · BP</span><span>${e.sys}/${e.dia}</span></div><div class="slciwa">${escapeHtml(bpSubText(e))}</div>`;
@@ -4751,7 +4805,7 @@
       return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="meal">
         <span class="tldot" style="background:#b5642a"></span>
         <span class="tltime">${fmtTime(e.timestamp)}</span>
-        <div class="tlbody"><div class="tltext">Meal</div></div>
+        <div class="tlbody"><div class="tltext">Meal</div>${e.note ? `<div class="tlciwa">${escapeHtml(e.note)}</div>` : ''}</div>
         <span class="tlamt">${escapeHtml(mealText(e))}</span>
       </div>`;
     }
@@ -4778,7 +4832,7 @@
       return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="med">
         <span class="tldot" style="background:var(--pur)"></span>
         <span class="tltime">${fmtTime(e.timestamp)}</span>
-        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}${partTag}</div>${wear ? `<div class="tlwear">${wear}</div>` : ''}</div>
+        <div class="tlbody"><div class="tltext">${escapeHtml(e.name)}${partTag}</div>${wear ? `<div class="tlwear">${wear}</div>` : ''}${e.note ? `<div class="tlciwa">${escapeHtml(e.note)}</div>` : ''}</div>
         <span class="tlamt">${e.mg > 0 ? e.mg + ' mg' : '—'}</span>
       </div>`;
     }
@@ -4800,16 +4854,16 @@
   // Same summary on the narrower Taper/History cards, where rows are single
   // lines, so it goes under the row rather than inside it.
   function ciwaSlHtml(e) {
-    if (!e.ciwa) return '';
+    if (!e.ciwa && !e.note) return '';
     const txt = ciwaSummary(e);
     return txt ? `<div class="slciwa">${escapeHtml(txt)}</div>` : '';
   }
 
   function ciwaSubHtml(e) {
-    if (!e.ciwa) return '';
+    if (!e.ciwa && !e.note) return '';
     const txt = ciwaSummary(e);
     if (!txt) return '';
-    return `<div class="tlciwa${e.ciwa.hardStop ? ' hard' : ''}">${escapeHtml(txt)}</div>`;
+    return `<div class="tlciwa${e.ciwa && e.ciwa.hardStop ? ' hard' : ''}">${escapeHtml(txt)}</div>`;
   }
 
   // Session card on the Log page. Defaults to the newest session (the live
@@ -5321,6 +5375,11 @@
       days.forEach(D => {
         D.s.notes.forEach(n => notes.push({ ts: n.timestamp, text: String(n.text || '').trim().replace(/\s*\n\s*/g, ' / ') }));
         D.s.ciwaReads.forEach(e => { if (e.ciwa.note) notes.push({ ts: e.timestamp, text: `${e.ciwa.note} (with CIWA ${e.ciwa.total})` }); });
+        D.s.timeline.forEach(e => {
+          if (!e.note || e.ciwa) return;
+          const w = isDoseEntry(e) ? `dose ${fmtMl(e.ml)} ml` : e.type === 'meal' ? 'meal' : e.type === 'bp' ? `BP ${e.sys}/${e.dia}` : isMedEntry(e) ? e.name : null;
+          if (w) notes.push({ ts: e.timestamp, text: `${e.note} (with ${w})` });
+        });
       });
       notes.sort((a, b) => a.ts - b.ts);
     }
