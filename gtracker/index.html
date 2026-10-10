@@ -42,13 +42,14 @@
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{height:100%;}
-  /* Vertical scrolling only — no pinch/double-tap zoom */
-  html{touch-action:pan-y;-webkit-text-size-adjust:100%;}
+  /* No double-tap zoom. Pinch stays allowed on purpose: when iPhone zoomed
+     in on a box anyway, a blocked pinch left the page stuck zoomed. */
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%;}
   /* iPhone zooms the page into any typing box whose text is under 16px, and
      with pinch zoom locked above it could not be zoomed back out. At 16px it
      never zooms in. !important so every box, on every tab, stays covered. */
   input,select,textarea{font-size:16px !important;}
-  body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:pan-y;}
+  body{background:var(--app);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;touch-action:manipulation;}
   .phone{width:100%;max-width:432px;margin:0 auto;background:var(--app);min-height:100vh;display:flex;flex-direction:column;}
   .scroll{padding:14px 24px 40px;}
 
@@ -3915,21 +3916,32 @@
   }
 
   // ===== Init =====
-  // iPhone can still zoom in on a tapped box or a pinch, and with pinch
-  // blocked it then stays zoomed. Block the pinch, and snap back to 100%
-  // whenever a box loses focus or the app comes back to the front.
+  // iPhone can still zoom in on a tapped box. Pinch is never blocked (that
+  // is what left it stuck), and the page snaps back to 100% once no box is
+  // being typed in: on leaving a box, on any zoom while not typing, and when
+  // the app comes back to the front.
   function lockZoom() {
-    ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
-      document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
     const vp = document.querySelector('meta[name="viewport"]');
     const base = vp.getAttribute('content');
+    const typing = () => { const a = document.activeElement; return !!a && a.matches('input, select, textarea'); };
+    let busy = false;
     const reset = () => {
-      vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no');
-      setTimeout(() => vp.setAttribute('content', base), 50);
+      if (busy || typing()) return;
+      const zoomed = window.visualViewport ? Math.abs(window.visualViewport.scale - 1) > 0.01 : true;
+      if (!zoomed) return;
+      busy = true;
+      // iOS only re-reads the viewport when its text changes, so swap in a
+      // different string that forces scale 1, then put the original back.
+      vp.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0');
+      setTimeout(() => { vp.setAttribute('content', base); busy = false; }, 400);
     };
-    document.addEventListener('focusout', e => { if (e.target.matches('input, select, textarea')) setTimeout(reset, 50); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) reset(); });
+    document.addEventListener('focusout', e => { if (e.target.matches('input, select, textarea')) setTimeout(reset, 300); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(reset, 300); });
     document.addEventListener('click', e => { if (e.target.closest('[data-view]')) reset(); });
+    if (window.visualViewport) {
+      let t = null;
+      window.visualViewport.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(reset, 600); });
+    }
   }
 
   async function init() {
