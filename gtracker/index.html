@@ -337,20 +337,22 @@
   .docrep table{border-collapse:collapse;font-size:11.5px;width:100%;}
   .docrep th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;padding:5px 8px;border-bottom:1.5px solid var(--hair);white-space:nowrap;}
   .docrep td{padding:5px 8px;border-bottom:1px solid var(--hair-2);vertical-align:top;}
-  .docrep .daily td{white-space:nowrap;}
+  .docrep .dday{margin:0 0 10px;}
+  .docrep .ddh{font-weight:700;font-size:12px;padding:4px 0;border-bottom:1.5px solid var(--hair);}
+  .docrep .dkv td:first-child{color:var(--muted);width:38%;white-space:nowrap;}
   .docrep tr.grp td{font-weight:700;font-size:10.5px;letter-spacing:.06em;padding-top:10px;border-bottom:1px solid var(--hair);}
   .docrep td.chg{white-space:nowrap;color:var(--muted);}
   .docrep ul{margin:0;padding-left:16px;font-size:11.5px;}
   .docrep li{margin:2px 0;}
   #docPrint{display:none;}
   @media print{
-    @page{size:A4 landscape;margin:12mm;}
+    @page{size:A4 portrait;margin:12mm;}
     body > *:not(#docPrint){display:none !important;}
     #docPrint{display:block !important;color:#000;background:#fff;}
     #docPrint .docrep{--muted:#555;--hair:#bbb;--hair-2:#ddd;--ink:#000;}
     #docPrint .dwrap{overflow:visible;}
     #docPrint table{font-size:9.5px;}
-    #docPrint tr{page-break-inside:avoid;}
+    #docPrint tr, #docPrint .dday{page-break-inside:avoid;}
   }
   .docprev .docsec{font-weight:700;font-size:10.5px;letter-spacing:.05em;margin:16px 0 6px;color:var(--ink);}
   .docprev .docline{font-family:var(--mono);font-size:11px;line-height:1.6;}
@@ -459,6 +461,13 @@
   .field.cost input{border:none;outline:none;background:transparent;width:58px;text-align:right;font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink);}
   .field.cost input::-webkit-outer-spin-button,.field.cost input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .field.cost.wide input{width:66px;text-align:center;letter-spacing:2px;}
+  /* A long value (the ntfy topic) gets its own full-width line under its label. */
+  .setrow.stack{flex-direction:column;align-items:stretch;}
+  .field.cost.full{width:100%;box-sizing:border-box;}
+  .field.cost.full input{width:100%;text-align:left;letter-spacing:0;}
+  /* Settings stays put: no sideways drift or bounce, only up and down. */
+  html,body,.phone{overflow-x:hidden;overscroll-behavior-x:none;}
+  #view-settings{touch-action:pan-y;}
   #setTaperStart{width:124px;text-align:left;}
   .brow .bv.over{color:var(--wait);} .brow .bv.under{color:var(--ready);}
   .setbtns{display:flex;flex-direction:column;gap:9px;}
@@ -880,8 +889,8 @@
 
       <div class="setgroup">
         <div class="glabel">Notifications</div>
-        <div class="setrow"><div class="sk">BP reminder topic<small>ntfy topic. Each Concerta or Ritalin tap schedules a "BP Check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
-          <div class="field cost wide"><input type="text" id="setBpTopic" placeholder="tap New topic" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
+        <div class="setrow stack"><div class="sk">BP reminder topic<small>ntfy topic. Each Concerta or Ritalin tap schedules a "BP Check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
+          <div class="field cost full"><input type="text" id="setBpTopic" placeholder="tap New topic" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
         <div class="setrow"><div class="sk"></div>
           <div style="display:flex;gap:8px"><button class="b pill" id="bpTopicNew" type="button">New topic</button><button class="b pill" id="bpTopicTest" type="button">Send test</button></div></div>
       </div>
@@ -5262,7 +5271,7 @@
       benzoDays: ok.filter(D => D.s.benzoTaken.length).length,
       quetDays: taken('quetiapine'), clonidDays: taken('clonidine'), quetReasons: reasons,
       concertaDays: ok.filter(D => D.concerta.length).length, concertaTimes: ok.flatMap(D => D.concerta.map(m => m.timestamp)),
-      ritalinMg: ok.map(D => D.s.ritalinMg),
+      ritalinMg: ok.map(D => D.s.ritalinMg), stimMg: ok.map(D => D.stimMg),
       boosters: ok.filter(D => D.concerta.length).reduce((t, D) => t + D.ritalin.length, 0),
       peakBoosters: ok.reduce((t, D) => t + D.peakBoosters, 0),
       preSys: pre.map(b => b.sys), preDia: pre.map(b => b.dia), preP: pre.map(b => b.pulse).filter(v => v != null),
@@ -5274,111 +5283,91 @@
     };
   }
 
-  // "↑ +0.4" / "↓ -0.4" / "=" for a number that has a previous-period number.
-  function docChg(cur, prev, dp, unit) {
-    if (cur == null || prev == null) return '';
-    const d = Math.round((cur - prev) * Math.pow(10, dp)) / Math.pow(10, dp);
-    if (d === 0) return '=';
-    return `${d > 0 ? '↑ +' : '↓ '}${dp ? d.toFixed(dp) : d}${unit || ''}`;
-  }
-
-  // The weekly summary as sections of rows: { l: label, c: this period,
-  // p: previous period, x: change }. Missing numbers read "-".
-  function docSummary(w, p, view) {
+  // The summary as sections of { l: label, c: value }. No previous-period
+  // column: Symon compares one saved report with the next one.
+  function docSummary(w, view) {
     const taper = view !== 'stim', stim = view !== 'taper';
-    const dash = v => v == null ? '-' : v;
-    const gap = v => v == null ? '-' : fmtGap(Math.round(v));
-    const ml = a => a.length ? docR1(docAvg(a)) : null;
     const N = (a, f) => a.length ? `${f(docAvg(a))} (n=${a.length})` : '-';
-    const avgOf = (st, k) => st && st[k].length ? docAvg(st[k]) : null;
+    const row = (l, c) => ({ l, c });
     const secs = [];
-    const row = (l, c, pv, x) => ({ l, c, p: pv == null ? '-' : pv, x: x || '' });
-    const pOk = p && p.ok.length ? p : null;
     if (taper) {
       secs.push({ t: 'GHB', rows: [
-        row('Average per day (ml)', N(w.ml, docR1), pOk && pOk.ml.length ? N(pOk.ml, docR1) : null, docChg(ml(w.ml), pOk ? ml(pOk.ml) : null, 1)),
-        row('Days over cap', w.capDays ? `${w.overCapDays} of ${w.ok.length}` : 'no cap set', pOk && pOk.capDays ? `${pOk.overCapDays} of ${pOk.ok.length}` : null,
-          docChg(w.capDays ? w.overCapDays : null, pOk && pOk.capDays ? pOk.overCapDays : null, 0)),
-        row('Awake interval, median / longest', w.gaps.length ? `${gap(docMedian(w.gaps))} / ${gap(Math.max(...w.gaps))} (n=${w.gaps.length})` : '-',
-          pOk && pOk.gaps.length ? `${gap(docMedian(pOk.gaps))} / ${gap(Math.max(...pOk.gaps))}` : null,
-          docChg(w.gaps.length ? docMedian(w.gaps) : null, pOk && pOk.gaps.length ? docMedian(pOk.gaps) : null, 0, ' min')),
-        row('Sleep doses / mid-sleep doses', `${w.sleepDoses} / ${w.midSleep}`, pOk ? `${pOk.sleepDoses} / ${pOk.midSleep}` : null, ''),
+        row('Average per day (ml)', N(w.ml, docR1)),
+        row('Days over cap', w.capDays ? `${w.overCapDays} of ${w.ok.length}` : 'no cap set'),
       ] });
       secs.push({ t: 'CIWA', rows: [
-        row('Average / max', w.ciwa.length ? `${docR1(docAvg(w.ciwa))} / ${w.ciwaMax} (n=${w.ciwa.length})` : '-',
-          pOk && pOk.ciwa.length ? `${docR1(docAvg(pOk.ciwa))} / ${pOk.ciwaMax}` : null,
-          docChg(w.ciwa.length ? docR1(docAvg(w.ciwa)) : null, pOk && pOk.ciwa.length ? docR1(docAvg(pOk.ciwa)) : null, 1)),
-        row(`Doses below CIWA ${w.dosePt || '?'}`, w.belowDose != null ? `${w.belowDose} of ${w.ciwaDoseN}` : 'dose point not set', pOk && pOk.belowDose != null ? `${pOk.belowDose} of ${pOk.ciwaDoseN}` : null, ''),
-        row('Days with palpitations 2+', String(w.palpDays), pOk ? String(pOk.palpDays) : null, docChg(w.palpDays, pOk ? pOk.palpDays : null, 0)),
-        row('Hard stops', w.hard.length ? `${w.hard.length} (${w.hard.map(e => docDate(e.timestamp) + ' ' + docClock(e.timestamp)).join('; ')})` : '0', pOk ? String(pOk.hard.length) : null, docChg(w.hard.length, pOk ? pOk.hard.length : null, 0)),
+        row('Average / max', w.ciwa.length ? `${docR1(docAvg(w.ciwa))} / ${w.ciwaMax} (n=${w.ciwa.length})` : '-'),
       ] });
       const rs = Object.keys(w.quetReasons).map(r => `${r} ${w.quetReasons[r]}`).join(', ');
       secs.push({ t: 'SLEEP', rows: [
-        row('Average hours / median sleep start', w.sleepH.length ? `${docR1(docAvg(w.sleepH))} h / ${docMedClock(w.sleepStarts, true) || '-'} (n=${w.sleepH.length})` : '-',
-          pOk && pOk.sleepH.length ? `${docR1(docAvg(pOk.sleepH))} h / ${docMedClock(pOk.sleepStarts, true) || '-'}` : null,
-          docChg(w.sleepH.length ? docR1(docAvg(w.sleepH)) : null, pOk && pOk.sleepH.length ? docR1(docAvg(pOk.sleepH)) : null, 1, ' h')),
-        row('Clonazepam taken', `${w.benzoDays} of ${w.ok.length} · median time ${docMedClock(w.benzoTimes, true) || '-'}`, pOk ? `${pOk.benzoDays} of ${pOk.ok.length}` : null, ''),
-        row('Quetiapine taken', `${w.quetDays} of ${w.ok.length}${rs ? ' · skip reasons: ' + rs : ''}`, pOk ? `${pOk.quetDays} of ${pOk.ok.length}` : null, ''),
-        row('Clonidine taken', `${w.clonidDays} of ${w.ok.length}`, pOk ? `${pOk.clonidDays} of ${pOk.ok.length}` : null, ''),
+        row('Average hours / median sleep start', w.sleepH.length ? `${docR1(docAvg(w.sleepH))} h / ${docMedClock(w.sleepStarts, true) || '-'} (n=${w.sleepH.length})` : '-'),
+        row('Clonazepam taken', `${w.benzoDays} of ${w.ok.length} · median time ${docMedClock(w.benzoTimes, true) || '-'}`),
+        row('Quetiapine taken', `${w.quetDays} of ${w.ok.length}${rs ? ' · skip reasons: ' + rs : ''}`),
+        row('Clonidine taken', `${w.clonidDays} of ${w.ok.length}`),
       ] });
     }
     if (stim) {
       secs.push({ t: 'STIMULANTS', rows: [
-        row('Concerta', `${w.concertaDays} of ${w.ok.length} days · median time ${docMedClock(w.concertaTimes, false) || '-'}`, pOk ? `${pOk.concertaDays} of ${pOk.ok.length} days` : null, ''),
-        row('Ritalin', `avg ${w.ritalinMg.length ? Math.round(docAvg(w.ritalinMg)) : '-'} mg/day (n=${w.ritalinMg.length}) · boosters ${w.boosters} (${w.peakBoosters} during Concerta peak)`,
-          pOk ? `avg ${pOk.ritalinMg.length ? Math.round(docAvg(pOk.ritalinMg)) : '-'} mg/day` : null,
-          docChg(w.ritalinMg.length ? Math.round(docAvg(w.ritalinMg)) : null, pOk && pOk.ritalinMg.length ? Math.round(docAvg(pOk.ritalinMg)) : null, 0, ' mg')),
-        row('Felt duration, Concerta', 'not logged (label 10-12 h)', null, ''),
-      ] });
-      const bpTxt = (s, d, pu) => s.length ? `${Math.round(docAvg(s))}/${Math.round(docAvg(d))}${pu.length ? ' · pulse ' + Math.round(docAvg(pu)) : ''} (n=${s.length})` : '-';
-      secs.push({ t: 'BP AND PULSE (rested readings only)', rows: [
-        row('Pre-stimulant', bpTxt(w.preSys, w.preDia, w.preP), pOk && pOk.preSys.length ? bpTxt(pOk.preSys, pOk.preDia, pOk.preP) : null,
-          docChg(w.preSys.length ? Math.round(docAvg(w.preSys)) : null, pOk && pOk.preSys.length ? Math.round(docAvg(pOk.preSys)) : null, 0)),
-        row('Stimulant peak', bpTxt(w.peakSys, w.peakDia, w.peakP), pOk && pOk.peakSys.length ? bpTxt(pOk.peakSys, pOk.peakDia, pOk.peakP) : null,
-          docChg(w.peakSys.length ? Math.round(docAvg(w.peakSys)) : null, pOk && pOk.peakSys.length ? Math.round(docAvg(pOk.peakSys)) : null, 0)),
-        row('Readings 130/80+ · 140/90+ · lowest', `${w.bp130} · ${w.bp140} · ${w.lowest ? w.lowest.sys + '/' + w.lowest.dia : '-'}`, pOk ? `${pOk.bp130} · ${pOk.bp140} · ${pOk.lowest ? pOk.lowest.sys + '/' + pOk.lowest.dia : '-'}` : null, ''),
+        row('Total per day (mg)', w.stimMg.length ? `avg ${Math.round(docAvg(w.stimMg))} mg (n=${w.stimMg.length})` : '-'),
+        row('Concerta', `${w.concertaDays} of ${w.ok.length} days · median time ${docMedClock(w.concertaTimes, false) || '-'}`),
+        row('Ritalin', `avg ${w.ritalinMg.length ? Math.round(docAvg(w.ritalinMg)) : '-'} mg/day · boosters ${w.boosters}`),
       ] });
     }
-    const pc = v => v == null ? '-' : v + '%';
-    secs.push({ t: 'DATA COMPLETENESS', rows: [
-      row('Days with both BP readings', pc(w.bothBpPct), pOk ? pc(pOk.bothBpPct) : null, docChg(w.bothBpPct, pOk ? pOk.bothBpPct : null, 0, '%')),
-      row('Doses with CIWA', pc(w.ciwaDosePct), pOk ? pc(pOk.ciwaDosePct) : null, docChg(w.ciwaDosePct, pOk ? pOk.ciwaDosePct : null, 0, '%')),
-      row('Days with Sleep + Wake logged', pc(w.wakeSleepPct), pOk ? pc(pOk.wakeSleepPct) : null, docChg(w.wakeSleepPct, pOk ? pOk.wakeSleepPct : null, 0, '%')),
-    ] });
     return secs;
   }
 
-  // Daily table: column headers and one cell function each, in his order.
+  // Why a day looked the way it did, from his own tags: the CIWA factors
+  // (newer doses) and the one-word trigger (older doses) mean the same thing.
+  const DOC_TAG = { eating: 'eating', deep: 'mental work', call: 'calls', physical: 'physical', stress: 'stress' };
+  function docDoseTags(e) {
+    const t = new Set();
+    if (TRIGGER_TO_FACTOR[e.trigger]) t.add(TRIGGER_TO_FACTOR[e.trigger]);
+    ((e.ciwa && e.ciwa.factors) || []).forEach(x => t.add(x));
+    return [...t].filter(x => DOC_TAG[x]);
+  }
+  const docCountTxt = c => Object.keys(c).sort((a, b) => c[b] - c[a]).map(k => `${DOC_TAG[k]} ${c[k]}`).join(', ');
+  function docDayNote(D) {
+    const parts = [];
+    if (D.excluded) parts.push('Left out of averages: ' + D.excluded);
+    // A short gap is read by the dose that ended it: that dose's tags say
+    // what brought the need on early.
+    const short = [];
+    for (let i = 1; i < D.awake.length; i++) if ((D.awake[i].timestamp - D.awake[i - 1].timestamp) / 60000 < 60) short.push(D.awake[i]);
+    if (short.length) {
+      const c = {}; let none = 0;
+      short.forEach(e => { const t = docDoseTags(e); if (!t.length) none++; t.forEach(x => { c[x] = (c[x] || 0) + 1; }); });
+      const why = [docCountTxt(c), none ? `untagged ${none}` : ''].filter(Boolean).join(', ');
+      parts.push(`${short.length} short gap${short.length > 1 ? 's' : ''} under 1 h (${why})`);
+    }
+    const all = {};
+    D.awake.forEach(e => docDoseTags(e).forEach(x => { all[x] = (all[x] || 0) + 1; }));
+    if (Object.keys(all).length) parts.push('Doses tagged: ' + docCountTxt(all));
+    return parts.join('. ') || '-';
+  }
+  function docStimTxt(D) {
+    if (!D.meds.length) return '-';
+    const by = {};
+    D.meds.forEach(m => { const k = /^Concerta/.test(m.name || '') ? 'Concerta' : /^Ritalin/.test(m.name || '') ? 'Ritalin' : (m.name || 'other'); by[k] = (by[k] || 0) + Number(m.mg); });
+    return `${D.stimMg} mg (${Object.keys(by).map(k => `${k} ${by[k]}`).join(', ')})`;
+  }
+
+  // Daily: one block per day, one line per field (fits a phone image or a
+  // portrait PDF). v says which view shows the line.
   const DOC_COLS = [
-    { h: 'Date', v: 'both', f: D => docDate(D.s.startTs) + (D.s.isOpen ? ' (ongoing)' : '') },
     { h: 'Slept', v: 'taper', f: D => D.s.sleepHours != null ? docR1(D.s.sleepHours) + ' h' : '-' },
-    { h: 'GHB ml/cap', v: 'taper', f: D => `${fmtMl(D.s.totalDailyMl)}/${D.s.capMl > 0 ? fmtMl(D.s.capMl) : '-'}` },
+    { h: 'GHB ml / cap', v: 'taper', f: D => `${fmtMl(D.s.totalDailyMl)} / ${D.s.capMl > 0 ? fmtMl(D.s.capMl) : '-'}` },
     { h: 'Doses', v: 'taper', f: D => String(D.awake.length) },
-    { h: 'Interval med/longest', v: 'taper', f: D => D.gaps.length ? `${fmtGap(Math.round(docMedian(D.gaps)))}/${fmtGap(Math.round(Math.max(...D.gaps)))}` : '-' },
-    { h: 'CIWA avg/max', v: 'taper', f: D => D.s.ciwaReads.length ? `${fmtCiwaAvg(D.s.ciwaAvg)}/${D.s.ciwaMax}` : '-' },
+    { h: 'CIWA avg / max', v: 'taper', f: D => D.s.ciwaReads.length ? `${fmtCiwaAvg(D.s.ciwaAvg)} / ${D.s.ciwaMax}` : '-' },
     { h: 'Palp max', v: 'taper', f: D => D.palpMax != null ? String(D.palpMax) : '-' },
     { h: 'Clonazepam', v: 'taper', f: D => D.s.benzoTaken.length ? '✓ ' + docClock(D.s.benzoTaken[0].timestamp) : D.s.benzoMissed.length ? '✗' : '-' },
     { h: 'Sleep meds', v: 'taper', f: D => {
       const one = (list, nm) => list.length ? `${nm} ${list.some(e => e.taken) ? '✓' : '✗' + (list[0].reason ? ' (' + list[0].reason.toLowerCase() + ')' : '')}` : '';
-      return [one(D.clonidine, 'Clonid'), one(D.quetiapine, 'Quet')].filter(Boolean).join(' ') || '-';
+      return [one(D.clonidine, 'Clonidine'), one(D.quetiapine, 'Quetiapine')].filter(Boolean).join(', ') || '-';
     } },
-    { h: 'Stimulants (mg @ time)', v: 'stim', f: D => D.meds.length ? D.meds.map(m => `${docAbbr(m)} @ ${docClock(m.timestamp)}`).join(' · ') : '-' },
-    { h: 'Felt fade', v: 'stim', f: () => '-' },
-    { h: 'BP pre', v: 'stim', f: D => docBpTxt(D.preR) },
-    { h: 'BP peak', v: 'stim', f: D => docBpTxt(D.peakR) },
+    { h: 'Stimulants', v: 'stim', f: docStimTxt },
+    { h: 'BP pre / peak', v: 'stim', f: D => `${docBpTxt(D.preR)} / ${docBpTxt(D.peakR)}` },
     { h: 'Meals', v: 'both', f: D => `${D.mealN}${D.bigN ? ` (${D.bigN} big)` : ''}` },
-    { h: 'Flags', v: 'both', f: D => {
-      const f = [];
-      if (D.excluded) f.push('EXCLUDED: ' + D.excluded);
-      if (overCap(D.s.totalDailyMl, D.s.capMl)) f.push('over cap');
-      if (D.hardReads.length) f.push('hard stop');
-      if (D.palpMax != null && D.palpMax >= 3) f.push('palp 3');
-      if (D.restedAll.some(b => b.sys >= 140 || b.dia >= 90)) f.push('BP 140/90+');
-      if (D.restedAll.some(b => b.sys < 90 || b.dia < 60)) f.push('BP under 90/60');
-      if (!D.s.isOpen && !D.hasWakeSleep) f.push('no Sleep/Wake');
-      if (!D.bothBp && !D.s.isOpen) f.push('BP missing');
-      return f.length ? f.join('; ') : '-';
-    } },
+    { h: 'Notes', v: 'both', f: docDayNote },
   ];
 
   // The whole report as data; the preview and copy both read this.
@@ -5387,10 +5376,8 @@
     const from = new Date(fromStr + 'T00:00:00'), to = new Date(toStr + 'T00:00:00');
     const spanDays = Math.round((to - from) / 86400000) + 1;
     const toEnd = new Date(to); toEnd.setDate(toEnd.getDate() + 1);
-    const prevFrom = new Date(from); prevFrom.setDate(prevFrom.getDate() - spanDays);
     const everyone = (await computeSessions()).map(docDay);
     const days = everyone.filter(D => D.s.startTs >= from.getTime() && D.s.startTs < toEnd.getTime());
-    const prevDays = everyone.filter(D => D.s.startTs >= prevFrom.getTime() && D.s.startTs < from.getTime());
     const fShort = d => docNoComma(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
     const fFull = d => docNoComma(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
     // Clonazepam Day 1 is the first day one was taken.
@@ -5410,9 +5397,9 @@
       `Phase: ${DOC_PHASE} · Cap ${capNow > 0 ? fmtMl(capNow) + ' ml' : 'none'} · Dose ${last && last.targetDose != null ? fmtMl(last.targetDose) + ' ml' : '-'} · Dose point CIWA ${dosePt > 0 ? dosePt : 'not set'}`,
       `Generated: ${gen} +08:00 · View: ${DOC_VIEWS[docView]}`,
     ];
-    const summary = days.length ? docSummary(docStats(days), docStats(prevDays), docView) : [];
+    const summary = days.length ? docSummary(docStats(days), docView) : [];
     const cols = DOC_COLS.filter(c => c.v === 'both' || docView === 'full' || c.v === docView);
-    const rows = days.map(D => cols.map(c => c.f(D)));
+    const daily = days.map(D => ({ t: docDate(D.s.startTs) + (D.s.isOpen ? ' (ongoing)' : ''), rows: cols.map(c => [c.h, c.f(D)]) }));
     const excl = days.flatMap(D => D.exclusions).map(x => `${x.date} · ${x.entry} · ${x.reason}`);
     const notes = [];
     if (docNotes) {
@@ -5427,94 +5414,76 @@
       });
       notes.sort((a, b) => a.ts - b.ts);
     }
-    return { week: spanDays === 7, head, summary, cols: cols.map(c => c.h), rows, excl, notes: notes.map(n => `${docDate(n.ts)}, ${docClock(n.ts)} · ${n.text}`), empty: !days.length };
+    return { head, summary, daily, excl, notes: notes.map(n => `${docDate(n.ts)}, ${docClock(n.ts)} · ${n.text}`), empty: !days.length };
   }
 
   function docReportText(r) {
     let out = r.head.join('\n') + '\n';
     if (r.empty) return out + '\nNo sessions in this range.\n';
-    const all = r.summary.flatMap(sec => sec.rows);
-    // Fixed columns like his template; a long value just runs past its column.
-    const w1 = Math.max(...all.map(x => x.l.length + 2), 14) + 3, w2 = 24, w3 = 24;
-    const pad = (t, w) => t.length < w - 1 ? t.padEnd(w) : t + '  ';
-    const [tc, tp] = r.week ? ['this week', 'prev week'] : ['this period', 'prev period'];
-    out += '\n' + 'WEEKLY SUMMARY'.padEnd(w1) + tc.padEnd(w2) + tp.padEnd(w3) + 'change\n';
-    r.summary.forEach(sec => {
-      out += sec.t + '\n';
-      sec.rows.forEach(x => { out += (('  ' + x.l).padEnd(w1) + pad(x.c, w2) + pad(x.p, w3) + x.x).trimEnd() + '\n'; });
-    });
-    out += '\nDAILY\n' + r.cols.join(' | ') + '\n' + r.rows.map(x => x.join(' | ')).join('\n') + '\n';
+    out += '\nSUMMARY\n';
+    r.summary.forEach(sec => { out += sec.t + '\n' + sec.rows.map(x => `  ${x.l}: ${x.c}`).join('\n') + '\n'; });
+    out += '\nDAILY\n';
+    r.daily.forEach(d => { out += d.t + '\n' + d.rows.map(([h, v]) => `  ${h}: ${v}`).join('\n') + '\n'; });
     out += '\nEXCLUDED FROM AVERAGES\n' + (r.excl.length ? r.excl.map(x => '  ' + x).join('\n') : '  None') + '\n';
     if (docNotes) out += '\nNOTES\n' + (r.notes.length ? r.notes.map(x => '  ' + x).join('\n') : '  None') + '\n';
     return out;
   }
 
 
-  // The same report as tables: the preview, the PDF and the image read this.
+  // The same report laid out top to bottom: the preview, the PDF and the image read this.
   let docLastRep = null;
   const docEsc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   function docReportHtml(r) {
     let h = `<div class="docrep"><h3>${docEsc(r.head[0])}</h3>` + r.head.slice(1).map(x => `<div class="dhead">${docEsc(x)}</div>`).join('');
     if (r.empty) return h + '<p>No sessions in this range.</p></div>';
-    const [tc, tp] = r.week ? ['This week', 'Prev week'] : ['This period', 'Prev period'];
-    h += `<div class="dsec">Summary</div><div class="dwrap"><table><tr><th></th><th>${tc}</th><th>${tp}</th><th>Change</th></tr>`;
-    r.summary.forEach(sec => {
-      h += `<tr class="grp"><td colspan="4">${docEsc(sec.t)}</td></tr>`;
-      sec.rows.forEach(x => { h += `<tr><td>${docEsc(x.l)}</td><td>${docEsc(x.c)}</td><td>${docEsc(x.p)}</td><td class="chg">${docEsc(x.x)}</td></tr>`; });
-    });
-    h += `</table></div><div class="dsec">Daily</div><div class="dwrap"><table class="daily"><tr>${r.cols.map(c => `<th>${docEsc(c)}</th>`).join('')}</tr>`;
-    h += r.rows.map(x => `<tr>${x.map(c => `<td>${docEsc(c)}</td>`).join('')}</tr>`).join('') + '</table></div>';
+    const kv = rows => `<table class="dkv">${rows.map(([l, v]) => `<tr><td>${docEsc(l)}</td><td>${docEsc(v)}</td></tr>`).join('')}</table>`;
+    h += `<div class="dsec">Summary</div>` + r.summary.map(sec => `<div class="dday"><div class="ddh">${docEsc(sec.t)}</div>${kv(sec.rows.map(x => [x.l, x.c]))}</div>`).join('');
+    h += `<div class="dsec">Daily</div>` + r.daily.map(d => `<div class="dday"><div class="ddh">${docEsc(d.t)}</div>${kv(d.rows)}</div>`).join('');
     h += `<div class="dsec">Excluded from averages</div>` + (r.excl.length ? `<ul>${r.excl.map(x => `<li>${docEsc(x)}</li>`).join('')}</ul>` : '<div class="dhead">None</div>');
     if (docNotes) h += `<div class="dsec">Notes</div>` + (r.notes.length ? `<ul>${r.notes.map(x => `<li>${docEsc(x)}</li>`).join('')}</ul>` : '<div class="dhead">None</div>');
     return h + '</div>';
   }
 
-  // Draws the report on a canvas (white page, tables) and returns a PNG blob.
+  // Draws the report on a narrow white canvas, top to bottom, and returns a PNG blob.
   function docReportImage(r) {
-    const S = 2, PAD = 28, F = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+    const S = 2, PAD = 24, W = 600, LW = 190, F = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
     const cv = document.createElement('canvas'), cx = cv.getContext('2d');
     const font = (sz, b) => { cx.font = `${b ? '600 ' : ''}${sz}px ${F}`; };
-    const tw = (t, sz, b) => { font(sz, b); return cx.measureText(String(t)).width; };
-    const [tc, tp] = r.week ? ['This week', 'Prev week'] : ['This period', 'Prev period'];
-    const sumRows = r.empty ? [] : r.summary.flatMap(sec => [{ grp: sec.t }, ...sec.rows.map(x => ({ cells: [x.l, x.c, x.p, x.x] }))]);
-    const colW = (rows, hdr) => hdr.map((hd, i) => Math.max(tw(hd, 11, true), ...rows.filter(x => x.cells).map(x => tw(x.cells[i], 12))) + 18);
-    const sumW = colW(sumRows, ['', tc, tp, 'Change']);
-    const dRows = r.empty ? [] : r.rows.map(x => ({ cells: x }));
-    const dW = colW(dRows, r.cols);
-    const W = Math.ceil(Math.max(760, sumW.reduce((a, b) => a + b, 0), dW.reduce((a, b) => a + b, 0)) + PAD * 2);
-    const wrap = (t, sz, max) => { font(sz); const out = []; let line = ''; String(t).split(' ').forEach(w => { const n = line ? line + ' ' + w : w; if (cx.measureText(n).width > max && line) { out.push(line); line = w; } else line = n; }); if (line) out.push(line); return out; };
-    const lists = [['EXCLUDED FROM AVERAGES', r.excl], ...(docNotes ? [['NOTES', r.notes]] : [])];
-    const listLines = lists.map(([t, l]) => [t, (l.length ? l : ['None']).flatMap(x => wrap('• ' + x, 12, W - PAD * 2))]);
-    const RH = 22;
-    let H = PAD + 22 + (r.head.length - 1) * 17 + 16;
-    if (!r.empty) H += 30 + RH * (sumRows.length + 1) + 30 + RH * (dRows.length + 1) + listLines.reduce((t, [, l]) => t + 30 + l.length * 17, 0);
-    else H += 30;
-    H += PAD;
+    const wrap = (t, sz, max) => { font(sz); const out = []; let line = ''; String(t).split(' ').forEach(w => { const n = line ? line + ' ' + w : w; if (cx.measureText(n).width > max && line) { out.push(line); line = w; } else line = n; }); if (line) out.push(line); return out.length ? out : ['']; };
+    const VW = W - PAD * 2 - LW, LH = 16;
+    // Build a flat list of drawing steps first so the height is known.
+    const steps = [];
+    steps.push({ k: 'title', t: r.head[0], h: 26 });
+    r.head.slice(1).forEach(x => wrap(x, 11.5, W - PAD * 2).forEach(l => steps.push({ k: 'head', t: l, h: 16 })));
+    if (r.empty) steps.push({ k: 'line', t: 'No sessions in this range.', h: 20 });
+    else {
+      const block = (title, rows) => {
+        steps.push({ k: 'bh', t: title, h: 24 });
+        rows.forEach(([l, v]) => { const lines = wrap(v, 12, VW); steps.push({ k: 'kv', l, lines, h: lines.length * LH + 6 }); });
+        steps.push({ k: 'gap', h: 6 });
+      };
+      steps.push({ k: 'sec', t: 'SUMMARY', h: 30 });
+      r.summary.forEach(sec => block(sec.t, sec.rows.map(x => [x.l, x.c])));
+      steps.push({ k: 'sec', t: 'DAILY', h: 30 });
+      r.daily.forEach(d => block(d.t, d.rows));
+      const lists = [['EXCLUDED FROM AVERAGES', r.excl], ...(docNotes ? [['NOTES', r.notes]] : [])];
+      lists.forEach(([t, l]) => { steps.push({ k: 'sec', t, h: 30 }); (l.length ? l : ['None']).forEach(x => wrap('• ' + x, 12, W - PAD * 2).forEach(ln => steps.push({ k: 'line', t: ln, h: LH }))); });
+    }
+    const H = PAD * 2 + steps.reduce((t, x) => t + x.h, 0);
     cv.width = W * S; cv.height = H * S; cx.scale(S, S);
     cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
-    let y = PAD;
-    const text = (t, x, yy, sz, b, col) => { font(sz, b); cx.fillStyle = col || '#111'; cx.textBaseline = 'middle'; cx.fillText(String(t), x, yy); };
+    const text = (t, x, yy, sz, b, col) => { font(sz, b); cx.fillStyle = col || '#111'; cx.textBaseline = 'top'; cx.fillText(String(t), x, yy); };
     const rule = (yy, col, lw) => { cx.strokeStyle = col; cx.lineWidth = lw || 1; cx.beginPath(); cx.moveTo(PAD, yy); cx.lineTo(W - PAD, yy); cx.stroke(); };
-    text(r.head[0], PAD, y + 9, 16, true); y += 26;
-    r.head.slice(1).forEach(x => { text(x, PAD, y + 7, 12, false, '#666'); y += 17; });
-    y += 12;
-    if (r.empty) { text('No sessions in this range.', PAD, y + 8, 13); }
-    else {
-      const table = (title, hdr, widths, rows) => {
-        text(title, PAD, y + 10, 11, true); y += 26;
-        let x = PAD; hdr.forEach((hd, i) => { text(hd, x + 8, y + RH / 2, 11, true, '#777'); x += widths[i]; });
-        y += RH; rule(y, '#ccc', 1.5);
-        rows.forEach(rw => {
-          if (rw.grp) { text(rw.grp, PAD + 8, y + RH / 2 + 2, 11, true); }
-          else { let xx = PAD; rw.cells.forEach((c, i) => { text(c, xx + 8, y + RH / 2, 12, false, i === 3 && hdr.length === 4 ? '#777' : '#111'); xx += widths[i]; }); }
-          y += RH; rule(y, rw.grp ? '#ccc' : '#eee');
-        });
-        y += 8;
-      };
-      table('SUMMARY', ['', tc, tp, 'Change'], sumW, sumRows);
-      table('DAILY', r.cols, dW, dRows);
-      listLines.forEach(([t, l]) => { text(t, PAD, y + 10, 11, true); y += 26; l.forEach(x => { text(x, PAD, y + 6, 12, false, '#333'); y += 17; }); y += 4; });
-    }
+    let y = PAD;
+    steps.forEach(st => {
+      if (st.k === 'title') text(st.t, PAD, y, 16, true);
+      else if (st.k === 'head') text(st.t, PAD, y, 11.5, false, '#666');
+      else if (st.k === 'sec') text(st.t, PAD, y + 12, 11, true, '#333');
+      else if (st.k === 'bh') { text(st.t, PAD, y + 4, 12.5, true); rule(y + st.h - 2, '#bbb', 1.5); }
+      else if (st.k === 'kv') { text(st.l, PAD, y + 3, 12, false, '#777'); st.lines.forEach((l, i) => text(l, PAD + LW, y + 3 + i * LH, 12)); rule(y + st.h, '#eee'); }
+      else if (st.k === 'line') text(st.t, PAD, y, 12, false, '#333');
+      y += st.h;
+    });
     return new Promise(res => cv.toBlob(res, 'image/png'));
   }
 
