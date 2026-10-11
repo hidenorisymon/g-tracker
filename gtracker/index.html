@@ -465,9 +465,10 @@
   .setrow.stack{flex-direction:column;align-items:stretch;}
   .field.cost.full{width:100%;box-sizing:border-box;}
   .field.cost.full input{width:100%;text-align:left;letter-spacing:0;}
-  /* Settings stays put: no sideways drift or bounce, only up and down. */
+  /* Settings stays put: no sideways drift or bounce, only up and down.
+     Pinch stays allowed (v33): blocking it is what left the page stuck zoomed. */
   html,body,.phone{overflow-x:hidden;overscroll-behavior-x:none;}
-  #view-settings{touch-action:pan-y;}
+  #view-settings{touch-action:pan-y pinch-zoom;}
   #setTaperStart{width:124px;text-align:left;}
   .brow .bv.over{color:var(--wait);} .brow .bv.under{color:var(--ready);}
   .setbtns{display:flex;flex-direction:column;gap:9px;}
