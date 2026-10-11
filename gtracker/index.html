@@ -326,6 +326,32 @@
   .docbtn.done{background:var(--green);}
   .docbtn svg{width:20px;height:20px;}
   .docprev{font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--ink);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;white-space:pre;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .docbtns{display:flex;gap:10px;margin:-8px 0 20px;}
+  .docbtn2{flex:1;height:44px;border:1px solid var(--hair);border-radius:14px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--sans);}
+  .docbtn2.done{background:var(--green);color:#fff;border-color:var(--green);}
+  .docprev{font-family:var(--sans);font-size:12px;line-height:1.45;color:var(--ink);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;background:var(--surface);margin:0 0 24px;white-space:normal;overflow:hidden;}
+  .docrep h3{font-size:13px;font-weight:700;margin:0 0 4px;letter-spacing:.02em;}
+  .docrep .dhead{font-size:11.5px;color:var(--muted);margin:0 0 2px;}
+  .docrep .dsec{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:16px 0 6px;}
+  .docrep .dwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .docrep table{border-collapse:collapse;font-size:11.5px;width:100%;}
+  .docrep th{text-align:left;font-weight:600;color:var(--muted);font-size:10.5px;padding:5px 8px;border-bottom:1.5px solid var(--hair);white-space:nowrap;}
+  .docrep td{padding:5px 8px;border-bottom:1px solid var(--hair-2);vertical-align:top;}
+  .docrep .daily td{white-space:nowrap;}
+  .docrep tr.grp td{font-weight:700;font-size:10.5px;letter-spacing:.06em;padding-top:10px;border-bottom:1px solid var(--hair);}
+  .docrep td.chg{white-space:nowrap;color:var(--muted);}
+  .docrep ul{margin:0;padding-left:16px;font-size:11.5px;}
+  .docrep li{margin:2px 0;}
+  #docPrint{display:none;}
+  @media print{
+    @page{size:A4 landscape;margin:12mm;}
+    body > *:not(#docPrint){display:none !important;}
+    #docPrint{display:block !important;color:#000;background:#fff;}
+    #docPrint .docrep{--muted:#555;--hair:#bbb;--hair-2:#ddd;--ink:#000;}
+    #docPrint .dwrap{overflow:visible;}
+    #docPrint table{font-size:9.5px;}
+    #docPrint tr{page-break-inside:avoid;}
+  }
   .docprev .docsec{font-weight:700;font-size:10.5px;letter-spacing:.05em;margin:16px 0 6px;color:var(--ink);}
   .docprev .docline{font-family:var(--mono);font-size:11px;line-height:1.6;}
   .breakdown{border:1px solid var(--hair);border-radius:14px;padding:2px 14px;background:var(--surface);}
@@ -762,8 +788,12 @@
           <div class="docrow"><span>Include notes</span><button class="tgl on" id="docNotes" aria-pressed="true" aria-label="Include notes"></button></div>
         </div>
         <button class="docbtn" id="copyDoctor">Copy as text</button>
+        <div class="docbtns">
+          <button class="docbtn2" id="imgDoctor">Save image</button>
+          <button class="docbtn2" id="pdfDoctor">Save PDF</button>
+        </div>
         <div class="glabel">Preview</div>
-        <pre class="docprev" id="docPreview"></pre>
+        <div class="docprev" id="docPreview"></div>
       </div>
     </div>
 
@@ -4179,6 +4209,8 @@
       // the copy as part of the tap.
       copyText(docLastText || await buildDoctorText(), btn);
     });
+    document.getElementById('imgDoctor').addEventListener('click', e => docSaveImage(e.currentTarget));
+    document.getElementById('pdfDoctor').addEventListener('click', () => docSavePdf());
     document.getElementById('prevTaper').addEventListener('click', () => {
       if (document.getElementById('prevTaper').classList.contains('off')) return;
       if (taperPeriod === 'daily') taperDayIdx -= 1; else taperGroupIdx -= 1;
@@ -5417,6 +5449,99 @@
     return out;
   }
 
+
+  // The same report as tables: the preview, the PDF and the image read this.
+  let docLastRep = null;
+  const docEsc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function docReportHtml(r) {
+    let h = `<div class="docrep"><h3>${docEsc(r.head[0])}</h3>` + r.head.slice(1).map(x => `<div class="dhead">${docEsc(x)}</div>`).join('');
+    if (r.empty) return h + '<p>No sessions in this range.</p></div>';
+    const [tc, tp] = r.week ? ['This week', 'Prev week'] : ['This period', 'Prev period'];
+    h += `<div class="dsec">Summary</div><div class="dwrap"><table><tr><th></th><th>${tc}</th><th>${tp}</th><th>Change</th></tr>`;
+    r.summary.forEach(sec => {
+      h += `<tr class="grp"><td colspan="4">${docEsc(sec.t)}</td></tr>`;
+      sec.rows.forEach(x => { h += `<tr><td>${docEsc(x.l)}</td><td>${docEsc(x.c)}</td><td>${docEsc(x.p)}</td><td class="chg">${docEsc(x.x)}</td></tr>`; });
+    });
+    h += `</table></div><div class="dsec">Daily</div><div class="dwrap"><table class="daily"><tr>${r.cols.map(c => `<th>${docEsc(c)}</th>`).join('')}</tr>`;
+    h += r.rows.map(x => `<tr>${x.map(c => `<td>${docEsc(c)}</td>`).join('')}</tr>`).join('') + '</table></div>';
+    h += `<div class="dsec">Excluded from averages</div>` + (r.excl.length ? `<ul>${r.excl.map(x => `<li>${docEsc(x)}</li>`).join('')}</ul>` : '<div class="dhead">None</div>');
+    if (docNotes) h += `<div class="dsec">Notes</div>` + (r.notes.length ? `<ul>${r.notes.map(x => `<li>${docEsc(x)}</li>`).join('')}</ul>` : '<div class="dhead">None</div>');
+    return h + '</div>';
+  }
+
+  // Draws the report on a canvas (white page, tables) and returns a PNG blob.
+  function docReportImage(r) {
+    const S = 2, PAD = 28, F = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+    const cv = document.createElement('canvas'), cx = cv.getContext('2d');
+    const font = (sz, b) => { cx.font = `${b ? '600 ' : ''}${sz}px ${F}`; };
+    const tw = (t, sz, b) => { font(sz, b); return cx.measureText(String(t)).width; };
+    const [tc, tp] = r.week ? ['This week', 'Prev week'] : ['This period', 'Prev period'];
+    const sumRows = r.empty ? [] : r.summary.flatMap(sec => [{ grp: sec.t }, ...sec.rows.map(x => ({ cells: [x.l, x.c, x.p, x.x] }))]);
+    const colW = (rows, hdr) => hdr.map((hd, i) => Math.max(tw(hd, 11, true), ...rows.filter(x => x.cells).map(x => tw(x.cells[i], 12))) + 18);
+    const sumW = colW(sumRows, ['', tc, tp, 'Change']);
+    const dRows = r.empty ? [] : r.rows.map(x => ({ cells: x }));
+    const dW = colW(dRows, r.cols);
+    const W = Math.ceil(Math.max(760, sumW.reduce((a, b) => a + b, 0), dW.reduce((a, b) => a + b, 0)) + PAD * 2);
+    const wrap = (t, sz, max) => { font(sz); const out = []; let line = ''; String(t).split(' ').forEach(w => { const n = line ? line + ' ' + w : w; if (cx.measureText(n).width > max && line) { out.push(line); line = w; } else line = n; }); if (line) out.push(line); return out; };
+    const lists = [['EXCLUDED FROM AVERAGES', r.excl], ...(docNotes ? [['NOTES', r.notes]] : [])];
+    const listLines = lists.map(([t, l]) => [t, (l.length ? l : ['None']).flatMap(x => wrap('• ' + x, 12, W - PAD * 2))]);
+    const RH = 22;
+    let H = PAD + 22 + (r.head.length - 1) * 17 + 16;
+    if (!r.empty) H += 30 + RH * (sumRows.length + 1) + 30 + RH * (dRows.length + 1) + listLines.reduce((t, [, l]) => t + 30 + l.length * 17, 0);
+    else H += 30;
+    H += PAD;
+    cv.width = W * S; cv.height = H * S; cx.scale(S, S);
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
+    let y = PAD;
+    const text = (t, x, yy, sz, b, col) => { font(sz, b); cx.fillStyle = col || '#111'; cx.textBaseline = 'middle'; cx.fillText(String(t), x, yy); };
+    const rule = (yy, col, lw) => { cx.strokeStyle = col; cx.lineWidth = lw || 1; cx.beginPath(); cx.moveTo(PAD, yy); cx.lineTo(W - PAD, yy); cx.stroke(); };
+    text(r.head[0], PAD, y + 9, 16, true); y += 26;
+    r.head.slice(1).forEach(x => { text(x, PAD, y + 7, 12, false, '#666'); y += 17; });
+    y += 12;
+    if (r.empty) { text('No sessions in this range.', PAD, y + 8, 13); }
+    else {
+      const table = (title, hdr, widths, rows) => {
+        text(title, PAD, y + 10, 11, true); y += 26;
+        let x = PAD; hdr.forEach((hd, i) => { text(hd, x + 8, y + RH / 2, 11, true, '#777'); x += widths[i]; });
+        y += RH; rule(y, '#ccc', 1.5);
+        rows.forEach(rw => {
+          if (rw.grp) { text(rw.grp, PAD + 8, y + RH / 2 + 2, 11, true); }
+          else { let xx = PAD; rw.cells.forEach((c, i) => { text(c, xx + 8, y + RH / 2, 12, false, i === 3 && hdr.length === 4 ? '#777' : '#111'); xx += widths[i]; }); }
+          y += RH; rule(y, rw.grp ? '#ccc' : '#eee');
+        });
+        y += 8;
+      };
+      table('SUMMARY', ['', tc, tp, 'Change'], sumW, sumRows);
+      table('DAILY', r.cols, dW, dRows);
+      listLines.forEach(([t, l]) => { text(t, PAD, y + 10, 11, true); y += 26; l.forEach(x => { text(x, PAD, y + 6, 12, false, '#333'); y += 17; }); y += 4; });
+    }
+    return new Promise(res => cv.toBlob(res, 'image/png'));
+  }
+
+  function docFileName(ext) {
+    const [a, b] = docRange();
+    return `G-Tracker-report-${a}-to-${b}.${ext}`;
+  }
+  async function docSaveImage(btn) {
+    const r = docLastRep || await buildDoctorReport();
+    const blob = await docReportImage(r);
+    const file = new File([blob], docFileName('png'), { type: 'image/png' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'G Tracker report' }); }
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+      btn.classList.add('done'); setTimeout(() => btn.classList.remove('done'), 1400);
+    } catch (e) { /* share sheet closed */ }
+  }
+  async function docSavePdf() {
+    const r = docLastRep || await buildDoctorReport();
+    const box = document.getElementById('docPrint');
+    box.innerHTML = docReportHtml(r);
+    const old = document.title;
+    document.title = docFileName('pdf').replace(/\.pdf$/, '');
+    window.print();
+    setTimeout(() => { document.title = old; }, 1000);
+  }
+
   async function buildDoctorText() { return docReportText(await buildDoctorReport()); }
 
   async function renderDoctor() {
@@ -5431,7 +5556,8 @@
     tgl.setAttribute('aria-pressed', String(docNotes));
     const rep = await buildDoctorReport();
     docLastText = docReportText(rep);
-    document.getElementById('docPreview').textContent = docLastText;
+    docLastRep = rep;
+    document.getElementById('docPreview').innerHTML = docReportHtml(rep);
   }
 
   // ===== Data management (Settings) =====
@@ -5639,5 +5765,6 @@
     showToast('📴 Offline — timer still runs, will sync when back');
   });
 </script>
+<div id="docPrint"></div>
 </body>
 </html>
