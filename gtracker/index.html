@@ -1559,12 +1559,12 @@
   const BP_TOPIC_KEY = 'bpNtfyTopic';
   const BP_REMIND_KEY = 'bpReminders';
   // Symon's topic. Never stored = this default; stored blank = reminders off.
-  // Topics are case sensitive; v23 shipped 'bp-check', so a stored copy of
-  // that is read as the right name.
-  const BP_TOPIC_DEFAULT = 'bp-Check';
+  // Topics are case sensitive and the ntfy iPhone app saves them lowercase,
+  // so his phone listens on 'bp-check'; a stored 'bp-Check' is read as that.
+  const BP_TOPIC_DEFAULT = 'bp-check';
   function bpTopic() {
     const t = localStorage.getItem(BP_TOPIC_KEY);
-    if (t == null || t.trim() === 'bp-check') return BP_TOPIC_DEFAULT;
+    if (t == null || t.trim().toLowerCase() === 'bp-check') return BP_TOPIC_DEFAULT;
     return t.trim();
   }
   const GITHUB_API = 'https://api.github.com';
