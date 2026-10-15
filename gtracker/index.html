@@ -596,6 +596,17 @@
   .csame[hidden]{display:none;}
   .clast{font-size:12px;line-height:1.45;color:var(--txt2);background:var(--hair-2);border-radius:11px;padding:9px 11px;margin-bottom:6px;}
   .clast .h{font-weight:700;color:var(--ink);margin-bottom:2px;}
+  /* Step 1 fits one screen: Same as last sits inside the last check-in box,
+     and each chip group is one row he swipes sideways. */
+  .clast.withsame{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .clast.withsame .txt{flex:1;min-width:0;}
+  .clast.withsame .csame{width:auto;flex:none;height:34px;padding:0 12px;margin:0;}
+  .cchips.row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:12px;}
+  .cchips.row::-webkit-scrollbar{display:none;}
+  .cchips.row .cchip{flex:none;white-space:nowrap;}
+  .cchip.more{min-width:44px;font-size:17px;padding:0 12px;}
+  .cblock.tight{padding-top:10px;margin-bottom:12px;}
+  .cq .opt{font-weight:400;color:var(--mut);font-size:11.5px;}
   .ctotal{font-family:var(--mono);font-size:13px;font-weight:700;padding:5px 11px;border-radius:10px;flex:none;}
   .ctotal.grn{background:rgba(26,160,111,.12);color:#146e4d;}
   .ctotal.amb{background:rgba(209,144,42,.14);color:#7d520f;}
@@ -1113,6 +1124,7 @@
   // first for him, so they are worth recording, but adding them to the total
   // would make his numbers incomparable to a clinical one. Palpitations get a
   // 0-3 scale of their own; the rest are simply present or not.
+  const CIWA_SHOWN = ['tremor', 'tactile', 'headache'];
   const CIWA_PERSONAL = [
     { k: 'tongue', label: 'Tongue salivating', short: 'tongue' },
     { k: 'jaw',    label: 'Jaw tightening', short: 'jaw' },
@@ -1312,8 +1324,11 @@
     // had to scroll down again to reach Next.
     const scroller = body.parentElement;
     const keep = d.renderedStep === d.step ? scroller.scrollTop : 0;
+    const side = {};
+    if (d.renderedStep === d.step) body.querySelectorAll('.cchips.row[data-row]').forEach(r => { side[r.dataset.row] = r.scrollLeft; });
     body.innerHTML = d.step === 1 ? ciwaStep1Html(d, ctxLine) : ciwaStep2Html(d, ctxLine);
     scroller.scrollTop = keep;
+    body.querySelectorAll('.cchips.row[data-row]').forEach(r => { if (side[r.dataset.row]) r.scrollLeft = side[r.dataset.row]; });
     d.renderedStep = d.step;
   }
 
@@ -1329,25 +1344,27 @@
       const cls = d.stage === n ? ' at' : d.stage > n ? ' reached' : '';
       return `<button class="cstage${cls}" data-ciwa-stage="${n}" title="${name}">${CIWA_STAGES_SHORT[i]}</button>`;
     }).join('');
+    // Only his usual three CIWA items show; the rest wait behind +, except
+    // any already ticked (Same as last can tick them).
+    const shown = CIWA_ITEMS.filter(it => d.ciwaMore || CIWA_SHOWN.includes(it.k) || d.checked[it.k]);
+    const more = shown.length < CIWA_ITEMS.length || d.ciwaMore
+      ? `<button class="cchip more" data-ciwa-more aria-label="${d.ciwaMore ? 'Fewer' : 'More'} CIWA items">${d.ciwaMore ? '−' : '+'}</button>` : '';
     return `
       <div class="chead"><h3>What do you feel?</h3><div class="cstep">Step 1 of 2</div></div>
-      <div class="cctx">${ctxLine}</div>
-      ${d.last ? `<div class="clast"><div class="h">Last check-in${d.minSinceLast != null ? ' · ' + fmtGap(d.minSinceLast) + ' ago' : ''}</div>${escapeHtml(ciwaLastText(d.last))}</div>
-      <button class="csame" id="ciwaSameAsLast">Same as last</button>` : ''}
+      ${d.last ? `<div class="clast withsame"><div class="txt"><div class="h">Last check-in${d.minSinceLast != null ? ' · ' + fmtGap(d.minSinceLast) + ' ago' : ''}</div>${escapeHtml(ciwaLastText(d.last))}</div>
+      <button class="csame" id="ciwaSameAsLast">Same as last</button></div>` : ''}
       <div class="cgroup">CIWA</div>
-      <div class="cchips">${CIWA_ITEMS.map(it => chip(it.k, it.label)).join('')}</div>
+      <div class="cchips row" data-row="ciwa">${shown.map(it => chip(it.k, it.label)).join('')}${more}</div>
       <div class="cgroup">My signals · not in the total</div>
-      <div class="cchips">${CIWA_PERSONAL.map(it => chip(it.k, it.label)).join('')}</div>
-      <div class="cblock">
-        <div class="cq">How far has it got?</div>
-        <div class="chint">Optional · it arrives in this order</div>
+      <div class="cchips row" data-row="sig">${CIWA_PERSONAL.map(it => chip(it.k, it.label)).join('')}</div>
+      <div class="cblock tight">
+        <div class="cq">How far has it got? <span class="opt">optional</span></div>
         <div class="cstrip">${stages}</div>
         ${d.stage >= set.stagePoint ? `<div class="cdosepoint">Dose point reached (${CIWA_STAGES[set.stagePoint - 1]}).</div>` : ''}
       </div>
-      <div class="cblock">
-        <div class="cq">Since your last dose, was any of this going on?</div>
-        <div class="chint">Optional · pick all that apply</div>
-        <div class="cchips">${CIWA_FACTORS.map(facChip).join('')}</div>
+      <div class="cblock tight">
+        <div class="cq">Since your last dose? <span class="opt">optional, pick all</span></div>
+        <div class="cchips row" data-row="fac" style="margin-top:8px">${CIWA_FACTORS.map(facChip).join('')}</div>
       </div>
       <div class="cnote"><input type="text" id="ciwaNote" value="${(d.note || '').replace(/"/g, '&quot;')}" placeholder="Note (optional)"></div>
       <div class="cactions${d.kind === 'sleep' ? ' bigskip' : ''}">
@@ -1472,6 +1489,7 @@
         renderCiwaSheet();
         return;
       }
+      if (t.closest('[data-ciwa-more]')) { d.ciwaMore = !d.ciwaMore; renderCiwaSheet(); return; }
       const fac = t.closest('[data-ciwa-factor]');
       if (fac) {
         const k = fac.dataset.ciwaFactor;
@@ -2575,8 +2593,15 @@
   // The optional note typed on the Meal or BP sheet.
   function quickNote() { const el = document.getElementById('qNote'); return el ? el.value.trim() : ''; }
   function mealText(e) { return `${MEAL_SIZES[e.size] || '?'}${e.heavy ? ' · heavy' : ''}`; }
+  // Several "what were you doing" picks are kept in activities; activity
+  // stays the single value the flags read: rested only when rested alone.
+  function bpActivityOf(acts) {
+    if (!acts.length) return null;
+    return Object.keys(BP_ACTS).find(k => k !== 'rested' && acts.includes(k)) || 'rested';
+  }
   function bpSubText(e) {
-    const bits = [e.pulse ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), BP_ACTS_SHORT[e.activity] || ''];
+    const acts = Array.isArray(e.activities) && e.activities.length ? e.activities : [e.activity];
+    const bits = [e.pulse ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), acts.map(a => BP_ACTS_SHORT[a]).filter(Boolean).join(', ')];
     if (Array.isArray(e.readings) && e.readings.length > 1) bits.push(`avg of ${e.readings.length}`);
     if (e.note) bits.push(e.note);
     return bits.filter(Boolean).join(' · ');
@@ -2621,14 +2646,14 @@
       <div id="bpFlag"></div>
       <div class="cgroup">When</div>
       <div class="cchips">${Object.keys(BP_SLOTS).map(k => `<button class="cchip sm" data-q="bp-slot" data-v="${k}">${BP_SLOTS[k]}</button>`).join('')}</div>
-      <div class="cgroup">What were you doing?</div>
+      <div class="cgroup">What were you doing? · pick all</div>
       <div class="cchips">${Object.keys(BP_ACTS).map(k => `<button class="cchip sm fac" data-q="bp-act" data-v="${k}">${BP_ACTS[k]}</button>`).join('')}</div>
       <div class="cfield"><label for="qBpTime">Time</label><input type="time" id="qBpTime" class="qtime" value="${now}"></div>
       <div class="cnote"><input type="text" id="qNote" placeholder="Note (optional)"></div>
       <div class="cactions">
         <button class="cbtn-soft" data-q="cancel">${skip ? 'Skip' : 'Cancel'}</button>
         <button class="cbtn-go" data-q="save-bp" id="qGo" disabled>Save</button>
-      </div>`, { mode: 'bp', slot, activity: null, second: false, preSys: pre ? pre.sys : null, openedTime: now, onClose });
+      </div>`, { mode: 'bp', slot, activity: null, acts: [], second: false, preSys: pre ? pre.sys : null, openedTime: now, onClose });
     paintBpSheet();
   }
 
@@ -2647,7 +2672,7 @@
     const st = quickState;
     if (!st || st.mode !== 'bp') return;
     document.querySelectorAll('#quickBody [data-q="bp-slot"]').forEach(b => b.classList.toggle('on', b.dataset.v === st.slot));
-    document.querySelectorAll('#quickBody [data-q="bp-act"]').forEach(b => b.classList.toggle('on', b.dataset.v === st.activity));
+    document.querySelectorAll('#quickBody [data-q="bp-act"]').forEach(b => b.classList.toggle('on', st.acts.includes(b.dataset.v)));
     document.querySelector('#quickBody .bprow[data-r="1"]').hidden = !st.second;
     document.querySelector('#quickBody [data-q="bp-second"]').hidden = st.second;
     const d = bpDraft();
@@ -2688,6 +2713,7 @@
     closeQuick();
     await logEventAt((ts, data) => {
       const e = { type: 'bp', timestamp: ts, sys: d.sys, dia: d.dia, pulse: d.pulse, slot, activity, readings: d.readings };
+      if (st.acts.length > 1) e.activities = Object.keys(BP_ACTS).filter(k => st.acts.includes(k));
       const ghb = ciwaMinutesSince(data, x => isDoseEntry(x) && Number(x.ml) > 0, ts);
       const stim = ciwaMinutesSince(data, x => isMedEntry(x), ts);
       if (ghb != null) e.minSinceGhb = ghb;
@@ -3058,7 +3084,13 @@
         return;
       }
       if (q === 'bp-slot') { quickState.slot = btn.dataset.v; paintBpSheet(); return; }
-      if (q === 'bp-act') { quickState.activity = btn.dataset.v; paintBpSheet(); return; }
+      if (q === 'bp-act') {
+        const st = quickState, v = btn.dataset.v;
+        st.acts = st.acts.includes(v) ? st.acts.filter(a => a !== v) : st.acts.concat(v);
+        st.activity = bpActivityOf(st.acts);
+        paintBpSheet();
+        return;
+      }
       if (q === 'bp-second') {
         quickState.second = true;
         paintBpSheet();
