@@ -1935,7 +1935,7 @@
     try {
       const data = JSON.parse(localStorage.getItem(dataKey) || '[]');
       const content = JSON.stringify({
-        entries: data, costPerMl, medCost, taperPlan, medWearOff,
+        entries: data, costPerMl, medCost, taperPlan, medWearOff, medMaxMg,
         heartRate: getHeartRateLog(),
       }, null, 2);
       const res = await fetch(`${GITHUB_API}/gists/${savedGistId}`, {
