@@ -1125,6 +1125,7 @@
   // would make his numbers incomparable to a clinical one. Palpitations get a
   // 0-3 scale of their own; the rest are simply present or not.
   const CIWA_SHOWN = ['tremor', 'tactile', 'headache'];
+  const SIG_SHOWN = ['jaw', 'palp'];
   const CIWA_PERSONAL = [
     { k: 'tongue', label: 'Tongue salivating', short: 'tongue' },
     { k: 'jaw',    label: 'Jaw tightening', short: 'jaw' },
@@ -1349,6 +1350,9 @@
     const shown = CIWA_ITEMS.filter(it => d.ciwaMore || CIWA_SHOWN.includes(it.k) || d.checked[it.k]);
     const more = shown.length < CIWA_ITEMS.length || d.ciwaMore
       ? `<button class="cchip more" data-ciwa-more aria-label="${d.ciwaMore ? 'Fewer' : 'More'} CIWA items">${d.ciwaMore ? '−' : '+'}</button>` : '';
+    const sigShown = CIWA_PERSONAL.filter(it => d.sigMore || SIG_SHOWN.includes(it.k) || d.checked[it.k]);
+    const sigMore = sigShown.length < CIWA_PERSONAL.length || d.sigMore
+      ? `<button class="cchip more" data-sig-more aria-label="${d.sigMore ? 'Fewer' : 'More'} signals">${d.sigMore ? '−' : '+'}</button>` : '';
     return `
       <div class="chead"><h3>What do you feel?</h3><div class="cstep">Step 1 of 2</div></div>
       ${d.last ? `<div class="clast withsame"><div class="txt"><div class="h">Last check-in${d.minSinceLast != null ? ' · ' + fmtGap(d.minSinceLast) + ' ago' : ''}</div>${escapeHtml(ciwaLastText(d.last))}</div>
@@ -1356,7 +1360,7 @@
       <div class="cgroup">CIWA</div>
       <div class="cchips row" data-row="ciwa">${shown.map(it => chip(it.k, it.label)).join('')}${more}</div>
       <div class="cgroup">My signals · not in the total</div>
-      <div class="cchips row" data-row="sig">${CIWA_PERSONAL.map(it => chip(it.k, it.label)).join('')}</div>
+      <div class="cchips row" data-row="sig">${sigShown.map(it => chip(it.k, it.label)).join('')}${sigMore}</div>
       <div class="cblock tight">
         <div class="cq">How far has it got? <span class="opt">optional</span></div>
         <div class="cstrip">${stages}</div>
@@ -1490,6 +1494,7 @@
         return;
       }
       if (t.closest('[data-ciwa-more]')) { d.ciwaMore = !d.ciwaMore; renderCiwaSheet(); return; }
+      if (t.closest('[data-sig-more]')) { d.sigMore = !d.sigMore; renderCiwaSheet(); return; }
       const fac = t.closest('[data-ciwa-factor]');
       if (fac) {
         const k = fac.dataset.ciwaFactor;
