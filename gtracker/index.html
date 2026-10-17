@@ -1446,7 +1446,8 @@
     if (d.stage > 0) out.stage = d.stage;
     if (d.minSinceGhb != null) out.minSinceGhb = d.minSinceGhb;
     if (d.minSinceStim != null) out.minSinceStim = d.minSinceStim;
-    if (d.minSinceMeal != null) { out.minSinceMeal = d.minSinceMeal; out.lastMealSize = d.lastMealSize; }
+    // Meal timing is no longer saved (2026-10-17): meal-linked short gaps
+    // stopped once clonazepam started, and meals are no longer logged.
     const note = (d.note || '').trim();
     if (note) out.note = note;
     return out;
@@ -5176,7 +5177,6 @@
       : 'Dose response: no doses at palp 2+ in this period.';
     return `<div class="pt">Palp vs hours since last G (${ghb.length})</div>${palpScatterSvg(ghb, 'G dose')}
       <div class="pt">Palp vs hours since last stimulant (${stim.length})</div>${palpScatterSvg(stim, 'stimulant')}
-      <div class="pt">Palp vs hours since last meal (${meal.length}${heavyN ? `, ${heavyN} after a heavy meal, ringed` : ''})</div>${palpScatterSvg(meal, 'meal')}
       <div class="pr">${response}</div>
       <div class="pn">Rising with G time and dropping after a dose points to withdrawal. Tracking stimulant time and not dropping points to the stimulant.</div>`;
   }
