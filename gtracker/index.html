@@ -1020,8 +1020,8 @@
           <input type="number" id="editMl" step="0.05" min="0.05">
         </div>
         <div class="modal-field" id="editMgGroup" hidden>
-          <label for="editMg">MG</label>
-          <input type="number" id="editMg" step="0.05" min="0">
+          <label for="editMg" id="editMgLabel">MG</label>
+          <input type="number" id="editMg" step="any" min="0">
         </div>
         <div class="modal-field" id="editTextGroup" hidden>
           <label for="editText">Note</label>
@@ -2741,7 +2741,7 @@
   const SLEEPINESS = { 1: 'Alert', 2: 'Heavy-eyed', 3: 'Falling asleep' };
 
   // Under 1 mg reads in mcg: clonidine is 75 mcg, not 0.075 mg.
-  function doseLabel(mg) { return mg < 1 ? `${Math.round(mg * 1000)} mcg` : `${mg} mg`; }
+  function doseLabel(mg) { return mg < 1 ? `${Math.round(mg * 10000) / 10} mcg` : `${mg} mg`; }
 
   function sleepmedSubText(e) {
     const bits = [];
@@ -3611,15 +3611,19 @@
         textEl.value = entry ? String(entry.text || '') : '';
       });
     }
-    // Clonazepam's mg is editable, so an entry logged at the wrong strength
-    // can be put right without deleting and re-logging it.
+    // Clonazepam and sleep med doses are editable, so an entry logged at the
+    // wrong strength (a halved clonidine during the taper) can be put right
+    // without deleting and re-logging it. Clonidine is shown in mcg.
     const mgGroup = document.getElementById('editMgGroup');
-    mgGroup.hidden = kind !== 'benzo';
+    mgGroup.hidden = kind !== 'benzo' && kind !== 'sleepmed';
     document.getElementById('editMg').value = '';
-    if (kind === 'benzo') {
+    document.getElementById('editMgLabel').textContent = 'MG';
+    if (!mgGroup.hidden) {
       getAllData().then(data => {
         const entry = data.find(e => e.timestamp === ts);
-        document.getElementById('editMg').value = entry && entry.mg > 0 ? entry.mg : '';
+        const mcg = !!entry && entry.type === 'sleepmed' && entry.name === 'Clonidine';
+        document.getElementById('editMgLabel').textContent = mcg ? 'MCG' : 'MG';
+        document.getElementById('editMg').value = entry && entry.mg > 0 ? (mcg ? Math.round(entry.mg * 1000 * 10) / 10 : entry.mg) : '';
       });
     }
     // Doses, Checks, Meals, BP and stimulants carry an optional note: on the CIWA score when there
@@ -3696,6 +3700,15 @@
       data = data.filter(e => e.timestamp !== editingTs);
       while (data.some(e => e.timestamp === newTs)) newTs += 1;
       data.push({ ...entry, timestamp: newTs, text });
+    } else if (editingKind === 'sleepmed') {
+      // Blank keeps the saved dose (a skipped med has none).
+      const raw = document.getElementById('editMg').value.trim();
+      const v = parseFloat(raw);
+      if (raw && !(v > 0)) { showToast('Enter a valid dose'); return; }
+      const mg = raw ? Math.round((entry.name === 'Clonidine' ? v / 1000 : v) * 100000) / 100000 : entry.mg;
+      data = data.filter(e => e.timestamp !== editingTs);
+      while (data.some(e => e.timestamp === newTs)) newTs += 1;
+      data.push({ ...entry, timestamp: newTs, mg });
     } else if (editingKind === 'benzo') {
       const mg = parseFloat(document.getElementById('editMg').value);
       if (!(mg > 0)) { showToast('Enter a valid mg amount'); return; }
