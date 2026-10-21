@@ -2820,7 +2820,7 @@
     };
     const rowHtml = r => `
       <div class="smrow" data-k="${r.k}">
-        <div class="smh"><span class="nm">${r.name}${doneAt(r)}</span><span class="mg">${r.mg ? (r.k === 'clonazepam' ? r.mg + ' mg' : doseLabel(r.mg)) : ''}</span></div>
+        <div class="smh"><span class="nm">${r.name}${doneAt(r)}</span><span class="mg"><input type="number" inputmode="decimal" step="any" min="0" class="smmg" data-k="${r.k}" value="${r.mg ? (r.k === 'clonidine' ? Math.round(r.mg * 10000) / 10 : r.mg) : ''}" placeholder="dose" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;background:var(--card);color:var(--txt)"> ${r.k === 'clonidine' ? 'mcg' : 'mg'}</span></div>
         <div class="cchips sm2">
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="1">Taken</button>
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="0">Skipped</button>
@@ -2890,7 +2890,17 @@
     };
     const reasons = {};
     st.rows.forEach(r => { reasons[r.k] = reasonOf(r.k); });
-    const { rows, ans, sleepiness } = st;
+    // The dose box on each row is editable before Save (Symon, 2026-10-21).
+    // Clonidine is typed in mcg and stored in mg. The edit only changes
+    // tonight's log; the default stays in Settings (his pick B2).
+    const rows = st.rows.map(r => {
+      const el = document.querySelector(`#quickBody .smmg[data-k="${r.k}"]`);
+      const v = el ? parseFloat(el.value) : NaN;
+      if (!(v > 0)) return r;
+      const mg = r.k === 'clonidine' ? Math.round(v * 10) / 10000 : v;
+      return { ...r, mg };
+    });
+    const { ans, sleepiness } = st;
     closeQuick();
     let ts = Date.now();
     const stamps = [];
