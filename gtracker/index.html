@@ -955,6 +955,8 @@
 
       <div class="setgroup">
         <div class="glabel">Medication wear-off</div>
+        <div class="setrow"><div class="sk">Wind-down time<small>Ritalin from 2 h before (Concerta 6 h before) until 6 h after asks first. Blank = off</small></div>
+          <div class="field cost wide"><input type="time" id="setWindDown"></div></div>
         <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log. Heads-up alert 15 min before</small></div>
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log. Heads-up alert 15 min before</small></div>
@@ -2083,6 +2085,7 @@
     document.getElementById('setCiwaContactNumber').value = ciwaSet.contactNumber;
     document.getElementById('setMedMax').value = medMaxMg > 0 ? medMaxMg : '';
 
+    document.getElementById('setWindDown').value = localStorage.getItem(WIND_DOWN_KEY) || '';
     document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
     document.getElementById('setRitalinWearOff').value = fmtHM(medWearOff.ritalin);
     document.getElementById('setRitalin20Part1').value = fmtHM(medWearOff.ritalin20Part1);
@@ -2176,6 +2179,9 @@
 
     const bpTopic = (document.getElementById('setBpTopic').value || '').trim();
     localStorage.setItem(BP_TOPIC_KEY, bpTopic);
+
+    const wd = (document.getElementById('setWindDown').value || '').trim();
+    if (wd) localStorage.setItem(WIND_DOWN_KEY, wd); else localStorage.removeItem(WIND_DOWN_KEY);
 
     medWearOff = {
       concerta: parseHM(document.getElementById('setConcertaWearOff').value),
@@ -2439,6 +2445,48 @@
     // the before-stimulant reading is one tap away. Skip shows the Undo.
     if (kind === 'wake') await openBpSheet({ slot: 'pre', skip: true, onClose: () => showToast(toast, undo) });
     else await openCiwaSheet({ kind, ts: resolvedTs, ml, onClose: () => showToast(toast, undo) });
+  }
+
+  // ===== Wind-down guard =====
+  // A Ritalin 5 tapped from 2 h before the wind-down time (Concerta 36: 6 h,
+  // it lasts longer) until 6 h after it gets a warning sheet first: Cancel,
+  // or Log anyway. Nothing is saved until he picks. Ritalin 20 LA is not
+  // guarded (his ask, 2026-10-21).
+  const WIND_DOWN_KEY = 'windDownTime';
+  const WIND_AFTER_MIN = 360;
+  const windBeforeMin = name => /^Concerta/.test(name) ? 360 : 120;
+  function windDownInfo(ts, beforeMin) {
+    const v = localStorage.getItem(WIND_DOWN_KEY);
+    if (!v || !/^\d{1,2}:\d{2}$/.test(v)) return null;
+    const [h, m] = v.split(':').map(Number);
+    for (const dd of [-1, 0, 1]) {
+      const w = new Date(ts); w.setDate(w.getDate() + dd); w.setHours(h, m, 0, 0);
+      const diffMin = (w.getTime() - ts) / 60000;
+      if (diffMin <= beforeMin && diffMin >= -WIND_AFTER_MIN) return { at: w.getTime(), diffMin: Math.round(diffMin) };
+    }
+    return null;
+  }
+  async function guardedLogMed(name) {
+    const info = windDownInfo(Date.now(), windBeforeMin(name));
+    if (!info) return logMed(name);
+    const dur = n => n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ''}` : `${n} min`;
+    const when = info.diffMin > 0
+      ? `Wind-down is at ${clockText(info.at)}, ${dur(info.diffMin)} from now.`
+      : `Wind-down was at ${clockText(info.at)}, ${dur(-info.diffMin)} ago.`;
+    let mgLine = '';
+    try {
+      const ss = await computeSessions();
+      const s = ss[ss.length - 1];
+      if (s) mgLine = `<div class="qsub">Today so far: ${s.ritalinMg + s.concertaMg}${medMaxMg > 0 ? ` of ${medMaxMg}` : ''} mg.</div>`;
+    } catch (e) {}
+    openQuick(`
+      <div class="chead"><h3>⚠️ Close to wind-down</h3></div>
+      <div class="qsub">${when} ${escapeHtml(name)} taken now will likely affect your sleep.</div>
+      ${mgLine}
+      <div class="cactions">
+        <button class="cbtn-soft" data-q="cancel">Cancel</button>
+        <button class="cbtn-go" data-q="wd-go">Log anyway</button>
+      </div>`, { mode: 'wind', name });
   }
 
   async function logMed(name) {
@@ -3053,6 +3101,7 @@
       if (!btn || !quickState) return;
       const q = btn.dataset.q;
       if (q === 'cancel') { closeQuick(); return; }
+      if (q === 'wd-go') { const n = quickState.name; closeQuick(); await logMed(n); return; }
       if (q === 'minus' || q === 'plus') {
         const st = quickState;
         st.c = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, st.c + (q === 'plus' ? CUSTOM_STEP : -CUSTOM_STEP)));
@@ -4205,8 +4254,8 @@
     document.getElementById('chipBp').addEventListener('click', () => openBpSheet());
     initQuickSheet();
 
-    document.getElementById('chipConcerta36').addEventListener('click', () => logMed('Concerta 36'));
-    document.getElementById('chipRitalin5').addEventListener('click', () => logMed('Ritalin 5'));
+    document.getElementById('chipConcerta36').addEventListener('click', () => guardedLogMed('Concerta 36'));
+    document.getElementById('chipRitalin5').addEventListener('click', () => guardedLogMed('Ritalin 5'));
     document.getElementById('chipRitalin20').addEventListener('click', () => logRitalin20LA());
     // A long random name is the privacy: anyone who knows a ntfy topic can read it.
     document.getElementById('bpTopicNew').addEventListener('click', () => {
