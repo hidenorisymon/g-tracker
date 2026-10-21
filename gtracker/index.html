@@ -901,7 +901,7 @@
 
       <div class="setgroup">
         <div class="glabel">Notifications</div>
-        <div class="setrow stack"><div class="sk">BP reminder topic<small>ntfy topic. Each Concerta or Ritalin tap schedules a "BP Check" at its peak. Subscribe to this exact name in the ntfy app. Blank = off</small></div>
+        <div class="setrow stack"><div class="sk">Notification topic<small>ntfy topic. Each Concerta or Ritalin tap schedules a "BP Check" at its peak and a heads-up 15 min before it wears off (wear-off times below). Subscribe to this exact name in the ntfy app. Blank = off</small></div>
           <div class="field cost full"><input type="text" id="setBpTopic" placeholder="tap New topic" autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
         <div class="setrow"><div class="sk"></div>
           <div style="display:flex;gap:8px"><button class="b pill" id="bpTopicNew" type="button">New topic</button><button class="b pill" id="bpTopicTest" type="button">Send test</button></div></div>
@@ -955,9 +955,9 @@
 
       <div class="setgroup">
         <div class="glabel">Medication wear-off</div>
-        <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log</small></div>
+        <div class="setrow"><div class="sk">Concerta wear-off<small>Shown under each dose in Log. Heads-up alert 15 min before</small></div>
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
-        <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log</small></div>
+        <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log. Heads-up alert 15 min before</small></div>
           <div class="field cost wide"><input type="text" id="setRitalinWearOff" placeholder="04:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin 20 LA · Part 1<small>First 10mg, released immediately — how long it lasts</small></div>
           <div class="field cost wide"><input type="text" id="setRitalin20Part1" placeholder="04:00" maxlength="5"></div></div>
@@ -1585,10 +1585,12 @@
   // Symon's topic. Never stored = this default; stored blank = reminders off.
   // Topics are case sensitive and the ntfy iPhone app saves them lowercase,
   // so his phone listens on 'bp-check'; a stored 'bp-Check' is read as that.
-  const BP_TOPIC_DEFAULT = 'bp-check';
+  // 2026-10-21: every notification (BP check + wear-off) moved to
+  // 'hidenorisymon'; the old 'bp-check' default is read as the new one.
+  const BP_TOPIC_DEFAULT = 'hidenorisymon';
   function bpTopic() {
     const t = localStorage.getItem(BP_TOPIC_KEY);
-    if (t == null || t.trim().toLowerCase() === 'bp-check') return BP_TOPIC_DEFAULT;
+    if (t == null || ['bp-check', 'symon', 'hidenorisymon'].includes(t.trim().toLowerCase())) return BP_TOPIC_DEFAULT;
     return t.trim();
   }
   const GITHUB_API = 'https://api.github.com';
@@ -3180,8 +3182,10 @@
   // One at a time: Ritalin 20 LA schedules two at once, and two overlapping
   // read-then-save rounds on the list would drop one of them.
   let bpQueue = Promise.resolve();
-  function scheduleBpForEntry(e) { bpQueue = bpQueue.then(() => scheduleBpNow(e)); return bpQueue; }
-  function cancelBpReminders(tsList) { bpQueue = bpQueue.then(() => cancelBpNow(tsList)); return bpQueue; }
+  // The wear-off heads-up rides the same queue and the same hooks, so every
+  // tap, Undo, time edit and delete that moves a BP check moves it too.
+  function scheduleBpForEntry(e) { bpQueue = bpQueue.then(() => scheduleBpNow(e)).then(() => scheduleWearNow(e)); return bpQueue; }
+  function cancelBpReminders(tsList) { bpQueue = bpQueue.then(() => cancelBpNow(tsList)).then(() => cancelWearNow(tsList)); return bpQueue; }
 
   async function scheduleBpNow(e) {
     const url = ntfyTopicUrl();
@@ -3244,6 +3248,81 @@
         fetch(url, { method: 'POST', body: `Ignore the BP Check due at ${clockText(r.at)}.`, headers: { 'Title': 'BP Check cancelled' } }).catch(() => {});
       }
     }
+  }
+
+  // ===== Wear-off heads-up (ntfy) =====
+  // Fires WEAR_LEAD_MIN before the dose's wear-off time from Settings, so a
+  // top-up has time to kick in before the drowsiness does. Same topic as the
+  // BP check. Title: "5mg Ritalin wearing off in 15 mins. - 45/56mg" (mg is the open
+  // day's methylphenidate total when the dose was logged; ntfy's "warning"
+  // tag adds the ⚠️). A newer dose of the same drug replaces the older
+  // heads-up, so a stale "wearing off" never lands mid top-up. Ritalin 20 LA
+  // has its own two-part curve and gets no heads-up.
+  const WEAR_LEAD_MIN = 15;
+  const WEAR_REMIND_KEY = 'wearReminders';
+  function wearAlertMin(e) {
+    if (!e || e.type !== 'med' || !(e.mg > 0) || e.name === 'Ritalin 20') return null;
+    const w = wearOffMinutesFor(e.name);
+    return w > WEAR_LEAD_MIN ? w - WEAR_LEAD_MIN : null;
+  }
+  function wearList() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(WEAR_REMIND_KEY) || '[]'); } catch (e) {}
+    return list.filter(r => r.at > Date.now() - 2 * 3600000);
+  }
+  function saveWearList(list) { localStorage.setItem(WEAR_REMIND_KEY, JSON.stringify(list)); }
+  async function dropWear(url, r) {
+    if (!url || r.at <= Date.now()) return;
+    try {
+      const res = await fetch(`${url}/${r.seq}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(res.status);
+    } catch (err) {
+      fetch(url, { method: 'POST', body: `Ignore the wear-off alert due at ${clockText(r.at)}.`, headers: { 'Title': 'Wear-off alert cancelled' } }).catch(() => {});
+    }
+  }
+  async function scheduleWearNow(e) {
+    const url = ntfyTopicUrl();
+    const off = wearAlertMin(e);
+    if (!url || off == null) return;
+    const at = e.timestamp + off * 60000;
+    if (at < Date.now() + 60000 || at > Date.now() + 3 * 86400000) return;
+    const kind = /^Concerta/.test(e.name) ? 'Concerta' : 'Ritalin';
+    let list = wearList();
+    const stale = list.filter(r => r.kind === kind && r.medTs < e.timestamp && r.at > Date.now());
+    for (const r of stale) await dropWear(url, r);
+    list = list.filter(r => !stale.includes(r));
+    let mgText = '';
+    try {
+      const ss = await computeSessions();
+      const s = ss.filter(x => x.startTs <= e.timestamp).pop();
+      if (s) {
+        const mg = s.ritalinMg + s.concertaMg;
+        mgText = medMaxMg > 0 ? ` - ${mg}/${medMaxMg}mg` : ` - ${mg}mg`;
+      }
+    } catch (err) {}
+    const rnd = new Uint8Array(8); crypto.getRandomValues(rnd);
+    const seq = 'wo' + [...rnd].map(b => b.toString(36).padStart(2, '0')).join('');
+    try {
+      const res = await fetch(`${url}/${seq}`, {
+        method: 'POST',
+        body: `Taken ${clockText(e.timestamp)}. Wears off about ${clockText(e.timestamp + (off + WEAR_LEAD_MIN) * 60000)}.`,
+        headers: { 'Title': `${e.mg}mg ${kind} wearing off in ${WEAR_LEAD_MIN} mins.${mgText}`, 'Tags': 'warning', 'At': String(Math.round(at / 1000)) },
+      });
+      if (!res.ok) throw new Error(res.status);
+      list.push({ seq, at, kind, medTs: e.timestamp });
+      saveWearList(list);
+    } catch (err) {
+      showToast('Wear-off alert not scheduled (offline?)');
+      saveWearList(list);
+    }
+  }
+  async function cancelWearNow(tsList) {
+    const url = ntfyTopicUrl();
+    const gone = new Set(tsList);
+    let list = wearList();
+    const drop = list.filter(r => gone.has(r.medTs));
+    saveWearList(list.filter(r => !drop.includes(r)));
+    for (const r of drop) await dropWear(url, r);
   }
 
   // Opening the app within an hour after a reminder fired, with no BP logged
