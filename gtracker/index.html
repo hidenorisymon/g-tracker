@@ -724,7 +724,7 @@
            2026-10-08). Sleep meds no longer logs Sleep with it. -->
       <div class="tiles three">
         <button class="tile" id="chipWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake</span></button>
-        <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#7a4fb5" aria-hidden="true"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l6-6a4.95 4.95 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg><span>Sleep meds</span></button>
+        <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#7a4fb5" aria-hidden="true"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l6-6a4.95 4.95 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg><span>Meds</span></button>
         <button class="tile" id="chipSleep"><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></button>
       </div>
 
@@ -913,11 +913,11 @@
           <div class="field cost"><input type="number" id="setTaperCurrent" step="0.05" min="0" value="0.8"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Custom dose start<small id="rescueHint">Where the Custom dose stepper starts. Adjust it there in steps of 0.05</small></div>
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
-        <div class="setrow"><div class="sk">Clonazepam dose<small>What Clonazepam logs from Sleep meds</small></div>
+        <div class="setrow"><div class="sk">Clonazepam dose<small>What Clonazepam logs from Meds</small></div>
           <div class="field cost"><input type="number" id="setBenzoMg" step="0.05" min="0" placeholder="0.25"><span class="cur">mg</span></div></div>
-        <div class="setrow"><div class="sk">Clonidine dose<small>What Clonidine logs from Sleep meds. Blank = no mg saved</small></div>
+        <div class="setrow"><div class="sk">Clonidine dose<small>What Clonidine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setClonidineMg" step="25" min="0" placeholder="mcg"><span class="cur">mcg</span></div></div>
-        <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Sleep meds. Blank = no mg saved</small></div>
+        <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setQuetiapineMg" step="0.5" min="0" placeholder="mg"><span class="cur">mg</span></div></div>
         <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
           <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
@@ -2805,6 +2805,10 @@
     const rows = [
       { k: 'clonidine', name: 'Clonidine', mg: taperPlan.clonidineMg || null },
       { k: 'quetiapine', name: 'Quetiapine', mg: taperPlan.quetiapineMg || null },
+      // Any-time meds (Symon, 2026-10-31): the sheet is "Meds", not just
+      // sleep. Same 'sleepmed' type, so they never reach a stimulant total.
+      { k: 'betahistine', name: 'Betahistine', mg: 24 },
+      { k: 'prep', name: 'PrEP', mg: null, noDose: true },
     ];
     // Clonazepam is always listed. Before CLONAZEPAM_FROM it is optional:
     // left blank, nothing is logged, so no "missed" piles up before it starts.
@@ -2820,7 +2824,7 @@
     };
     const rowHtml = r => `
       <div class="smrow" data-k="${r.k}">
-        <div class="smh"><span class="nm">${r.name}${doneAt(r)}</span><span class="mg"><input type="number" inputmode="decimal" step="any" min="0" class="smmg" data-k="${r.k}" value="${r.mg ? (r.k === 'clonidine' ? Math.round(r.mg * 10000) / 10 : r.mg) : ''}" placeholder="dose" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;background:var(--card);color:var(--txt)"> ${r.k === 'clonidine' ? 'mcg' : 'mg'}</span></div>
+        <div class="smh"><span class="nm">${r.name}${doneAt(r)}</span><span class="mg"${r.noDose ? ' hidden' : ''}><input type="number" inputmode="decimal" step="any" min="0" class="smmg" data-k="${r.k}" value="${r.mg ? (r.k === 'clonidine' ? Math.round(r.mg * 10000) / 10 : r.mg) : ''}" placeholder="dose" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;background:var(--card);color:var(--txt)"> ${r.k === 'clonidine' ? 'mcg' : 'mg'}</span></div>
         <div class="cchips sm2">
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="1">Taken</button>
           <button class="cchip sm" data-q="sm-ans" data-k="${r.k}" data-v="0">Skipped</button>
@@ -2832,7 +2836,7 @@
         </div>
       </div>`;
     openQuick(`
-      <div class="chead"><h3>Sleep meds</h3></div>
+      <div class="chead"><h3>Meds</h3></div>
       <div class="qsub">Mark only what you took or skipped, then Save. Blank ones are not logged.</div>
       ${rows.map(rowHtml).join('')}
       <div class="cactions">
@@ -2922,7 +2926,7 @@
     saveData(all);
     logDayIdx = null;
     const skipped = rows.filter(r => ans[r.k] === false && !(r.k === 'clonazepam' && skipBenzo)).length;
-    showToast(`Sleep meds saved${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps));
+    showToast(`Meds saved${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps));
     await paintRing();
     await renderLog();
     await renderActiveMeds();
@@ -3737,7 +3741,7 @@
     document.getElementById('editTime').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     // Sleep, Meal and BP edit their time here; a wrong size or reading is
     // fixed by deleting the row and logging it again.
-    const titles = { dose: 'Edit Dose', check: 'Edit Check', note: 'Edit Note', benzo: 'Edit Clonazepam', asleep: 'Edit Sleep', meal: 'Edit Meal', bp: 'Edit BP', sleepmed: 'Edit Sleep med' };
+    const titles = { dose: 'Edit Dose', check: 'Edit Check', note: 'Edit Note', benzo: 'Edit Clonazepam', asleep: 'Edit Sleep', meal: 'Edit Meal', bp: 'Edit BP', sleepmed: 'Edit Med' };
     document.getElementById('editModalTitle').textContent = titles[kind] || 'Edit Med';
     const textGroup = document.getElementById('editTextGroup');
     const textEl = document.getElementById('editText');
