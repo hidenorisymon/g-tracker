@@ -915,7 +915,7 @@
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Clonazepam dose<small>What Clonazepam logs from Meds</small></div>
           <div class="field cost"><input type="number" id="setBenzoMg" step="0.05" min="0" placeholder="0.25"><span class="cur">mg</span></div></div>
-        <div class="setrow"><div class="sk">Clonidine dose<small>What Clonidine logs from Meds. Blank = no mg saved</small></div>
+        <div class="setrow" style="display:none"><div class="sk">Clonidine dose<small>What Clonidine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setClonidineMg" step="25" min="0" placeholder="mcg"><span class="cur">mcg</span></div></div>
         <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setQuetiapineMg" step="0.5" min="0" placeholder="mg"><span class="cur">mg</span></div></div>
@@ -2803,7 +2803,8 @@
   async function openSleepMedsSheet() {
     const all = await getAllData();
     const rows = [
-      { k: 'clonidine', name: 'Clonidine', mg: taperPlan.clonidineMg || null },
+      // Clonidine left the list 2026-10-31 (Symon stopped it); old entries
+      // still show and edit as before.
       { k: 'quetiapine', name: 'Quetiapine', mg: taperPlan.quetiapineMg || null },
       // Any-time meds (Symon, 2026-10-31): the sheet is "Meds", not just
       // sleep. Same 'sleepmed' type, so they never reach a stimulant total.
