@@ -1590,6 +1590,8 @@
   // 2026-10-21: every notification (BP check + wear-off) moved to
   // 'hidenorisymon'; the old 'bp-check' default is read as the new one.
   const BP_TOPIC_DEFAULT = 'hidenorisymon';
+  // Days the stimulant-peak BP check fires (Symon, 2026-11-04). Wear-off alerts stay daily.
+  const BP_DAYS = ['Tue', 'Thu'];
   function bpTopic() {
     const t = localStorage.getItem(BP_TOPIC_KEY);
     if (t == null || ['bp-check', 'symon', 'hidenorisymon'].includes(t.trim().toLowerCase())) return BP_TOPIC_DEFAULT;
@@ -3258,6 +3260,8 @@
     const at = e.timestamp + off * 60000;
     // ntfy needs at least 10 s ahead and at most 3 days.
     if (at < Date.now() + 60000 || at > Date.now() + 3 * 86400000) return;
+    // 2026-11-04: daily phase done (4 weeks normal); checks only on Tue and Thu, Manila time.
+    if (!BP_DAYS.includes(new Date(at).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Manila' }))) return;
     const list = bpReminderList();
     // Reminders within 30 min of each other merge into one.
     const near = list.find(r => Math.abs(r.at - at) <= 30 * 60000);
