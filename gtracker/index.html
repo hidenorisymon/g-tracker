@@ -2344,13 +2344,16 @@
     if (!svg) return;
     const now = Date.now();
     const total = bz.reduce((t, e) => t + benzoLeftMg(e, now), 0);
-    const shown = bz.slice(-5);
-    const W = 5, GAP = 1.8, R0 = 70;
+    // Every dose still in the body (1% or more left) gets a ring; rings get
+    // thinner as there are more of them, inside a 26 px band round the total.
+    const shown = bz.filter(e => benzoLeftMg(e, now) >= 0.01 * e.mg).slice(-16);
+    const BAND = 26, R0 = 70, STEP = BAND / Math.max(shown.length, 5);
+    const W = Math.max(1.2, STEP * 0.75), GAP = STEP - W;
     const key = shown.map(e => e.timestamp).join(',');
     if (svg.dataset.key !== key) {
       svg.dataset.key = key;
       svg.innerHTML = shown.map((e, i) => {
-        const r = R0 - (shown.length - 1 - i) * (W + GAP);
+        const r = +(R0 - (shown.length - 1 - i) * STEP).toFixed(2);
         const c = (2 * Math.PI * r).toFixed(2);
         return `<circle class="ctrack" cx="76" cy="76" r="${r}" stroke-width="${W}"/>` +
           `<circle class="cfill" data-i="${i}" cx="76" cy="76" r="${r}" stroke-width="${W}" stroke-dasharray="${c}" stroke-dashoffset="${c}" style="opacity:${(0.4 + 0.6 * (i + 1) / shown.length).toFixed(2)}"/>`;
@@ -2366,7 +2369,7 @@
     document.getElementById('cSub').textContent = bz.length ? 'clonazepam' : '';
     const last = shown[shown.length - 1];
     document.getElementById('cCap').innerHTML = last
-      ? `Last ${shown.length} doses<br>outer ring = newest`
+      ? `${shown.length} dose${shown.length === 1 ? '' : 's'} still in you<br>outer ring = newest`
       : '';
   }
   const benzoNextH = () => benzoHours('benzoNextH', 12);
