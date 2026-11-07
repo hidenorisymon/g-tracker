@@ -462,6 +462,8 @@
   .sum .stotal .v{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.3px;}
 
   .tlhead{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);font-weight:700;margin:16px 2px 4px;}
+  .tlclz{font-size:11.5px;color:#7355cc;margin-top:3px;}
+  .tlclz b{font-family:var(--mono);font-weight:600;}
   .tlrow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line2);cursor:pointer;}
   .tlrow:last-child{border-bottom:none;}
   .tlrow:active{opacity:.55;}
@@ -1962,6 +1964,7 @@
     if (migrated) localStorage.setItem(dataKey, JSON.stringify(data));
 
     data.sort((a, b) => a.timestamp - b.timestamp);
+    benzoAll = benzoDoses(data);
     return data;
   }
 
@@ -2360,6 +2363,16 @@
     return all.filter(e => e.type === 'benzo' && !e.missed && e.mg > 0).sort((a, b) => a.timestamp - b.timestamp);
   }
   const fmtMg = v => (Math.round(v * 100) / 100).toString();
+  // Clonazepam in the body at the moment of a G dose. Saved on the dose when
+  // it is logged (clzMg); older doses are worked out from the clonazepam log.
+  let benzoAll = [];
+  function clzBodyAt(ts) {
+    return benzoAll.reduce((sum, b) => sum + (b.timestamp < ts ? benzoLeftMg(b, ts) : 0), 0);
+  }
+  function clzOfDose(e) {
+    const v = e.clzMg != null ? e.clzMg : clzBodyAt(e.timestamp);
+    return v >= 0.01 ? v : 0;
+  }
   // One ring per dose, newest outside. Five rings fit around the total.
   const fmtGapHM = ms => { const m = Math.floor(ms / 60000); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
   let gapRecCache = null;
@@ -2617,6 +2630,10 @@
     const entry = { timestamp: resolvedTs, ml, type };
     if (type === 'log' || type === 'rescue') entry.trigger = null;
     if (custom) entry.custom = true;
+    if (type !== 'wake') {
+      const clz = benzoDoses(data).reduce((sum, b) => sum + (b.timestamp < resolvedTs ? benzoLeftMg(b, resolvedTs) : 0), 0);
+      if (clz >= 0.01) entry.clzMg = Math.round(clz * 100) / 100;
+    }
     data.push(entry);
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
@@ -3951,7 +3968,8 @@
       const gap = d.gapByTs.get(e.timestamp);
       const gapHtml = gap != null ? `<span class="gap">+${fmtGap(gap)}</span>` : '';
       const lead = kind === 'wake' ? 'Wake Up' : `${fmtMl(e.ml)} ml`;
-      const meta = kind === 'wake' ? 'session start' : `<span class="mono">${fmtPeso(e.ml * costPerMl)}</span>${kindTag}`;
+      const clz = kind === 'wake' ? 0 : clzOfDose(e);
+      const meta = kind === 'wake' ? 'session start' : `<span class="mono">${fmtPeso(e.ml * costPerMl)}</span>${kindTag}${clz ? ` · <span class="mono" style="color:#7355cc">${fmtMg(clz)} mg</span> clonazepam in body` : ''}`;
       return `<div class="entry" data-ts="${e.timestamp}" data-kind="dose"><span class="cd bg-${cl}"></span><div class="body"><div class="lead">${lead}</div><div class="meta">${meta}</div></div><div class="time">${time}${gapHtml}</div></div>`;
     }).join('') : `<div class="empty">No doses logged.</div>`;
   }
@@ -4807,7 +4825,8 @@
       if (e.type === 'bp') return `${t}   BP   ${e.sys}/${e.dia} · ${bpSubText(e)}`;
       const kind = doseKind(e);
       const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : e.custom ? 'Custom' : 'Dose';
-      return `${t}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}${ciwa}`;
+      const clzC = kind === 'wake' ? 0 : clzOfDose(e);
+      return `${t}   ${tag}   ${kind === 'wake' ? '—' : fmtMl(e.ml) + ' ml'}${clzC ? ' · clonazepam in body ' + fmtMg(clzC) + ' mg' : ''}${ciwa}`;
     }).join('\n');
     return out + '\n';
   }
@@ -5161,8 +5180,10 @@
       // The trigger answer rides on its own dose row as a normal part of the
       // log line — not a separate summary elsewhere on the card.
       const triggerTag = e.ciwa ? '' : (e.trigger ? ` · ${TRIGGER_LABELS[e.trigger] || e.trigger}` : '');
+      const clzH = kind === 'wake' ? 0 : clzOfDose(e);
       const amt = kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`;
-      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}${triggerTag}</span><span>${amt}</span></div>${ciwaSlHtml(e)}`;
+      const clzTag = clzH ? ` · clz ${fmtMg(clzH)} mg` : '';
+      return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="dose"><span class="sllabel">${fmtTime(e.timestamp)}${tag}${triggerTag}${clzTag}</span><span>${amt}</span></div>${ciwaSlHtml(e)}`;
     }).join('');
     return `<div class="sessioncard">
       <div class="shead">
@@ -5356,7 +5377,7 @@
     return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="dose">
       <span class="tldot" style="background:${dot}"></span>
       <span class="tltime">${fmtTime(e.timestamp)}</span>
-      <div class="tlbody"><div class="tltext">${label}${trigger}</div>${ciwaSubHtml(e)}</div>
+      <div class="tlbody"><div class="tltext">${label}${trigger}</div>${(() => { const c = kind === 'wake' ? 0 : clzOfDose(e); return c ? `<div class="tlclz">Clonazepam in body: <b>${fmtMg(c)} mg</b></div>` : ''; })()}${ciwaSubHtml(e)}</div>
       <span class="tlamt">${kind === 'wake' ? '—' : `${fmtMl(e.ml)} ml`}</span>
     </div>`;
   }
