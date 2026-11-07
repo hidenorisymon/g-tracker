@@ -128,6 +128,11 @@
   .dcol{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;}
   .dcap{font-family:var(--mono);font-size:11px;color:var(--mut);text-align:center;line-height:1.35;font-variant-numeric:tabular-nums;}
   .dcap b{color:var(--txt);font-weight:600;}
+  .dcap b.over6{color:var(--grn);background:#e7f5ee;border-radius:6px;padding:1px 6px;}
+  .dext{margin-top:5px;display:flex;flex-direction:column;gap:2px;}
+  .dext .rec{color:var(--grn);font-weight:600;}
+  .dext .cw.amb{color:var(--amb);font-weight:600;}
+  .dext .cw.red{color:#c0392b;font-weight:600;}
   #cdial svg{transform:rotate(-90deg);}
   #cdial .ctrack{fill:none;stroke:#efebfb;}
   #cdial .cfill{fill:none;stroke:var(--pur);stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1);}
@@ -733,7 +738,7 @@
             <div class="sub" id="ringSub"></div>
           </div>
         </div>
-        <div class="dcap"><b id="since">--:--</b> since last<br><span id="totalSub"></span></div>
+        <div class="dcap"><b id="since">--:--</b> since last<br><span id="totalSub"></span><div class="dext"><div id="gapRec"></div><div id="ciwaNow"></div></div></div>
         </div>
         <div class="dcol">
         <div class="dial" id="cdial">
@@ -2356,6 +2361,42 @@
   }
   const fmtMg = v => (Math.round(v * 100) / 100).toString();
   // One ring per dose, newest outside. Five rings fit around the total.
+  const fmtGapHM = ms => { const m = Math.floor(ms / 60000); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
+  let gapRecCache = null;
+  function paintGapRecord(all, anchors) {
+    const el = document.getElementById('gapRec'); if (!el) return;
+    const bz = benzoDoses(all);
+    if (!bz.length || !anchors.length) { el.textContent = ''; return; }
+    const from = bz[0].timestamp;
+    const key = all.length + ':' + anchors[anchors.length - 1].timestamp;
+    if (!gapRecCache || gapRecCache.key !== key) {
+      const breaks = all.filter(e => isAsleep(e) || (isDoseEntry(e) && doseKind(e) === 'wake')).map(e => e.timestamp).sort((a, b) => a - b);
+      const broken = (a, b) => breaks.some(t => t > a && t < b);
+      let best = 0, bestEnd = 0;
+      for (let i = 1; i < anchors.length; i++) {
+        const a = anchors[i - 1], b = anchors[i];
+        if (a.timestamp < from || doseKind(a) === 'sleep' || broken(a.timestamp, b.timestamp)) continue;
+        const g = b.timestamp - a.timestamp;
+        if (g > best) { best = g; bestEnd = b.timestamp; }
+      }
+      const last = anchors[anchors.length - 1];
+      gapRecCache = { key, best, bestEnd, last: last.timestamp, open: doseKind(last) !== 'sleep' && !breaks.some(t => t > last.timestamp) };
+    }
+    const c = gapRecCache;
+    const cur = c.open ? Date.now() - c.last : 0;
+    if (cur > c.best) el.innerHTML = `<span class="rec">New awake record!</span> Old: ${fmtGapHM(c.best)}`;
+    else if (c.best > 0) el.innerHTML = `Awake record <b>${fmtGapHM(c.best)}</b>, ${new Date(c.bestEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    else el.textContent = '';
+  }
+  function paintCiwaNow(all) {
+    const el = document.getElementById('ciwaNow'); if (!el) return;
+    const e = ciwaMostRecent(all, Date.now() + 1);
+    if (!e) { el.textContent = ''; return; }
+    const t = Number(e.ciwa.total) || 0;
+    const band = ciwaBandClass(t);
+    const html = `<span class="cw ${band === 'grn' ? '' : band}">CIWA ${t}</span> at ${clockText(e.timestamp)}`;
+    if (el.innerHTML !== html) el.innerHTML = html;
+  }
   function paintBenzoRings(bz) {
     const svg = document.getElementById('cdialSvg');
     if (!svg) return;
@@ -2447,6 +2488,12 @@
       const elapsedSec = Math.floor((Date.now() - anchorData[anchorData.length - 1].timestamp) / 1000);
       since.textContent = p(Math.floor(elapsedSec / 3600)) + ':' + p(Math.floor(elapsedSec / 60) % 60);
     }
+    // Over 6 h since the last G = green. Record = the longest gap he stayed
+    // awake for (no Wake Up or Fall asleep inside it), counted from the first
+    // clonazepam day; the gap running now counts too.
+    since.classList.toggle('over6', anchorData.length > 0 && Date.now() - anchorData[anchorData.length - 1].timestamp >= 6 * 3600000);
+    paintGapRecord(all, anchorData);
+    paintCiwaNow(all);
 
     // ---- Last clonazepam: when, its peak, and the next one on the 12 h plan.
     const lastBenzoE = lastBenzoTaken(all);
