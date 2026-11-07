@@ -127,6 +127,7 @@
   #cdial .ctrack{fill:none;stroke:#efebfb;}
   #cdial .cfill{fill:none;stroke:var(--pur);stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1);}
   #cdial .big{color:var(--pur);}
+  #benzoPeak2 .p2{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--txt2);margin-top:6px;font-variant-numeric:tabular-nums;}
   #benzoPeak2{font-size:10.5px;line-height:1.35;color:var(--mut);margin-top:3px;font-variant-numeric:tabular-nums;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
@@ -2440,8 +2441,10 @@
       const b1 = bz[bz.length - 1], b2 = bz[bz.length - 2];
       benzoPeakEl.textContent = b1 ? `${Date.now() < peakAt(b1) ? 'Peak' : 'Peaked'} ${clockText(peakAt(b1))}` : '—';
       benzoPeakEl.classList.toggle('up', !!b1 && Date.now() < peakAt(b1));
-      document.getElementById('benzoPeak2').innerHTML = (b1 ? `${fmtMg(b1.mg)} mg at ${clockText(b1.timestamp)}` : '') +
-        (b2 ? `<br>${fmtMg(b2.mg)} mg ${Date.now() < peakAt(b2) ? 'peaks' : 'peaked'} ${clockText(peakAt(b2))}` : '');
+      // Each dose reads the same way: its peak time, then which dose and
+      // when it was taken, so a taken time is never read as a peak time.
+      document.getElementById('benzoPeak2').innerHTML = (b1 ? `<div>${fmtMg(b1.mg)} mg, taken ${clockText(b1.timestamp)}</div>` : '') +
+        (b2 ? `<div class="p2">${Date.now() < peakAt(b2) ? 'Peak' : 'Peaked'} ${clockText(peakAt(b2))}</div><div>${fmtMg(b2.mg)} mg, taken ${clockText(b2.timestamp)}</div>` : '');
       paintBenzoRings(bz);
     }
 
