@@ -112,10 +112,10 @@
   #mdial.lvl-grn .big{color:var(--grn);}
   #mdial.lvl-amb .big{color:var(--amb);}
   #mdial.lvl-red .big,#mdial.lvl-red .sub{color:var(--red);}
-  .hboxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+  .hboxes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;}
   .hboxes .hstat{padding:9px 10px;min-width:0;}
   .hboxes .s{font-size:10.5px;color:var(--mut);margin-top:2px;line-height:1.3;}
-  .hboxes .s b{color:var(--amb);font-weight:700;}
+  #benzoPeak.up{color:var(--amb);}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
   /* Outer .amed only clips; the sliding .body carries the visible card, so a
@@ -727,9 +727,8 @@
         </div>
       </div>
       <div class="hboxes">
-        <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div><div class="s" id="sinceSub"></div></div>
-        <div class="hstat"><div class="k">Total today</div><div class="v" id="totalToday">—</div><div class="s" id="totalSub"></div></div>
-        <div class="hstat"><div class="k">Last clonazepam</div><div class="v" id="lastBenzo">—</div><div class="s" id="benzoSub"></div></div>
+        <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div><div class="s" id="totalSub"></div></div>
+        <div class="hstat"><div class="k" id="lastBenzo">Clonazepam</div><div class="v" id="benzoPeak">—</div><div class="s" id="benzoSub"></div></div>
       </div>
       <div class="hsub" id="rolling24" hidden></div>
 
@@ -2349,25 +2348,21 @@
       since.textContent = p(Math.floor(elapsedSec / 3600)) + ':' + p(Math.floor(elapsedSec / 60) % 60);
     }
 
-    const sinceSub = document.getElementById('sinceSub');
-    if (sinceSub) {
-      const lastDose = anchorData.length ? anchorData[anchorData.length - 1] : null;
-      const want = lastDose && lastDose.ml > 0 ? `${fmtMl(lastDose.ml)} ml at ${clockText(lastDose.timestamp)}` : '';
-      if (sinceSub.textContent !== want) sinceSub.textContent = want;
-    }
-
     // ---- Last clonazepam: when, its peak, and the next one on the 12 h plan.
     const lastBenzoE = lastBenzoTaken(all);
     const lastBenzoEl = document.getElementById('lastBenzo');
+    const benzoPeakEl = document.getElementById('benzoPeak');
     const benzoSub = document.getElementById('benzoSub');
     if (lastBenzoEl) {
-      if (!lastBenzoE) { lastBenzoEl.textContent = '—'; benzoSub.textContent = ''; }
+      if (!lastBenzoE) { lastBenzoEl.textContent = 'Clonazepam'; benzoPeakEl.textContent = '—'; benzoSub.textContent = ''; }
       else {
-        lastBenzoEl.textContent = clockText(lastBenzoE.timestamp);
         const peakAt = lastBenzoE.timestamp + BENZO_PEAK_H * 3600000;
         const nextAt = lastBenzoE.timestamp + BENZO_NEXT_H * 3600000;
-        const html = `${Date.now() < peakAt ? '<b>Peak</b> ' : 'Peaked '}${clockText(peakAt)}<br>Next ${clockText(nextAt)}`;
-        if (benzoSub.innerHTML !== html) benzoSub.innerHTML = html;
+        lastBenzoEl.textContent = `Clonazepam ${clockText(lastBenzoE.timestamp)}`;
+        const up = Date.now() < peakAt;
+        benzoPeakEl.textContent = `${up ? 'Peak' : 'Peaked'} ${clockText(peakAt)}`;
+        benzoPeakEl.classList.toggle('up', up);
+        benzoSub.textContent = `Next ${clockText(nextAt)}`;
       }
     }
 
@@ -2411,8 +2406,7 @@
       document.getElementById('mReadout').textContent = `${mg} / ${tgt} mg`;
       document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
       const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
-      document.getElementById('totalToday').textContent = `${doses.length} dose${doses.length === 1 ? '' : 's'}`;
-      document.getElementById('totalSub').textContent = cur ? `${fmtMl(used)} ml` : '';
+      document.getElementById('totalSub').textContent = cur ? `${doses.length} dose${doses.length === 1 ? '' : 's'} · ${fmtMl(used)} ml today` : '';
     }
 
     if (!cur) {
