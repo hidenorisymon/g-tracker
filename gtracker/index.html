@@ -939,6 +939,10 @@
           <div class="field cost"><input type="number" id="setRescueDose" step="0.05" min="0" value="0.4"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Clonazepam dose<small>What Clonazepam logs from Meds</small></div>
           <div class="field cost"><input type="number" id="setBenzoMg" step="0.05" min="0" placeholder="0.25"><span class="cur">mg</span></div></div>
+        <div class="setrow"><div class="sk">Clonazepam peak reminder<small>Hours from dose to peak. Alert comes 1 h before, only while awake. 0 = off</small></div>
+          <div class="field cost"><input type="number" id="setBenzoPeakH" step="0.5" min="0" inputmode="decimal"><span class="cur">h</span></div></div>
+        <div class="setrow"><div class="sk">Clonazepam 2nd dose reminder<small>Hours after a dose to remind you of the next one. 0 = off</small></div>
+          <div class="field cost"><input type="number" id="setBenzoNextH" step="0.5" min="0" inputmode="decimal"><span class="cur">h</span></div></div>
         <div class="setrow" style="display:none"><div class="sk">Clonidine dose<small>What Clonidine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setClonidineMg" step="25" min="0" placeholder="mcg"><span class="cur">mcg</span></div></div>
         <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Meds. Blank = no mg saved</small></div>
@@ -2138,6 +2142,8 @@
       }
     }
     document.getElementById('setBenzoMg').value = getBenzoMg();
+    document.getElementById('setBenzoPeakH').value = benzoPeakH();
+    document.getElementById('setBenzoNextH').value = benzoNextH();
     document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
     document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
     refreshTaperCurrent(true);
@@ -2241,6 +2247,11 @@
     const lastCap = capHistory.length ? capHistory[capHistory.length - 1].cap : 0;
     if (Math.abs(newCap - lastCap) > 0.0001) capHistory.push({ from: Date.now(), cap: newCap });
     const benzoIn = parseFloat(document.getElementById('setBenzoMg').value);
+    ['benzoPeakH', 'benzoNextH'].forEach(k => {
+      const id = 'set' + k[0].toUpperCase() + k.slice(1);
+      const v = parseFloat(document.getElementById(id).value);
+      try { localStorage.setItem(k, String(isNaN(v) ? 0 : Math.max(0, v))); } catch (e) {}
+    });
     const mgOrNull = id => { const v = parseFloat(document.getElementById(id).value); return v > 0 ? Math.round(v * 1000) / 1000 : null; };
     taperPlan = {
       start: document.getElementById('setTaperStart').value || null,
@@ -2261,6 +2272,8 @@
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     document.getElementById('setBenzoMg').value = getBenzoMg();
+    document.getElementById('setBenzoPeakH').value = benzoPeakH();
+    document.getElementById('setBenzoNextH').value = benzoNextH();
     document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
     document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
     silentBackupToGitHub();
@@ -2287,9 +2300,16 @@
   // is set up with. Offset counts DOWN from it as the used fraction grows,
   // so the arc fills clockwise from 12 o'clock.
   const DIAL_CIRCUMFERENCE = 439.82;
-  // Clonazepam peak and next-dose hours (see the ntfy reminders below).
-  const BENZO_PEAK_H = 4;
-  const BENZO_NEXT_H = 12;
+  // Clonazepam peak and next-dose hours (Settings; never set = 4 and 12,
+  // 0 = that reminder off). See the ntfy reminders below.
+  function benzoHours(key, def) {
+    let v = null;
+    try { v = localStorage.getItem(key); } catch (e) {}
+    const n = parseFloat(v);
+    return v == null || v === '' || isNaN(n) ? def : Math.max(0, n);
+  }
+  const benzoPeakH = () => benzoHours('benzoPeakH', 4);
+  const benzoNextH = () => benzoHours('benzoNextH', 12);
   // Green under 70%, amber to 90%, red above. Stepped rather than the old
   // countdown's smooth gradient: this number carries a decision, and a
   // decision wants three states you can name, not a continuous hue.
@@ -2356,13 +2376,13 @@
     if (lastBenzoEl) {
       if (!lastBenzoE) { lastBenzoEl.textContent = 'Clonazepam'; benzoPeakEl.textContent = '—'; benzoSub.textContent = ''; }
       else {
-        const peakAt = lastBenzoE.timestamp + BENZO_PEAK_H * 3600000;
-        const nextAt = lastBenzoE.timestamp + BENZO_NEXT_H * 3600000;
+        const peakAt = lastBenzoE.timestamp + benzoPeakH() * 3600000;
+        const nextAt = lastBenzoE.timestamp + benzoNextH() * 3600000;
         lastBenzoEl.textContent = `Clonazepam ${clockText(lastBenzoE.timestamp)}`;
         const up = Date.now() < peakAt;
-        benzoPeakEl.textContent = `${up ? 'Peak' : 'Peaked'} ${clockText(peakAt)}`;
-        benzoPeakEl.classList.toggle('up', up);
-        benzoSub.textContent = `Next ${clockText(nextAt)}`;
+        benzoPeakEl.textContent = benzoPeakH() > 0 ? `${up ? 'Peak' : 'Peaked'} ${clockText(peakAt)}` : `${lastBenzoE.mg || ''} mg`;
+        benzoPeakEl.classList.toggle('up', up && benzoPeakH() > 0);
+        benzoSub.textContent = benzoNextH() > 0 ? `Next ${clockText(nextAt)}` : '';
       }
     }
 
@@ -3320,12 +3340,13 @@
     if (!url || !e || e.type !== 'benzo' || e.missed) return;
     const list = benzoRemList();
     const items = [
-      { kind: 'peak', at: e.timestamp + (BENZO_PEAK_H - 1) * 3600000, title: 'Clonazepam peaks in 1 hour',
-        body: `Peak around ${clockText(e.timestamp + BENZO_PEAK_H * 3600000)}.` },
-      { kind: 'next', at: e.timestamp + BENZO_NEXT_H * 3600000, title: 'Clonazepam: 12 hours',
+      { kind: 'peak', at: e.timestamp + (benzoPeakH() - 1) * 3600000, title: 'Clonazepam peaks in 1 hour',
+        body: `Peak around ${clockText(e.timestamp + benzoPeakH() * 3600000)}.` },
+      { kind: 'next', at: e.timestamp + benzoNextH() * 3600000, title: 'Clonazepam: 12 hours',
         body: `12 hours since your ${clockText(e.timestamp)} dose. Log it in Meds when you take it.` },
     ];
     for (const it of items) {
+      if ((it.kind === 'peak' ? benzoPeakH() : benzoNextH()) <= 0) continue;
       if (it.at < Date.now() + 60000 || it.at > Date.now() + 3 * 86400000) continue;
       const rnd = new Uint8Array(8); crypto.getRandomValues(rnd);
       const seq = 'bz' + [...rnd].map(b => b.toString(36).padStart(2, '0')).join('');
