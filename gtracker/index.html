@@ -83,8 +83,8 @@
 
   /* r=70 → circumference 2πr = 439.82, which is the dasharray every offset
      below is a fraction of. Rotated -90° so the arc starts at 12 o'clock. */
-  .dial{position:relative;width:152px;height:152px;flex:none;}
-  .dial svg{transform:rotate(-90deg);}
+  .dial{position:relative;width:clamp(128px,42vw,152px);aspect-ratio:1;flex:none;}
+  .dial svg{transform:rotate(-90deg);width:100%;height:100%;display:block;}
   .dial .track{fill:none;stroke:#e7e5e0;stroke-width:9;}
   .dial .fill{fill:none;stroke:#26282c;stroke-width:9;stroke-linecap:round;
     stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
@@ -103,6 +103,19 @@
   #dial.lvl-amb .big{color:var(--amb);}
   #dial.lvl-red .big,#dial.lvl-red .sub{color:var(--red);}
   #dial.over .sub{font-weight:700;}
+  /* 2026-11-07 (his layout): G ring left, methylphenidate ring right, three
+     boxes under them: Since last, Total today, Last clonazepam. */
+  .hero{justify-content:center;}
+  #mdial.lvl-grn .fill{stroke:var(--grn);}
+  #mdial.lvl-amb .fill{stroke:var(--amb);}
+  #mdial.lvl-red .fill{stroke:var(--red);}
+  #mdial.lvl-grn .big{color:var(--grn);}
+  #mdial.lvl-amb .big{color:var(--amb);}
+  #mdial.lvl-red .big,#mdial.lvl-red .sub{color:var(--red);}
+  .hboxes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+  .hboxes .hstat{padding:9px 10px;min-width:0;}
+  .hboxes .s{font-size:10.5px;color:var(--mut);margin-top:2px;line-height:1.3;}
+  .hboxes .s b{color:var(--amb);font-weight:700;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
   /* Outer .amed only clips; the sliding .body carries the visible card, so a
@@ -690,10 +703,6 @@
     <!-- ============ LOG ============ -->
     <div class="view on" id="view-log">
       <div class="hero">
-        <div class="heroL">
-          <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div></div>
-          <div class="hstat"><div class="k">Last CIWA</div><div class="v" id="lastCiwa">—</div></div>
-        </div>
         <div class="dial" id="dial">
           <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
             <circle class="track" cx="76" cy="76" r="70"/>
@@ -705,6 +714,22 @@
             <div class="sub" id="ringSub"></div>
           </div>
         </div>
+        <div class="dial" id="mdial">
+          <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
+            <circle class="track" cx="76" cy="76" r="70"/>
+            <circle class="fill" id="mdialFill" cx="76" cy="76" r="70"/>
+          </svg>
+          <div class="in">
+            <div class="lbl">Methylphenidate</div>
+            <div class="big" id="mReadout">—</div>
+            <div class="sub" id="mSub"></div>
+          </div>
+        </div>
+      </div>
+      <div class="hboxes">
+        <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div><div class="s" id="sinceSub"></div></div>
+        <div class="hstat"><div class="k">Total today</div><div class="v" id="totalToday">—</div><div class="s" id="totalSub"></div></div>
+        <div class="hstat"><div class="k">Last clonazepam</div><div class="v" id="lastBenzo">—</div><div class="s" id="benzoSub"></div></div>
       </div>
       <div class="hsub" id="rolling24" hidden></div>
 
@@ -2263,6 +2288,9 @@
   // is set up with. Offset counts DOWN from it as the used fraction grows,
   // so the arc fills clockwise from 12 o'clock.
   const DIAL_CIRCUMFERENCE = 439.82;
+  // Clonazepam peak and next-dose hours (see the ntfy reminders below).
+  const BENZO_PEAK_H = 4;
+  const BENZO_NEXT_H = 12;
   // Green under 70%, amber to 90%, red above. Stepped rather than the old
   // countdown's smooth gradient: this number carries a decision, and a
   // decision wants three states you can name, not a continuous hue.
@@ -2281,7 +2309,6 @@
     const readout = document.getElementById('readout');
     const ringSub = document.getElementById('ringSub');
     const since = document.getElementById('since');
-    const lastCiwaEl = document.getElementById('lastCiwa');
     const rolling = document.getElementById('rolling24');
     const p = n => String(n).padStart(2, '0');
 
@@ -2322,16 +2349,26 @@
       since.textContent = p(Math.floor(elapsedSec / 3600)) + ':' + p(Math.floor(elapsedSec / 60) % 60);
     }
 
-    // ---- Last CIWA: the score and when it was taken, from a dose or a Check.
-    let lastScored = null;
-    all.forEach(e => { if (e.ciwa && (!lastScored || e.timestamp > lastScored.timestamp)) lastScored = e; });
-    lastCiwaEl.classList.remove('grn', 'amb', 'red');
-    if (!lastScored) {
-      lastCiwaEl.textContent = '—';
-    } else {
-      const t = new Date(lastScored.timestamp).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      lastCiwaEl.textContent = `${lastScored.ciwa.total} · ${t}`;
-      lastCiwaEl.classList.add(lastScored.ciwa.hardStop ? 'red' : ciwaBandClass(lastScored.ciwa.total));
+    const sinceSub = document.getElementById('sinceSub');
+    if (sinceSub) {
+      const lastDose = anchorData.length ? anchorData[anchorData.length - 1] : null;
+      const want = lastDose && lastDose.ml > 0 ? `${fmtMl(lastDose.ml)} ml at ${clockText(lastDose.timestamp)}` : '';
+      if (sinceSub.textContent !== want) sinceSub.textContent = want;
+    }
+
+    // ---- Last clonazepam: when, its peak, and the next one on the 12 h plan.
+    const lastBenzoE = lastBenzoTaken(all);
+    const lastBenzoEl = document.getElementById('lastBenzo');
+    const benzoSub = document.getElementById('benzoSub');
+    if (lastBenzoEl) {
+      if (!lastBenzoE) { lastBenzoEl.textContent = '—'; benzoSub.textContent = ''; }
+      else {
+        lastBenzoEl.textContent = clockText(lastBenzoE.timestamp);
+        const peakAt = lastBenzoE.timestamp + BENZO_PEAK_H * 3600000;
+        const nextAt = lastBenzoE.timestamp + BENZO_NEXT_H * 3600000;
+        const html = `${Date.now() < peakAt ? '<b>Peak</b> ' : 'Peaked '}${clockText(peakAt)}<br>Next ${clockText(nextAt)}`;
+        if (benzoSub.innerHTML !== html) benzoSub.innerHTML = html;
+      }
     }
 
     // ---- Rolling 24h. A session that runs 24h+ awake would otherwise stretch
@@ -2359,6 +2396,24 @@
       if (benzoLbl.textContent !== want) benzoLbl.textContent = want;
     }
     const used = cur ? cur.totalDailyMl : 0;
+
+    // ---- Methylphenidate ring + Total today box: this waking day, same
+    // three colours as the G ring, read against the Daily maximum.
+    {
+      const mg = cur ? (cur.ritalinMg || 0) + (cur.concertaMg || 0) : 0;
+      const tgt = stimTargetMg();
+      const mdial = document.getElementById('mdial');
+      const mf = mg / tgt;
+      const shown = mf <= 0 ? 0 : Math.min(1, Math.max(0.01, mf));
+      document.getElementById('mdialFill').style.strokeDashoffset = (DIAL_CIRCUMFERENCE * (1 - shown)).toFixed(2);
+      ['lvl-grn', 'lvl-amb', 'lvl-red'].forEach(c => mdial.classList.remove(c));
+      if (mg > 0) mdial.classList.add('lvl-' + (mg > tgt ? 'red' : capLevel(mf)));
+      document.getElementById('mReadout').textContent = `${mg} / ${tgt} mg`;
+      document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
+      const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
+      document.getElementById('totalToday').textContent = `${doses.length} dose${doses.length === 1 ? '' : 's'}`;
+      document.getElementById('totalSub').textContent = cur ? `${fmtMl(used)} ml` : '';
+    }
 
     if (!cur) {
       setDial(0, null);
@@ -2532,10 +2587,12 @@
     const data = await getAllData();
     let ts = Date.now();
     while (data.some(e => e.timestamp === ts)) ts += 1;
-    data.push(build(ts));
+    const built = build(ts);
+    data.push(built);
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     logDayIdx = null;
+    if (built.type === 'benzo') scheduleBpForEntry(built);
     showToast(toastText, () => undoLog(ts, undefined));
     await paintRing();
     await renderLog();
@@ -2929,6 +2986,7 @@
     saveData(all);
     logDayIdx = null;
     const skipped = rows.filter(r => ans[r.k] === false && !(r.k === 'clonazepam' && skipBenzo)).length;
+    all.filter(e => stamps.includes(e.timestamp) && e.type === 'benzo').forEach(scheduleBpForEntry);
     showToast(`Meds saved${skipped ? ` · ${skipped} skipped` : ''}`, () => undoLog(stamps));
     await paintRing();
     await renderLog();
@@ -2949,6 +3007,7 @@
     localStorage.setItem(SESSION_KEY, 'false');
     saveData(all);
     logDayIdx = null;
+    bpQueue = bpQueue.then(() => cancelBenzoNow(null, true));
     showToast('Sleep logged', () => undoLog(ts, prevSession));
     await paintRing();
     await renderLog();
@@ -3245,13 +3304,69 @@
   }
   function clockText(ts) { return new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); }
 
+  // ===== Clonazepam peak + next reminders (ntfy), 2026-11-07 =====
+  // His plan with his doctor: 1 mg every 12 h. Two alerts per logged dose:
+  // "peaks in 1 hour" (peak taken as 4 h after the dose, his read; the usual
+  // range is 1 to 4 h) and "12 hours since" for the next one. Logging Sleep
+  // cancels a peak alert still waiting, so it only lands while he is awake.
+  const BENZO_REMIND_KEY = 'benzoReminders';
+  function lastBenzoTaken(all) {
+    let last = null;
+    all.forEach(e => { if (e.type === 'benzo' && !e.missed && (!last || e.timestamp > last.timestamp)) last = e; });
+    return last;
+  }
+  function benzoRemList() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(BENZO_REMIND_KEY) || '[]'); } catch (e) {}
+    return list.filter(r => r.at > Date.now() - 2 * 3600000);
+  }
+  function saveBenzoRemList(list) { try { localStorage.setItem(BENZO_REMIND_KEY, JSON.stringify(list)); } catch (e) {} }
+  async function scheduleBenzoNow(e) {
+    const url = ntfyTopicUrl();
+    if (!url || !e || e.type !== 'benzo' || e.missed) return;
+    const list = benzoRemList();
+    const items = [
+      { kind: 'peak', at: e.timestamp + (BENZO_PEAK_H - 1) * 3600000, title: 'Clonazepam peaks in 1 hour',
+        body: `Peak around ${clockText(e.timestamp + BENZO_PEAK_H * 3600000)}.` },
+      { kind: 'next', at: e.timestamp + BENZO_NEXT_H * 3600000, title: 'Clonazepam: 12 hours',
+        body: `12 hours since your ${clockText(e.timestamp)} dose. Log it in Meds when you take it.` },
+    ];
+    for (const it of items) {
+      if (it.at < Date.now() + 60000 || it.at > Date.now() + 3 * 86400000) continue;
+      const rnd = new Uint8Array(8); crypto.getRandomValues(rnd);
+      const seq = 'bz' + [...rnd].map(b => b.toString(36).padStart(2, '0')).join('');
+      try {
+        const res = await fetch(`${url}/${seq}`, { method: 'POST', body: it.body,
+          headers: { 'Title': it.title, 'Tags': 'pill', 'At': String(Math.round(it.at / 1000)) } });
+        if (!res.ok) throw new Error(res.status);
+        list.push({ seq, at: it.at, kind: it.kind, medTs: e.timestamp });
+      } catch (err) { showToast('Clonazepam reminder not scheduled (offline?)'); }
+    }
+    saveBenzoRemList(list);
+  }
+  // tsList: undone/deleted/moved entries. kind 'peak' with no tsList = cancel
+  // every waiting peak alert (used by Sleep).
+  async function cancelBenzoNow(tsList, onlyPeak) {
+    const url = ntfyTopicUrl();
+    let list = benzoRemList();
+    const gone = new Set(tsList || []);
+    const drop = list.filter(r => r.at > Date.now() && (onlyPeak ? r.kind === 'peak' : gone.has(r.medTs)));
+    list = list.filter(r => !drop.includes(r));
+    saveBenzoRemList(list);
+    if (!url) return;
+    for (const r of drop) {
+      try { const res = await fetch(`${url}/${r.seq}`, { method: 'DELETE' }); if (!res.ok) throw new Error(res.status); }
+      catch (err) { fetch(url, { method: 'POST', body: `Ignore the clonazepam alert due at ${clockText(r.at)}.`, headers: { 'Title': 'Alert cancelled' } }).catch(() => {}); }
+    }
+  }
+
   // One at a time: Ritalin 20 LA schedules two at once, and two overlapping
   // read-then-save rounds on the list would drop one of them.
   let bpQueue = Promise.resolve();
   // The wear-off heads-up rides the same queue and the same hooks, so every
   // tap, Undo, time edit and delete that moves a BP check moves it too.
-  function scheduleBpForEntry(e) { bpQueue = bpQueue.then(() => scheduleBpNow(e)).then(() => scheduleWearNow(e)); return bpQueue; }
-  function cancelBpReminders(tsList) { bpQueue = bpQueue.then(() => cancelBpNow(tsList)).then(() => cancelWearNow(tsList)); return bpQueue; }
+  function scheduleBpForEntry(e) { bpQueue = bpQueue.then(() => scheduleBpNow(e)).then(() => scheduleWearNow(e)).then(() => scheduleBenzoNow(e)); return bpQueue; }
+  function cancelBpReminders(tsList) { bpQueue = bpQueue.then(() => cancelBpNow(tsList)).then(() => cancelWearNow(tsList)).then(() => cancelBenzoNow(tsList)); return bpQueue; }
 
   async function scheduleBpNow(e) {
     const url = ntfyTopicUrl();
