@@ -116,6 +116,18 @@
   .hboxes .hstat{padding:9px 10px;min-width:0;}
   .hboxes .s{font-size:10.5px;color:var(--mut);margin-top:2px;line-height:1.3;}
   #benzoPeak.up{color:var(--amb);}
+  /* 2026-11-07 v43 (his layout): G ring left with Since last under it,
+     clonazepam rings right (one ring per recent dose, oldest innermost, each
+     filled by the share of that dose still in the body), boxes below:
+     methylphenidate total, then the clonazepam peaks. */
+  .dcol{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;}
+  .dcap{font-family:var(--mono);font-size:11px;color:var(--mut);text-align:center;line-height:1.35;font-variant-numeric:tabular-nums;}
+  .dcap b{color:var(--txt);font-weight:600;}
+  #cdial svg{transform:rotate(-90deg);}
+  #cdial .ctrack{fill:none;stroke:#efebfb;}
+  #cdial .cfill{fill:none;stroke:var(--pur);stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1);}
+  #cdial .big{color:var(--pur);}
+  #benzoPeak2{font-size:10.5px;line-height:1.35;color:var(--mut);margin-top:3px;font-variant-numeric:tabular-nums;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
   /* Outer .amed only clips; the sliding .body carries the visible card, so a
@@ -703,6 +715,7 @@
     <!-- ============ LOG ============ -->
     <div class="view on" id="view-log">
       <div class="hero">
+        <div class="dcol">
         <div class="dial" id="dial">
           <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
             <circle class="track" cx="76" cy="76" r="70"/>
@@ -714,21 +727,23 @@
             <div class="sub" id="ringSub"></div>
           </div>
         </div>
-        <div class="dial" id="mdial">
-          <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
-            <circle class="track" cx="76" cy="76" r="70"/>
-            <circle class="fill" id="mdialFill" cx="76" cy="76" r="70"/>
-          </svg>
+        <div class="dcap"><b id="since">--:--</b> since last<br><span id="totalSub"></span></div>
+        </div>
+        <div class="dcol">
+        <div class="dial" id="cdial">
+          <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true" id="cdialSvg"></svg>
           <div class="in">
-            <div class="lbl">Methylphenidate</div>
-            <div class="big" id="mReadout">—</div>
-            <div class="sub" id="mSub"></div>
+            <div class="lbl">In body</div>
+            <div class="big" id="cReadout">—</div>
+            <div class="sub" id="cSub"></div>
           </div>
+        </div>
+        <div class="dcap" id="cCap"></div>
         </div>
       </div>
       <div class="hboxes">
-        <div class="hstat"><div class="k">Since last</div><div class="v" id="since">--:--</div><div class="s" id="totalSub"></div></div>
-        <div class="hstat"><div class="k" id="lastBenzo">Clonazepam</div><div class="v" id="benzoPeak">—</div><div class="s" id="benzoSub"></div></div>
+        <div class="hstat"><div class="k">Methylphenidate</div><div class="v" id="mReadout">—</div><div class="s" id="mSub"></div></div>
+        <div class="hstat"><div class="k" id="lastBenzo">Clonazepam peak</div><div class="v" id="benzoPeak">—</div><div id="benzoPeak2"></div><div class="s" id="benzoSub" hidden></div></div>
       </div>
       <div class="hsub" id="rolling24" hidden></div>
 
@@ -2309,6 +2324,50 @@
     return v == null || v === '' || isNaN(n) ? def : Math.max(0, n);
   }
   const benzoPeakH = () => benzoHours('benzoPeakH', 4);
+  // Rough body level of clonazepam, textbook averages (not a blood test):
+  // absorbed with a rate of 1.5 per hour (peak in the blood about 3 h after),
+  // half of it gone every 35 h (people range about 18 to 50 h).
+  const BENZO_KA = 1.5, BENZO_KE = Math.LN2 / 35, BENZO_TMAX_H = 3;
+  function benzoLeftMg(e, now) {
+    const h = (now - e.timestamp) / 3600000;
+    if (h <= 0 || !(e.mg > 0)) return 0;
+    return e.mg * BENZO_KA / (BENZO_KA - BENZO_KE) * (Math.exp(-BENZO_KE * h) - Math.exp(-BENZO_KA * h));
+  }
+  function benzoDoses(all) {
+    return all.filter(e => e.type === 'benzo' && !e.missed && e.mg > 0).sort((a, b) => a.timestamp - b.timestamp);
+  }
+  const fmtMg = v => (Math.round(v * 100) / 100).toString();
+  // One ring per dose, newest outside. Five rings fit around the total.
+  function paintBenzoRings(bz) {
+    const svg = document.getElementById('cdialSvg');
+    if (!svg) return;
+    const now = Date.now();
+    const total = bz.reduce((t, e) => t + benzoLeftMg(e, now), 0);
+    const shown = bz.slice(-5);
+    const W = 5, GAP = 1.8, R0 = 70;
+    const key = shown.map(e => e.timestamp).join(',');
+    if (svg.dataset.key !== key) {
+      svg.dataset.key = key;
+      svg.innerHTML = shown.map((e, i) => {
+        const r = R0 - (shown.length - 1 - i) * (W + GAP);
+        const c = (2 * Math.PI * r).toFixed(2);
+        return `<circle class="ctrack" cx="76" cy="76" r="${r}" stroke-width="${W}"/>` +
+          `<circle class="cfill" data-i="${i}" cx="76" cy="76" r="${r}" stroke-width="${W}" stroke-dasharray="${c}" stroke-dashoffset="${c}" style="opacity:${(0.4 + 0.6 * (i + 1) / shown.length).toFixed(2)}"/>`;
+      }).join('');
+    }
+    svg.querySelectorAll('.cfill').forEach(el => {
+      const e = shown[+el.dataset.i];
+      const f = Math.min(1, benzoLeftMg(e, now) / e.mg);
+      const c = parseFloat(el.getAttribute('stroke-dasharray'));
+      el.style.strokeDashoffset = (c * (1 - (f > 0 ? Math.max(0.01, f) : 0))).toFixed(2);
+    });
+    document.getElementById('cReadout').textContent = bz.length ? `${total.toFixed(2)} mg` : '—';
+    document.getElementById('cSub').textContent = bz.length ? 'clonazepam' : '';
+    const last = shown[shown.length - 1];
+    document.getElementById('cCap').innerHTML = last
+      ? `Last ${shown.length} doses<br>outer ring = newest`
+      : '';
+  }
   const benzoNextH = () => benzoHours('benzoNextH', 12);
   // Green under 70%, amber to 90%, red above. Stepped rather than the old
   // countdown's smooth gradient: this number carries a decision, and a
@@ -2374,16 +2433,16 @@
     const benzoPeakEl = document.getElementById('benzoPeak');
     const benzoSub = document.getElementById('benzoSub');
     if (lastBenzoEl) {
-      if (!lastBenzoE) { lastBenzoEl.textContent = 'Clonazepam'; benzoPeakEl.textContent = '—'; benzoSub.textContent = ''; }
-      else {
-        const peakAt = lastBenzoE.timestamp + benzoPeakH() * 3600000;
-        const nextAt = lastBenzoE.timestamp + benzoNextH() * 3600000;
-        lastBenzoEl.textContent = `Clonazepam ${clockText(lastBenzoE.timestamp)}`;
-        const up = Date.now() < peakAt;
-        benzoPeakEl.textContent = benzoPeakH() > 0 ? `${up ? 'Peak' : 'Peaked'} ${clockText(peakAt)}` : `${lastBenzoE.mg || ''} mg`;
-        benzoPeakEl.classList.toggle('up', up && benzoPeakH() > 0);
-        benzoSub.textContent = benzoNextH() > 0 ? `Next ${clockText(nextAt)}` : '';
-      }
+      // Peaks box: newest dose on the big line, the one before it underneath.
+      const bz = benzoDoses(all);
+      const pH = benzoPeakH() > 0 ? benzoPeakH() : BENZO_TMAX_H;
+      const peakAt = e => e.timestamp + pH * 3600000;
+      const b1 = bz[bz.length - 1], b2 = bz[bz.length - 2];
+      benzoPeakEl.textContent = b1 ? `${Date.now() < peakAt(b1) ? 'Peak' : 'Peaked'} ${clockText(peakAt(b1))}` : '—';
+      benzoPeakEl.classList.toggle('up', !!b1 && Date.now() < peakAt(b1));
+      document.getElementById('benzoPeak2').innerHTML = (b1 ? `${fmtMg(b1.mg)} mg at ${clockText(b1.timestamp)}` : '') +
+        (b2 ? `<br>${fmtMg(b2.mg)} mg ${Date.now() < peakAt(b2) ? 'peaks' : 'peaked'} ${clockText(peakAt(b2))}` : '');
+      paintBenzoRings(bz);
     }
 
     // ---- Rolling 24h. A session that runs 24h+ awake would otherwise stretch
@@ -2417,12 +2476,10 @@
     {
       const mg = cur ? (cur.ritalinMg || 0) + (cur.concertaMg || 0) : 0;
       const tgt = stimTargetMg();
-      const mdial = document.getElementById('mdial');
       const mf = mg / tgt;
-      const shown = mf <= 0 ? 0 : Math.min(1, Math.max(0.01, mf));
-      document.getElementById('mdialFill').style.strokeDashoffset = (DIAL_CIRCUMFERENCE * (1 - shown)).toFixed(2);
-      ['lvl-grn', 'lvl-amb', 'lvl-red'].forEach(c => mdial.classList.remove(c));
-      if (mg > 0) mdial.classList.add('lvl-' + (mg > tgt ? 'red' : capLevel(mf)));
+      const mro = document.getElementById('mReadout');
+      ['grn', 'amb', 'red'].forEach(c => mro.classList.remove(c));
+      if (mg > 0) mro.classList.add(mg > tgt ? 'red' : capLevel(mf));
       document.getElementById('mReadout').textContent = `${mg} / ${tgt} mg`;
       document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
       const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
