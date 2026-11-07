@@ -63,6 +63,11 @@
   .nav .gear{width:17px;height:17px;cursor:pointer;transition:.15s;color:var(--muted);opacity:.5;}
 
   .stamp{text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;}
+  /* v46 (his ask): date, time and hours awake big and first on the screen. */
+  .stamp{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;text-align:left;font-family:var(--sans);letter-spacing:0;margin:-4px 0 14px;}
+  .stamp .when{font-size:17px;font-weight:600;color:var(--txt);font-variant-numeric:tabular-nums;}
+  .stamp .awake{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--grn);background:#e7f5ee;border-radius:999px;padding:4px 10px;font-variant-numeric:tabular-nums;}
+  .stamp .awake[hidden]{display:none;}
 
   .view{display:none;} .view.on{display:block;}
 
@@ -2300,6 +2305,8 @@
   }
 
   // ===== Stamp (date/time header) =====
+  // Start of the open waking day, set by the Log render; null when asleep.
+  let stampAwakeFrom = null;
   function updateStamp() {
     const now = new Date();
     const dayName = now.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
@@ -2308,7 +2315,17 @@
     let h = now.getHours() % 12; if (h === 0) h = 12;
     const m = String(now.getMinutes()).padStart(2, '0');
     const ap = now.getHours() >= 12 ? 'PM' : 'AM';
-    document.getElementById('stamp').textContent = `${dayName}, ${month} ${day} · ${h}:${m} ${ap}`;
+    const st = document.getElementById('stamp');
+    if (!st.firstElementChild) st.innerHTML = '<span class="when"></span><span class="awake" hidden></span>';
+    const wd = now.toLocaleDateString('en-US', { weekday: 'short' });
+    const mo = now.toLocaleDateString('en-US', { month: 'short' });
+    st.firstElementChild.textContent = `${wd}, ${mo} ${day} · ${h}:${m} ${ap}`;
+    const aw = st.lastElementChild;
+    if (stampAwakeFrom) {
+      const mins = Math.max(0, Math.floor((now - stampAwakeFrom) / 60000));
+      aw.textContent = `Awake ${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+      aw.hidden = false;
+    } else aw.hidden = true;
   }
 
   // ===== Allowance ring =====
@@ -2489,6 +2506,7 @@
       document.getElementById('mReadout').textContent = `${mg} / ${tgt} mg`;
       document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
       const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
+      stampAwakeFrom = cur && cur.isOpen ? cur.startTs : null; updateStamp();
       document.getElementById('totalSub').textContent = cur ? `${doses.length} dose${doses.length === 1 ? '' : 's'} · ${fmtMl(used)} ml today` : '';
     }
 
