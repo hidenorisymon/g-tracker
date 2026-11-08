@@ -782,6 +782,7 @@
 
       <div class="btnrow meds">
         <button class="b pill pur" id="chipRitalin5">Ritalin 5</button>
+        <button class="b pill pur" id="chipRitalin10">Ritalin 10</button>
         <button class="b pill pur" id="chipRitalin20">Ritalin 20 LA</button>
         <button class="b pill org" id="chipConcerta36">Concerta 36</button>
       </div>
@@ -1655,8 +1656,8 @@
   }
   const GITHUB_API = 'https://api.github.com';
 
-  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 20':20 };
-  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 20':'purple' };
+  const MED_MG = { 'Concerta 36':36, 'Ritalin 5':5, 'Ritalin 10':10, 'Ritalin 20':20 };
+  const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 10':'purple', 'Ritalin 20':'purple' };
 
   let costPerMl = 50;
   let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':0 };
@@ -2708,7 +2709,9 @@
   async function logMed(name) {
     const data = await getAllData();
     const tm = Date.now();
-    data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost: medCost[name] || 0, timestamp: tm, durationMin: null });
+    // v50: Ritalin 10 = two Ritalin 5 tablets taken whole, so it costs two of them.
+    const cost = name === 'Ritalin 10' ? 2 * (medCost['Ritalin 5'] || 0) : (medCost[name] || 0);
+    data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost, timestamp: tm, durationMin: null });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
     showToast(`Logged ${name}${await stackNote(name, tm)}`, () => undoLog(tm, undefined));
@@ -4551,6 +4554,7 @@
 
     document.getElementById('chipConcerta36').addEventListener('click', () => guardedLogMed('Concerta 36'));
     document.getElementById('chipRitalin5').addEventListener('click', () => guardedLogMed('Ritalin 5'));
+    document.getElementById('chipRitalin10').addEventListener('click', () => guardedLogMed('Ritalin 10'));
     document.getElementById('chipRitalin20').addEventListener('click', () => logRitalin20LA());
     // A long random name is the privacy: anyone who knows a ntfy topic can read it.
     document.getElementById('bpTopicNew').addEventListener('click', () => {
