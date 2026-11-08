@@ -2512,7 +2512,8 @@
     // awake for (no Wake Up or Fall asleep inside it), counted from the first
     // clonazepam day; the gap running now counts too.
     since.classList.toggle('over6', anchorData.length > 0 && Date.now() - anchorData[anchorData.length - 1].timestamp >= 6 * 3600000);
-    paintGapRecord(all, anchorData);
+    // v52: the awake record line is gone; that spot now lists the earlier
+    // dose times of this waking day (painted after the sessions load).
     paintCiwaNow(all);
 
     // ---- Last clonazepam: when, its peak, and the next one on the 12 h plan.
@@ -2560,6 +2561,7 @@
       if (benzoLbl.textContent !== want) benzoLbl.textContent = want;
     }
     const used = cur ? cur.totalDailyMl : 0;
+    let dayDoses = [];
 
     // ---- Methylphenidate ring + Total today box: this waking day, same
     // three colours as the G ring, read against the Daily maximum.
@@ -2573,10 +2575,20 @@
       document.getElementById('mReadout').textContent = `${mg} / ${tgt} mg`;
       document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
       const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
+      dayDoses = doses;
       stampAwakeFrom = cur && cur.isOpen ? cur.startTs : null; updateStamp();
       document.getElementById('totalSub').textContent = cur ? `${doses.length} dose${doses.length === 1 ? '' : 's'} · ${fmtMl(used)} ml today` : '';
     }
 
+    // Under the ring's number: the last dose time. Under the circle, where
+    // the awake record used to be: this day's other dose times, newest first.
+    {
+      const gr = document.getElementById('gapRec');
+      const prev = dayDoses.slice(0, -1).reverse();
+      const html = prev.map(e => `<div>${fmtMl(e.ml)} ml at ${clockText(e.timestamp)}</div>`).join('');
+      if (gr && gr.innerHTML !== html) gr.innerHTML = html;
+    }
+    const lastDoseText = dayDoses.length ? `Last ${clockText(dayDoses[dayDoses.length - 1].timestamp)}` : '';
     if (!cur) {
       setDial(0, null);
       eyebrow.textContent = 'No dose yet';
@@ -2589,7 +2601,7 @@
       setDial(0, null);
       eyebrow.textContent = 'Today';
       readout.textContent = `${fmtMl(used)} ml`;
-      ringSub.textContent = 'No cap set';
+      ringSub.textContent = lastDoseText || 'No cap set';
       dial.classList.remove('over');
       return;
     }
@@ -2599,9 +2611,7 @@
     dial.classList.toggle('over', over);
     eyebrow.textContent = 'Allowance';
     readout.textContent = `${fmtMl(used)} / ${fmtMl(cap)} ml`;
-    ringSub.textContent = over
-      ? `${fmtMl(used - cap)} ml over`
-      : `${fmtMl(cap - used)} ml left`;
+    ringSub.textContent = lastDoseText || (over ? `${fmtMl(used - cap)} ml over` : `${fmtMl(cap - used)} ml left`);
   }
 
   // ===== Logging =====
