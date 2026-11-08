@@ -1018,6 +1018,8 @@
           <div class="field cost wide"><input type="text" id="setConcertaWearOff" placeholder="10:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin wear-off<small>Shown under each dose in Log. Heads-up alert 15 min before</small></div>
           <div class="field cost wide"><input type="text" id="setRitalinWearOff" placeholder="04:00" maxlength="5"></div></div>
+        <div class="setrow"><div class="sk">Ritalin 10 wear-off<small>For the Ritalin 10 button (whole 10 mg). Blank = 2:00</small></div>
+          <div class="field cost wide"><input type="text" id="setRitalin10WearOff" placeholder="02:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin 20 LA · Part 1<small>First 10mg, released immediately — how long it lasts</small></div>
           <div class="field cost wide"><input type="text" id="setRitalin20Part1" placeholder="04:00" maxlength="5"></div></div>
         <div class="setrow"><div class="sk">Ritalin 20 LA · Part 2<small>Second 10mg, always starts 4h after Part 1 — how long it lasts once it starts</small></div>
@@ -1663,7 +1665,7 @@
   let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':0 };
   // Grouped by drug family, not exact product name, so it still applies if a
   // different strength (e.g. a future "Ritalin 10" button) gets added later.
-  let medWearOff = { ritalin: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
+  let medWearOff = { ritalin: 0, ritalin10: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
   // Ceiling in mg for the session's COMBINED Ritalin + Concerta total (the
   // one number shown as "Meds · Total" in Log). 0 means no ceiling set, and
   // the meds box stays its neutral purple.
@@ -1699,6 +1701,8 @@
   }
 
   function wearOffMinutesFor(name) {
+    // v50: a whole 10 mg lasts longer than a 5 mg (his data: about 2 h), so it has its own time.
+    if (name === 'Ritalin 10') return medWearOff.ritalin10 || 120;
     if (/ritalin/i.test(name)) return medWearOff.ritalin || 0;
     if (/concerta/i.test(name)) return medWearOff.concerta || 0;
     return 0;
@@ -2148,6 +2152,7 @@
     document.getElementById('setWindDown').value = localStorage.getItem(WIND_DOWN_KEY) || '';
     document.getElementById('setConcertaWearOff').value = fmtHM(medWearOff.concerta);
     document.getElementById('setRitalinWearOff').value = fmtHM(medWearOff.ritalin);
+    document.getElementById('setRitalin10WearOff').value = medWearOff.ritalin10 ? fmtHM(medWearOff.ritalin10) : '';
     document.getElementById('setRitalin20Part1').value = fmtHM(medWearOff.ritalin20Part1);
     document.getElementById('setRitalin20Part2').value = fmtHM(medWearOff.ritalin20Part2);
 
@@ -2248,6 +2253,7 @@
     medWearOff = {
       concerta: parseHM(document.getElementById('setConcertaWearOff').value),
       ritalin: parseHM(document.getElementById('setRitalinWearOff').value),
+      ritalin10: parseHM(document.getElementById('setRitalin10WearOff').value),
       ritalin20Part1: parseHM(document.getElementById('setRitalin20Part1').value),
       ritalin20Part2: parseHM(document.getElementById('setRitalin20Part2').value),
     };
