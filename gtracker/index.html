@@ -5255,6 +5255,14 @@
     const medHtml = medMg > 0 ? `
       <div class="grow ${medCls}"><span class="k">Meds · Total</span><span class="v"><span class="chip ${medCls}">${medMg} mg</span></span>${medLeftHtml}<span class="sub">${fmtPeso(medCost)}</span></div>
       ${medSplit}` : '';
+    // v49: the bottom-left tile shows clonazepam taken this session (his ask,
+    // 2026-11-08) instead of G total; G total stays in History and the ring.
+    const clzSess = s.timeline.filter(e => e.type === 'benzo' && !e.missed && Number(e.mg) > 0);
+    const clzSum = Math.round(clzSess.reduce((a, e) => a + Number(e.mg), 0) * 100) / 100;
+    const clzTotHtml = clzSess.length ? `${clzSum} mg` : '—';
+    const clzNow = s.isOpen ? clzBodyAt(Date.now()) : 0;
+    const clzSubHtml = (clzSess.length ? `${clzSess.length} dose${clzSess.length === 1 ? '' : 's'}` : 'none yet')
+      + (clzNow >= 0.01 ? ` · ${(Math.round(clzNow * 100) / 100)} mg in body` : '');
     const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
       <div class="stop">
@@ -5265,7 +5273,7 @@
       <div class="grid">
         <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
         <div class="g"><div class="k">Allowance</div>${allowTile}</div>
-        <div class="g"><div class="k">G total</div><div class="v">${fmtMl(s.totalDailyMl)} ml <small>${fmtPeso(s.mlCost)}</small></div><div class="v2${s.extraCount > 0 ? ' amb' : ''}">${s.extraCount}× · ${fmtMl(s.extraMl)} ml <small>${fmtPeso(s.extraMl * costPerMl)}</small></div></div>
+        <div class="g"><div class="k">Clonazepam total</div><div class="v">${clzTotHtml}</div><div class="v2">${clzSubHtml}</div></div>
         <div class="g"><div class="k">Sleep</div><div class="v">${sleepText}</div></div>
       </div>
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
