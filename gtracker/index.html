@@ -1049,8 +1049,8 @@
         <div class="glabel">Medication cost</div>
         <div class="setrow"><div class="sk"><span class="cd bg-orange"></span>Concerta 36</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Concerta 36" value="55" min="0" step="1"></div></div>
-        <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 5</div>
-          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 5" value="20" min="0" step="1"></div></div>
+        <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 10</div>
+          <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 10" value="79" min="0" step="0.5"></div></div>
         <div class="setrow"><div class="sk"><span class="cd bg-purple"></span>Ritalin 20 LA</div>
           <div class="field cost"><span class="cur">₱</span><input type="number" data-med="Ritalin 20" value="0" min="0" step="1"></div></div>
       </div>
@@ -1725,7 +1725,12 @@
   const MED_CL = { 'Concerta 36':'orange', 'Ritalin 5':'purple', 'Ritalin 10':'purple', 'Ritalin 20':'purple' };
 
   let costPerMl = 50;
-  let medCost = { 'Concerta 36':55, 'Ritalin 5':20, 'Ritalin 20':0 };
+  let medCost = { 'Concerta 36':55, 'Ritalin 10':79, 'Ritalin 20':0 };
+  // v57: his discounted Ritalin 10 price is P79 (2026-11-10). Old stored
+  // values (40, or none) move to it once; a price he types later stays.
+  function fixRitalinPriceV57() {
+    if (!(medCost['Ritalin 10'] > 0) || medCost['Ritalin 10'] === 40) medCost['Ritalin 10'] = 79;
+  }
   // Grouped by drug family, not exact product name, so it still applies if a
   // different strength (e.g. a future "Ritalin 10" button) gets added later.
   let medWearOff = { ritalin: 0, ritalin10: 0, concerta: 0, ritalin20Part1: 0, ritalin20Part2: 0 };
@@ -2204,6 +2209,7 @@
 
     const saved = localStorage.getItem(MED_COST_KEY);
     if (saved) { try { medCost = { ...medCost, ...JSON.parse(saved) }; } catch (e) {} }
+    fixRitalinPriceV57();
     document.querySelectorAll('.field.cost input[data-med]').forEach(inp => {
       if (medCost[inp.dataset.med] != null) inp.value = medCost[inp.dataset.med];
     });
@@ -2851,7 +2857,8 @@
     const data = await getAllData();
     const tm = Date.now();
     // v50: Ritalin 10 = two Ritalin 5 tablets taken whole, so it costs two of them.
-    const cost = name === 'Ritalin 10' ? 2 * (medCost['Ritalin 5'] || 0) : (medCost[name] || 0);
+    // v57 (Symon, 2026-11-10): the price is set per Ritalin 10 tablet; a Ritalin 5 is half a 10.
+    const cost = name === 'Ritalin 5' ? (medCost['Ritalin 10'] || 0) / 2 : (medCost[name] || 0);
     data.push({ type: 'med', name, mg: MED_MG[name] || 0, cl: MED_CL[name] || 'grey', cost, timestamp: tm, durationMin: null });
     data.sort((a, b) => a.timestamp - b.timestamp);
     saveData(data);
@@ -4674,7 +4681,7 @@
         localStorage.setItem(dataKey, JSON.stringify(data.entries));
         localStorage.setItem(costKey, data.costPerMl);
         costPerMl = data.costPerMl;
-        if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
+        if (data.medCost) { medCost = { ...medCost, ...data.medCost }; fixRitalinPriceV57(); localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
         if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; moveTaperStartV53(); localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
         if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
         if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
@@ -6479,7 +6486,7 @@
       saveData(data.entries);
       localStorage.setItem(costKey, data.costPerMl);
       costPerMl = data.costPerMl;
-      if (data.medCost) { medCost = { ...medCost, ...data.medCost }; localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
+      if (data.medCost) { medCost = { ...medCost, ...data.medCost }; fixRitalinPriceV57(); localStorage.setItem(MED_COST_KEY, JSON.stringify(medCost)); }
       if (data.taperPlan) { taperPlan = { ...taperPlan, ...data.taperPlan }; moveTaperStartV53(); localStorage.setItem(TAPER_KEY, JSON.stringify(taperPlan)); }
       if (data.medWearOff) { medWearOff = { ...medWearOff, ...data.medWearOff }; localStorage.setItem(WEAR_OFF_KEY, JSON.stringify(medWearOff)); }
       if (data.medMaxMg != null) { medMaxMg = parseFloat(data.medMaxMg) || 0; if (medMaxMg > 0) localStorage.setItem(MED_MAX_KEY, medMaxMg); else localStorage.removeItem(MED_MAX_KEY); }
