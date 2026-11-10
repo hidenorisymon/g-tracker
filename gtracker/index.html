@@ -126,10 +126,11 @@
   #mbdial svg{transform:rotate(-90deg);}
   #mbdial .ctrack{fill:none;stroke:#eef0f3;}
   #mbdial .cfill{fill:none;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1);}
-  #mbdial .cfill.kt{stroke:#d6d3cc;} #mbdial .cfill.km{stroke:#e3a866;} #mbdial .cfill.ke{stroke:#8fc9b4;}
+  #mbdial .ctrack.kt{stroke:#dcd9d2;} #mbdial .cfill.km{stroke:#e3a866;} #mbdial .cfill.ke{stroke:#8fc9b4;}
   /* v59: three numbers in the middle: taken today, model (in body), effect (felt). */
   #mbdial .tri{display:flex;flex-direction:column;align-items:center;line-height:1.15;font-family:var(--mono);font-weight:700;font-size:15px;}
-  #mbdial .in .lbl{display:none;}
+  #mbdial .in .lbl,#mbdial .in .sub{display:none;}
+  #mbdial .tri .m{font-size:20px;} #mbdial .tri .t{color:#9a978f;font-size:11px;font-weight:600;}
   #mbdial .tri .t{color:#9a978f;} #mbdial .tri .m{color:#c98a3c;} #mbdial .tri .e{color:#4f9c80;}
   #mbdial .big{color:var(--txt);}
   .mkey{display:flex;gap:10px;justify-content:center;margin-top:4px;font-size:10px;}
@@ -794,7 +795,7 @@
             <div class="sub">mg</div>
           </div>
         </div>
-        <div class="dcap"><b id="mReadout">—</b> today<br><span id="mSub"></span><div class="mkey"><span><i class="kt"></i>Taken</span><span><i class="km"></i>Model</span><span><i class="ke"></i>Effect</span></div></div>
+        <div class="dcap"><b id="mReadout">—</b> today<br><span id="mSub"></span><div class="mkey"><span><i class="kt"></i>Taken</span><span><i class="km"></i>In body</span><span><i class="ke"></i>Effect</span></div></div>
         </div>
         <div class="dcol">
         <div class="dial" id="cdial">
@@ -2498,22 +2499,24 @@
     const now = Date.now();
     const model = mphBodyAt(now), eff = mphEffectAt(now), taken = mphTakenMg;
     const base = Math.max(taken, model, 1);
-    if (!svg.dataset.v59) {
-      svg.dataset.v59 = '1';
-      svg.innerHTML = [['kt', 70], ['km', 58], ['ke', 46]].map(([k, r]) => {
+    if (svg.dataset.v60 !== '1') {
+      svg.dataset.v60 = '1';
+      // v60 (Symon): the outer ring's grey track IS the total taken; the amber
+      // fill on it is what is still in the body, shrinking to zero. Inner = effect.
+      svg.innerHTML = [['km', 68, 12, 'ctrack kt'], ['ke', 52, 10, 'ctrack']].map(([k, r, w, tr]) => {
         const c = (2 * Math.PI * r).toFixed(2);
-        return `<circle class="ctrack" cx="76" cy="76" r="${r}" stroke-width="9"/>` +
-          `<circle class="cfill ${k}" cx="76" cy="76" r="${r}" stroke-width="9" stroke-dasharray="${c}" stroke-dashoffset="${c}"/>`;
+        return `<circle class="${tr}" cx="76" cy="76" r="${r}" stroke-width="${w}"/>` +
+          `<circle class="cfill ${k}" cx="76" cy="76" r="${r}" stroke-width="${w}" stroke-dasharray="${c}" stroke-dashoffset="${c}"/>`;
       }).join('');
     }
-    const fr = { kt: taken > 0 ? 1 : 0, km: model / base, ke: eff / base };
+    const fr = { km: model / base, ke: eff / base };
     svg.querySelectorAll('.cfill').forEach(el => {
-      const k = ['kt', 'km', 'ke'].find(c => el.classList.contains(c));
+      const k = ['km', 'ke'].find(c => el.classList.contains(c));
       const c = parseFloat(el.getAttribute('stroke-dasharray'));
-      el.style.strokeDashoffset = (c * (1 - Math.min(1, Math.max(0.01, fr[k])))).toFixed(2);
+      el.style.strokeDashoffset = (c * (1 - Math.min(1, Math.max(0, fr[k])))).toFixed(2);
     });
     document.getElementById('mbReadout').innerHTML = mphAll.length
-      ? `<span class="tri"><span class="t">${Math.round(taken)}</span><span class="m">${Math.round(model)}</span><span class="e">${Math.round(eff)}</span></span>`
+      ? `<span class="tri"><span class="m">${Math.round(model)}</span><span class="e">${Math.round(eff)}</span><span class="t">of ${Math.round(taken)} mg</span></span>`
       : '—';
   }
   // Clonazepam in the body at the moment of a G dose. Saved on the dose when
