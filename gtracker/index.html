@@ -131,8 +131,15 @@
   .mkey{display:flex;gap:10px;justify-content:center;margin-top:4px;font-size:10px;}
   .mkey i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:-1px;}
   .mkey i.kc{background:#9dbcef;} .mkey i.kr{background:#f2a7a7;}
-  .gbox{display:flex;gap:9px;align-items:flex-start;}
-  .gmini{position:relative;width:46px;height:46px;flex:none;margin-top:2px;}
+  /* v58: circle next to the label and amount only; the detail lines run the full width under it. */
+  .gbox{display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:9px;align-items:center;}
+  .gbox .gtxt{display:contents;}
+  .gbox .gtxt > *{grid-column:1 / -1;}
+  .gbox .gtxt > #eyebrow,.gbox .gtxt > #readout{grid-column:2;}
+  .gbox .gtxt > #eyebrow{grid-row:1;align-self:end;margin-bottom:0;}
+  .gbox .gtxt > #readout{grid-row:2;align-self:start;white-space:nowrap;}
+  .gbox .gtxt > #ringSub{margin-top:5px;}
+  .gmini{position:relative;width:40px;height:40px;grid-column:1;grid-row:1 / span 2;}
   .gmini svg{transform:rotate(-90deg);width:100%;height:100%;display:block;}
   .gmini .track{fill:none;stroke:#e7e5e0;stroke-width:16;}
   .gmini .fill{fill:none;stroke:#26282c;stroke-width:16;stroke-linecap:round;stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
