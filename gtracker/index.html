@@ -121,6 +121,33 @@
   .hboxes .hstat{padding:9px 10px;min-width:0;}
   .hboxes .s{font-size:10.5px;color:var(--mut);margin-top:2px;line-height:1.3;}
   #benzoPeak.up{color:var(--amb);}
+  /* v54 (Symon, 2026-11-10): methylphenidate in body is the left ring
+     (Concerta blue, Ritalin red, one ring per dose); G moved into a box. */
+  #mbdial svg{transform:rotate(-90deg);}
+  #mbdial .ctrack{fill:none;stroke:#eef0f3;}
+  #mbdial .cfill{fill:none;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1);}
+  #mbdial .cfill.kc{stroke:var(--blue);} #mbdial .cfill.kr{stroke:var(--red);}
+  #mbdial .big{color:var(--txt);}
+  .mkey{display:flex;gap:10px;justify-content:center;margin-top:4px;font-size:10px;}
+  .mkey i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:-1px;}
+  .mkey i.kc{background:var(--blue);} .mkey i.kr{background:var(--red);}
+  .gbox{display:flex;gap:9px;align-items:flex-start;}
+  .gmini{position:relative;width:46px;height:46px;flex:none;margin-top:2px;}
+  .gmini svg{transform:rotate(-90deg);width:100%;height:100%;display:block;}
+  .gmini .track{fill:none;stroke:#e7e5e0;stroke-width:16;}
+  .gmini .fill{fill:none;stroke:#26282c;stroke-width:16;stroke-linecap:round;stroke-dasharray:439.82;stroke-dashoffset:439.82;transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s;}
+  .gtxt{min-width:0;}
+  .gtxt .v{font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;}
+  #dial.lvl-grn ~ .gtxt .big,.gbox:has(#dial.lvl-grn) .big{color:var(--grn);}
+  .gbox:has(#dial.lvl-amb) .big{color:var(--amb);}
+  .gbox:has(#dial.lvl-red) .big,.gbox:has(#dial.lvl-red) .sub{color:var(--red);}
+  .gtxt .s b{color:var(--txt);font-weight:600;}
+  .slrow.lv{background:#f7f8fb;border-radius:8px;}
+  .tlrow.lv .tltext{color:var(--mut);font-size:12.5px;}
+  .tlrow.lv .lvv{color:var(--txt2);margin-left:4px;}
+  .tlrow.lv b{font-weight:600;color:var(--txt);}
+  .slrow.lv .sllabel{color:var(--mut);}
+  .slrow.lv b{font-weight:600;}
   /* 2026-11-07 v43 (his layout): G ring left with Since last under it,
      clonazepam rings right (one ring per recent dose, oldest innermost, each
      filled by the share of that dose still in the body), boxes below:
@@ -740,18 +767,15 @@
     <div class="view on" id="view-log">
       <div class="hero">
         <div class="dcol">
-        <div class="dial" id="dial">
-          <svg width="152" height="152" viewBox="0 0 152 152" aria-hidden="true">
-            <circle class="track" cx="76" cy="76" r="70"/>
-            <circle class="fill" id="dialFill" cx="76" cy="76" r="70"/>
-          </svg>
+        <div class="dial" id="mbdial">
+          <svg id="mbdialSvg" width="152" height="152" viewBox="0 0 152 152" aria-hidden="true"></svg>
           <div class="in">
-            <div class="lbl" id="eyebrow">Allowance</div>
-            <div class="big" id="readout">—</div>
-            <div class="sub" id="ringSub"></div>
+            <div class="lbl">In body</div>
+            <div class="big" id="mbReadout">—</div>
+            <div class="sub">methylphen.</div>
           </div>
         </div>
-        <div class="dcap"><b id="since">--:--</b> since last<br><span id="totalSub"></span><div class="dext"><div id="gapRec"></div><div id="ciwaNow"></div></div></div>
+        <div class="dcap"><b id="mReadout">—</b> today<br><span id="mSub"></span><div class="mkey"><span><i class="kc"></i>Concerta</span><span><i class="kr"></i>Ritalin</span></div></div>
         </div>
         <div class="dcol">
         <div class="dial" id="cdial">
@@ -766,7 +790,19 @@
         </div>
       </div>
       <div class="hboxes">
-        <div class="hstat"><div class="k">Methylphenidate</div><div class="v" id="mReadout">—</div><div class="s" id="mSub"></div></div>
+        <div class="hstat gbox">
+          <div class="gmini" id="dial">
+            <svg viewBox="0 0 152 152" aria-hidden="true"><circle class="track" cx="76" cy="76" r="70"/><circle class="fill" id="dialFill" cx="76" cy="76" r="70"/></svg>
+          </div>
+          <div class="gtxt">
+            <div class="k" id="eyebrow">Allowance</div>
+            <div class="v big" id="readout">—</div>
+            <div class="s sub" id="ringSub"></div>
+            <div class="s"><b id="since">--:--</b> since last</div>
+            <div class="s" id="totalSub"></div>
+            <div class="s dext"><div id="gapRec"></div><div id="ciwaNow"></div></div>
+          </div>
+        </div>
         <div class="hstat"><div class="k" id="lastBenzo">Clonazepam peak</div><div class="v" id="benzoPeak">—</div><div id="benzoPeak2"></div><div class="s" id="benzoSub" hidden></div></div>
       </div>
       <div class="hsub" id="rolling24" hidden></div>
@@ -1997,6 +2033,7 @@
 
     data.sort((a, b) => a.timestamp - b.timestamp);
     benzoAll = benzoDoses(data);
+    mphAll = data.filter(isMedEntry).filter(e => /ritalin|concerta/i.test(e.name || '')).sort((a, b) => a.timestamp - b.timestamp);
     return data;
   }
 
@@ -2398,6 +2435,57 @@
     return all.filter(e => e.type === 'benzo' && !e.missed && e.mg > 0).sort((a, b) => a.timestamp - b.timestamp);
   }
   const fmtMg = v => (Math.round(v * 100) / 100).toString();
+  // v54: rough methylphenidate in the body, textbook averages (not a blood
+  // test). Half gone every 3 h. Ritalin: absorbed at 1.5 per hour. Concerta:
+  // 22% right away, the other 78% released evenly from hour 1 to hour 9.
+  // Ritalin 20 LA: half at once, half 4 h later.
+  const MPH_KE = Math.LN2 / 3, MPH_KA = 1.5;
+  const mphOral = (h, mg) => h > 0 ? mg * MPH_KA / (MPH_KA - MPH_KE) * (Math.exp(-MPH_KE * h) - Math.exp(-MPH_KA * h)) : 0;
+  function mphLeftMg(e, now) {
+    const h = (now - e.timestamp) / 3600000, mg = e.mg || 0;
+    if (h <= 0 || !(mg > 0) || h > 36) return 0;
+    const n = String(e.name || '').toLowerCase();
+    if (n.includes('concerta')) {
+      const R = 0.78 * mg / 8, k = MPH_KE;
+      let slow = 0;
+      if (h > 1 && h <= 9) slow = R / k * (1 - Math.exp(-k * (h - 1)));
+      else if (h > 9) slow = R / k * (1 - Math.exp(-8 * k)) * Math.exp(-k * (h - 9));
+      return mphOral(h, 0.22 * mg) + slow;
+    }
+    if (n.includes('ritalin 20') && !e.part) return mphOral(h, mg / 2) + mphOral(h - 4, mg / 2);
+    return mphOral(h, mg);
+  }
+  let mphAll = [];
+  const mphBodyAt = ts => mphAll.reduce((t, e) => t + (e.timestamp < ts ? mphLeftMg(e, ts) : 0), 0);
+  function paintMphRings() {
+    const svg = document.getElementById('mbdialSvg');
+    if (!svg) return;
+    const now = Date.now();
+    const total = mphBodyAt(now);
+    // A dose still counts while 1 mg or more of it is left (or it is still being released).
+    const shown = mphAll.filter(e => e.timestamp < now && (now - e.timestamp) < 36 * 3600000 && mphLeftMg(e, now) >= 1).slice(-10);
+    const peakOf = e => { let m = 0; for (let h = 0.25; h <= 12; h += 0.25) m = Math.max(m, mphLeftMg(e, e.timestamp + h * 3600000)); return m || 1; };
+    const BAND = 26, R0 = 70, STEP = BAND / Math.max(shown.length, 5);
+    const W = Math.max(1.2, STEP * 0.75);
+    const key = shown.map(e => e.timestamp).join(',');
+    if (svg.dataset.key !== key) {
+      svg.dataset.key = key;
+      svg.innerHTML = shown.map((e, i) => {
+        const r = +(R0 - (shown.length - 1 - i) * STEP).toFixed(2);
+        const c = (2 * Math.PI * r).toFixed(2);
+        const cls = String(e.name || '').toLowerCase().includes('concerta') ? 'kc' : 'kr';
+        return `<circle class="ctrack" cx="76" cy="76" r="${r}" stroke-width="${W}"/>` +
+          `<circle class="cfill ${cls}" data-i="${i}" cx="76" cy="76" r="${r}" stroke-width="${W}" stroke-dasharray="${c}" stroke-dashoffset="${c}"/>`;
+      }).join('');
+    }
+    svg.querySelectorAll('.cfill').forEach(el => {
+      const e = shown[+el.dataset.i];
+      const f = Math.min(1, mphLeftMg(e, now) / peakOf(e));
+      const c = parseFloat(el.getAttribute('stroke-dasharray'));
+      el.style.strokeDashoffset = (c * (1 - Math.max(0.01, f))).toFixed(2);
+    });
+    document.getElementById('mbReadout').textContent = mphAll.length ? `${Math.round(total)} mg` : '—';
+  }
   // Clonazepam in the body at the moment of a G dose. Saved on the dose when
   // it is logged (clzMg); older doses are worked out from the clonazepam log.
   let benzoAll = [];
@@ -2562,6 +2650,7 @@
       document.getElementById('benzoPeak2').innerHTML = (b1 ? `<div>${fmtMg(b1.mg)} mg, taken ${clockText(b1.timestamp)}</div>` : '') +
         (b2 ? `<div class="p2">${Date.now() < peakAt(b2) ? 'Peak' : 'Peaked'} ${clockText(peakAt(b2))}</div><div>${fmtMg(b2.mg)} mg, taken ${clockText(b2.timestamp)}</div>` : '');
       paintBenzoRings(bz);
+      paintMphRings();
     }
 
     // ---- Rolling 24h. A session that runs 24h+ awake would otherwise stretch
@@ -5189,7 +5278,13 @@
         <div class="brow total"><span class="bk">Total meds</span><span class="bv">${medsMg} / ${stimTargetMg()} mg · ${fmtPeso(medsCost)}</span></div>
         ${medsSplit}
       </div>` : '';
-    const rows = newestFirst ? [...s.timeline].reverse() : s.timeline;
+    // v54: a "Meds levels" line on every full hour of the day, worked out
+    // from the dose log each time it is drawn (never saved as an entry).
+    const lvRows = [];
+    { const end = s.isOpen || s.endTs == null ? Date.now() : s.endTs;
+      for (let t = Math.ceil(s.startTs / 3600000) * 3600000; t <= end; t += 3600000) lvRows.push({ type: 'levels', timestamp: t }); }
+    const tl = [...s.timeline, ...lvRows].sort((a, b) => a.timestamp - b.timestamp);
+    const rows = newestFirst ? tl.reverse() : tl;
     const logsHtml = rows.map(e => {
       // data-ts/data-kind make each row tappable — same edit sheet History
       // already uses, so a wrong time or ml can be fixed without leaving Log.
@@ -5208,6 +5303,9 @@
           return `<div class="slwear">${label} ${fmtTime(endTs)}</div>`;
         }).join('');
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="med"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name)}${partTag}</span><span>${e.mg > 0 ? e.mg + ' mg' : '—'}</span></div>${wearOffLine}${e.note ? `<div class="slciwa">${escapeHtml(e.note)}</div>` : ''}`;
+      }
+      if (e.type === 'levels') {
+        return `<div class="slrow lv"><span class="sllabel">${fmtTime(e.timestamp)} · Meds levels</span><span>MPH <b>${Math.round(mphBodyAt(e.timestamp))}</b> · CLZ <b>${clzBodyAt(e.timestamp).toFixed(2)}</b> mg</span></div>`;
       }
       if (e.type === 'hr') {
         return `<div class="slrow"><span class="sllabel">${fmtTime(e.timestamp)} · Heart rate</span><span>${e.bpm} bpm</span></div>`;
@@ -5323,7 +5421,10 @@
     const clzNow = s.isOpen ? clzBodyAt(Date.now()) : 0;
     const clzSubHtml = (clzSess.length ? `${clzSess.length} dose${clzSess.length === 1 ? '' : 's'}` : 'none yet')
       + (clzNow >= 0.01 ? ` · ${(Math.round(clzNow * 100) / 100)} mg in body` : '');
-    const rows = [...s.timeline].reverse().map(timelineRowHtml).join('');
+    const lvLog = [];
+    { const end = s.isOpen || s.endTs == null ? Date.now() : s.endTs;
+      for (let t = Math.ceil(s.startTs / 3600000) * 3600000; t <= end; t += 3600000) lvLog.push({ type: 'levels', timestamp: t }); }
+    const rows = [...s.timeline, ...lvLog].sort((a, b) => a.timestamp - b.timestamp).reverse().map(timelineRowHtml).join('');
     return `<div class="sum">
       <div class="stop">
         <div class="sst">Day ${s.day}${s.isOpen ? ' · <span class="open">Ongoing</span>' : ''}</div>
@@ -5346,6 +5447,13 @@
   // and Taper use, so a wrong time or ml can be fixed without leaving Log.
   function timelineRowHtml(e) {
     const fmtTime = ts => new Date(ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (e.type === 'levels') {
+      return `<div class="tlrow lv">
+        <span class="tldot" style="background:var(--neutral)"></span>
+        <span class="tltime">${fmtTime(e.timestamp)}</span>
+        <div class="tlbody"><div class="tltext">Meds levels <span class="lvv">MPH <b>${Math.round(mphBodyAt(e.timestamp))} mg</b> · CLZ <b>${clzBodyAt(e.timestamp).toFixed(2)} mg</b></span></div></div>
+      </div>`;
+    }
     if (e.type === 'hr') {
       return `<div class="tlrow">
         <span class="tldot" style="background:#e05c7a"></span>
