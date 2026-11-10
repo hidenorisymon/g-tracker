@@ -157,6 +157,8 @@
   .slrow.lv{background:#f7f8fb;border-radius:8px;}
   .lvchart{background:var(--card);border-radius:14px;box-shadow:var(--sh);padding:10px 10px 8px;margin-bottom:12px;}
   .lvchart svg{width:100%;height:auto;display:block;}
+  .lvchart .lvv{font-size:8.5px;font-weight:700;fill:var(--txt);font-family:var(--mono);}
+  .lvchart .lvv.m{text-anchor:middle;} .lvchart .lvv.r{text-anchor:end;}
   .lvchart .lvn{font-size:10px;font-weight:700;letter-spacing:.04em;}
   .lvchart .lvn.r{fill:var(--mut);font-weight:500;text-anchor:end;letter-spacing:0;}
   .lvchart .lvt{font-size:9px;fill:var(--mut2);font-family:var(--mono);}
@@ -5294,6 +5296,11 @@
     for (let i = 0; i <= N; i++) { const t = t0 + (t1 - t0) * i / N; pts.push([t, mphBodyAt(t), clzBodyAt(t), mphEffectAt(t)]); }
     const x = t => L + (W - L - R) * (t - t0) / (t1 - t0);
     const nice = v => v <= 1 ? 1 : v <= 2 ? 2 : v <= 5 ? 5 : v <= 10 ? 10 : Math.ceil(v / 10) * 10;
+    // v61 (Symon): numbers on the lines. Value at every hour tick plus a "now" dot.
+    const spanH = (t1 - t0) / 3600000, stepH = spanH > 16 ? 4 : spanH > 8 ? 3 : spanH > 4 ? 2 : 1;
+    const tickTs = [];
+    for (let t = Math.ceil(t0 / 3600000 / stepH) * 3600000 * stepH; t <= t1; t += stepH * 3600000) tickTs.push(t);
+    const valAt = (k, t) => k === 1 ? mphBodyAt(t) : k === 2 ? clzBodyAt(t) : mphEffectAt(t);
     const panel = (k, y0, color, name, unit, dec) => {
       const max = nice(Math.max(...pts.map(p => p[k])) * 1.1 || 1);
       const y = v => y0 + PH - PH * v / max;
@@ -5305,9 +5312,14 @@
         `<text x="${W - R}" y="${y0 - 4}" class="lvn r">now ${last[k].toFixed(dec)}${k === 1 ? ' · effect ' + last[3].toFixed(0) : ''} · peak ${peak[k].toFixed(dec)} ${unit}</text>` +
         `<line x1="${L}" x2="${W - R}" y1="${y0 + PH}" y2="${y0 + PH}" class="lvax"/>` +
         `<line x1="${L}" x2="${W - R}" y1="${y0}" y2="${y0}" class="lvgrid"/>` +
-        `<text x="${L - 4}" y="${y0 + 4}" class="lvt r">${max}</text><text x="${L - 4}" y="${y0 + PH}" class="lvt r">0</text>` +
+        `<text x="${L - 4}" y="${y0 + 4}" class="lvt r">${max}</text><text x="${L - 4}" y="${y0 + PH / 2 + 3}" class="lvt r">${max / 2}</text><text x="${L - 4}" y="${y0 + PH}" class="lvt r">0</text>` +
+        `<line x1="${L}" x2="${W - R}" y1="${y0 + PH / 2}" y2="${y0 + PH / 2}" class="lvgrid"/>` +
         `<path d="${area}" fill="${color}" opacity=".14"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>` +
-        (k === 1 ? effectLayer(y0, y) : '');
+        (k === 1 ? effectLayer(y0, y) : '') +
+        tickTs.filter(t => x(t) < W - R - 22).map(t => { const v = valAt(k, t); const yy = Math.max(y0 + 7, y(v) - 4);
+          return `<circle cx="${x(t).toFixed(1)}" cy="${y(v).toFixed(1)}" r="1.8" fill="${color}"/><text x="${x(t).toFixed(1)}" y="${yy.toFixed(1)}" class="lvv m">${v.toFixed(dec)}</text>`; }).join('') +
+        `<circle cx="${x(t1).toFixed(1)}" cy="${y(last[k]).toFixed(1)}" r="3" fill="${color}" stroke="#fff" stroke-width="1"/>` +
+        `<text x="${(x(t1) - 4).toFixed(1)}" y="${Math.max(y0 + 7, y(last[k]) - 5).toFixed(1)}" class="lvv r" fill="${color}">${last[k].toFixed(dec)}</text>`;
     };
     // v59: green band = when a dose is inside his wear-off time; dashed green line = effect mg.
     const effectLayer = (y0, y) => {
