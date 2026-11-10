@@ -3958,7 +3958,8 @@
     const partNum = r.entryPart || (r.partCount > 1 ? r.partIdx + 1 : null);
     const partTag = partNum ? `<span class="part"> · Part ${partNum}</span>` : '';
     let right;
-    if (status === 'lapsed') right = `ended <b>${fmtT(r.endTs)}</b>`;
+    // v62 (Symon): an ended dose also says when it was taken.
+    if (status === 'lapsed') right = `taken <b>${fmtT(r.ts)}</b> · ended <b>${fmtT(r.endTs)}</b>`;
     else if (status === 'pending') right = `starts <b>${fmtT(r.releaseTs)}</b>`;
     // A "· part 2" tag costs about as much width as the clock time, and the
     // WEARING OFF badge costs more than either — on a 375px screen keeping
