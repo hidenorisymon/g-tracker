@@ -258,6 +258,7 @@
      the paint growing to meet the thumb. */
   .btnrow .b::after{content:"";position:absolute;left:0;right:0;top:-4.5px;bottom:-4.5px;}
   .btnrow .b:active{opacity:.6;}
+  .btnrow .b{touch-action:manipulation;}
   .btnrow .b.prim{background:var(--grn);color:#fff;font-weight:700;}
   /* Inset ring rather than a border, so the amber outline costs no layout and
      the button stays exactly as tall as the solid one beside it. */
@@ -2875,9 +2876,14 @@
       </div>`, { mode: 'wind', name });
   }
 
+  // v58: a second press of the same med within 5 s is a double tap, not a
+  // second dose, so it is ignored (the first press already logged it).
+  let lastMedTap = { name: null, at: 0 };
   async function logMed(name) {
-    const data = await getAllData();
     const tm = Date.now();
+    if (lastMedTap.name === name && tm - lastMedTap.at < 5000) { showToast(`${name} already logged`); return; }
+    lastMedTap = { name, at: tm };
+    const data = await getAllData();
     // v50: Ritalin 10 = two Ritalin 5 tablets taken whole, so it costs two of them.
     // v57 (Symon, 2026-11-10): the price is set per Ritalin 10 tablet; a Ritalin 5 is half a 10.
     const cost = name === 'Ritalin 5' ? (medCost['Ritalin 10'] || 0) / 2 : (medCost[name] || 0);
@@ -4081,16 +4087,24 @@
         amedEls.set(r.key, entry);
       }
       const status = amedStatus(r, now);
-      entry.el.className = `amed ${status}${amedRevealedKey === r.key ? ' revealed' : ''}`;
-      entry.body.innerHTML = amedBodyHtml(r, status, now);
+      // v58 (2026-11-13): touch the DOM only when something changed. This
+      // panel sits right above the med buttons and redrew every second; on
+      // iPhone a tap that lands during a redraw can be swallowed, which is
+      // why a med button sometimes needed a second press.
+      const cls = `amed ${status}${amedRevealedKey === r.key ? ' revealed' : ''}`;
+      if (entry.el.className !== cls) entry.el.className = cls;
+      const html = amedBodyHtml(r, status, now);
+      if (entry.html !== html) { entry.body.innerHTML = html; entry.html = html; }
     });
 
-    rows.forEach(r => { const entry = amedEls.get(r.key); if (entry) wrap.appendChild(entry.el); });
-    wrap.hidden = amedEls.size === 0;
+    const want = rows.map(r => amedEls.get(r.key)).filter(Boolean).map(e => e.el);
+    const have = [...wrap.children].filter(el => !el.classList.contains('leaving'));
+    if (want.length !== have.length || want.some((el, i) => el !== have[i])) want.forEach(el => wrap.appendChild(el));
+    if (wrap.hidden !== (amedEls.size === 0)) wrap.hidden = amedEls.size === 0;
 
     const restoreBtn = document.getElementById('restoreMedCard');
     if (restoreBtn) {
-      restoreBtn.hidden = restoreTs == null;
+      if (restoreBtn.hidden !== (restoreTs == null)) restoreBtn.hidden = restoreTs == null;
       if (restoreTs != null) {
         restoreBtn.dataset.ts = restoreTs;
         restoreBtn.querySelector('.rname').textContent = restoreName;
