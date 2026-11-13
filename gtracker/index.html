@@ -2744,8 +2744,9 @@
     // the awake record used to be: this day's other dose times, newest first.
     {
       const gr = document.getElementById('gapRec');
-      const prev = dayDoses.slice(0, -1).reverse();
-      const html = prev.map(e => `<div>${fmtMl(e.ml)} ml at ${clockText(e.timestamp)}</div>`).join('');
+      // v65 (Symon, 2026-11-14): the dose-by-dose list is gone; the box shows
+      // Last and Total today only. Every dose is still on the Log tab.
+      const html = '';
       if (gr && gr.innerHTML !== html) gr.innerHTML = html;
     }
     const lastDoseText = dayDoses.length ? `Last ${clockText(dayDoses[dayDoses.length - 1].timestamp)}` : '';
