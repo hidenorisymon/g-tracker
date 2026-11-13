@@ -1264,13 +1264,17 @@
   // would make his numbers incomparable to a clinical one. Palpitations get a
   // 0-3 scale of their own; the rest are simply present or not.
   const CIWA_SHOWN = ['tremor', 'tactile', 'headache'];
-  const SIG_SHOWN = ['jaw', 'palp'];
+  const SIG_SHOWN = ['jaw', 'palp', 'mood'];
   const CIWA_PERSONAL = [
     { k: 'tongue', label: 'Tongue salivating', short: 'tongue' },
     { k: 'jaw',    label: 'Jaw tightening', short: 'jaw' },
     { k: 'breathing', label: 'Labored breathing', short: 'breathing', hardStop: true },
     { k: 'palp',   label: 'Palpitations', max: 3, short: 'palp', note: 'not in CIWA total',
       d: n => ({ 1: 'Aware of heartbeat', 2: 'Pounding or fluttering', 3: 'Constant or skipping' })[n] },
+    // v64 (Symon, 2026-11-13): overall low mood (anxiety, task paralysis, flat),
+    // the signal he now times gaps by. Anxiety itself stays in the CIWA item.
+    { k: 'mood',   label: 'Low mood', max: 3, short: 'low mood', note: 'not in CIWA total',
+      d: n => ({ 1: 'A bit low', 2: 'Low, hard to start things', 3: 'Very low, everything feels heavy' })[n] },
   ];
 
   const CIWA_FACTORS = [
@@ -1392,7 +1396,7 @@
     const parts = ['CIWA ' + (c.total || 0)];
     CIWA_ITEMS.forEach(x => { if (Number(it[x.k]) > 0) parts.push(x.label + ' ' + it[x.k]); });
     CIWA_PERSONAL.forEach(x => {
-      if (x.max) { if (Number(c.palp) > 0) parts.push(x.label + ' ' + c.palp); }
+      if (x.max) { if (Number(c[x.k]) > 0) parts.push(x.label + ' ' + c[x.k]); }
       else if (sig[x.k]) parts.push(x.label);
     });
     if (parts.length === 1) parts.push('nothing present');
@@ -1415,7 +1419,7 @@
     });
     const sig = src.signals || {};
     CIWA_PERSONAL.forEach(it => { if (!it.max && sig[it.k]) ciwaDraft.checked[it.k] = true; });
-    if (Number(src.palp) > 0) { ciwaDraft.checked.palp = true; ciwaDraft.scores.palp = Number(src.palp); }
+    CIWA_PERSONAL.forEach(it => { if (it.max && Number(src[it.k]) > 0) { ciwaDraft.checked[it.k] = true; ciwaDraft.scores[it.k] = Number(src[it.k]); } });
     ciwaDraft.factors = {};
     (src.factors || []).forEach(f => { ciwaDraft.factors[f] = true; });
     if (Number(src.stage) > 0) ciwaDraft.stage = Number(src.stage);
@@ -1542,7 +1546,7 @@
     // The signals that are NOT in the total, restated beside it, so a low
     // number is never read as "nothing happening".
     const tags = CIWA_PERSONAL.filter(it => d.checked[it.k])
-      .map(it => it.k === 'palp' ? 'palp ' + (d.scores.palp || 1) : it.short)
+      .map(it => it.max ? it.short + ' ' + (d.scores[it.k] || 1) : it.short)
       .join(' · ');
     const tel = (set.contactNumber || '').replace(/[^0-9+]/g, '');
     const callLabel = set.contactName ? `Call ${escapeHtml(set.contactName)}` : 'Call for help';
@@ -1576,6 +1580,7 @@
     const out = {
       v: 1, items, total: ciwaTotal(d),
       palp: ciwaScore(d, 'palp'),
+      mood: ciwaScore(d, 'mood'),
       signals: { tongue: !!d.checked.tongue, jaw: !!d.checked.jaw, breathing: !!d.checked.breathing },
       factors: Object.keys(d.factors).filter(k => d.factors[k]),
       hardStop: ciwaIsHardStop(d),
@@ -1710,6 +1715,7 @@
     if (sig.jaw) parts.push('jaw');
     if (sig.breathing) parts.push('labored breathing');
     if (c.palp > 0) parts.push('palp ' + c.palp);
+    if (c.mood > 0) parts.push('low mood ' + c.mood);
     if (c.hr > 0) parts.push('HR ' + c.hr);
     if (c.stage > 0) parts.push('at ' + CIWA_STAGES[c.stage - 1].toLowerCase());
     if (c.hardStop) parts.push('HARD STOP');
