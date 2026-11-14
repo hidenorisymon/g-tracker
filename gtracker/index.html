@@ -188,6 +188,11 @@
   #cdial .big{color:var(--pur);}
   #benzoPeak2 .p2{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--txt2);margin-top:6px;font-variant-numeric:tabular-nums;}
   #benzoPeak2{font-size:10.5px;line-height:1.35;color:var(--mut);margin-top:3px;font-variant-numeric:tabular-nums;}
+  #benzoPeak2 .tdrow{display:flex;flex-direction:column;gap:1px;margin-top:8px;}
+  #benzoPeak2 .tdn{font-size:12px;color:var(--txt2);font-weight:600;}
+  #benzoPeak2 .tdv{font-family:var(--mono);font-size:12.5px;font-weight:600;white-space:nowrap;}
+  #benzoPeak2 .tdv.ok{color:#3f8f5f;}
+  #benzoPeak2 .tdv.no{color:#c08a3e;}
 
   /* ===== ACTIVE MEDICATION ROWS ===== */
   /* Outer .amed only clips; the sliding .body carries the visible card, so a
@@ -2436,6 +2441,7 @@
   // ===== Stamp (date/time header) =====
   // Start of the open waking day, set by the Log render; null when asleep.
   let stampAwakeFrom = null;
+  let stampSleepH = null; // hours slept before this waking day (v69)
   function updateStamp() {
     const now = new Date();
     const dayName = now.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
@@ -2452,7 +2458,8 @@
     const aw = st.lastElementChild;
     if (stampAwakeFrom) {
       const mins = Math.max(0, Math.floor((now - stampAwakeFrom) / 60000));
-      aw.textContent = `Awake ${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+      const sl = stampSleepH != null ? Math.round(stampSleepH * 60) : null;
+      aw.textContent = `Awake ${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m` + (sl != null ? ` · Slept ${Math.floor(sl / 60)}h ${String(sl % 60).padStart(2, '0')}m` : '');
       aw.hidden = false;
     } else aw.hidden = true;
   }
@@ -2617,10 +2624,14 @@
     });
     document.getElementById('cReadout').textContent = bz.length ? `${total.toFixed(2)} mg` : '—';
     document.getElementById('cSub').textContent = bz.length ? 'clonazepam' : '';
-    const last = shown[shown.length - 1];
-    document.getElementById('cCap').innerHTML = last
-      ? `${shown.length} dose${shown.length === 1 ? '' : 's'} still in you<br>outer ring = newest`
-      : '';
+    // v68 (Symon, 2026-11-15): under the ring = the last dose and its peak,
+    // not the dose count.
+    const last = bz[bz.length - 1];
+    if (last) {
+      const pH = benzoPeakH() > 0 ? benzoPeakH() : BENZO_TMAX_H;
+      const pk = last.timestamp + pH * 3600000;
+      document.getElementById('cCap').innerHTML = `Last ${fmtMg(last.mg)} mg · ${clockText(last.timestamp)}<br>${now < pk ? 'Peak' : 'Peaked'} ${clockText(pk)}`;
+    } else document.getElementById('cCap').innerHTML = '';
   }
   const benzoNextH = () => benzoHours('benzoNextH', 12);
   // Green under 70%, amber to 90%, red above. Stepped rather than the old
@@ -2703,8 +2714,23 @@
       benzoPeakEl.classList.toggle('up', !!b1 && Date.now() < peakAt(b1));
       // Each dose reads the same way: its peak time, then which dose and
       // when it was taken, so a taken time is never read as a peak time.
-      document.getElementById('benzoPeak2').innerHTML = (b1 ? `<div>${fmtMg(b1.mg)} mg, taken ${clockText(b1.timestamp)}</div>` : '') +
-        (b2 ? `<div class="p2">${Date.now() < peakAt(b2) ? 'Peak' : 'Peaked'} ${clockText(peakAt(b2))}</div><div>${fmtMg(b2.mg)} mg, taken ${clockText(b2.timestamp)}</div>` : '');
+      // v68 (Symon, 2026-11-15): this box is now "Today": taken or not since
+      // the last Wake (his day), Clonazepam and Atomoxetine. The peak moved
+      // under the ring.
+      const wakeTs = Math.max(0, ...all.filter(e => isDoseEntry(e) && doseKind(e) === 'wake').map(e => e.timestamp));
+      const since = all.filter(e => e.timestamp >= wakeTs);
+      const bzT = since.filter(e => e.type === 'benzo' && !e.missed);
+      const atT = since.filter(e => e.type === 'sleepmed' && e.name === 'Atomoxetine' && e.taken);
+      const line = (nm, arr) => {
+        const x = arr[arr.length - 1];
+        return `<div class="tdrow"><span class="tdn">${nm}</span>` + (x
+          ? `<span class="tdv ok">✓ ${x.mg ? fmtMg(x.mg) + ' mg · ' : ''}${clockText(x.timestamp)}</span>`
+          : `<span class="tdv no">Not yet</span>`) + `</div>`;
+      };
+      lastBenzoEl.textContent = 'Today';
+      benzoPeakEl.textContent = '';
+      benzoPeakEl.hidden = true;
+      document.getElementById('benzoPeak2').innerHTML = line('Clonazepam', bzT) + line('Atomoxetine', atT);
       paintBenzoRings(bz);
       paintMphRings();
     }
@@ -2750,7 +2776,7 @@
       document.getElementById('mSub').textContent = mg > tgt ? `${mg - tgt} mg over` : `${tgt - mg} mg left`;
       const doses = cur ? anchorData.filter(e => e.ml > 0 && e.timestamp >= cur.startTs) : [];
       dayDoses = doses;
-      stampAwakeFrom = cur && cur.isOpen ? cur.startTs : null; updateStamp();
+      stampAwakeFrom = cur && cur.isOpen ? cur.startTs : null; stampSleepH = cur && cur.isOpen && cur.sleepHours != null ? cur.sleepHours : null; updateStamp();
       document.getElementById('totalSub').textContent = cur ? `${doses.length} dose${doses.length === 1 ? '' : 's'} · ${fmtMl(used)} ml today` : '';
     }
 
@@ -5574,12 +5600,10 @@
         <div class="srng">${rangeText}</div>
       </div>
       ${medHtml}
-      <div class="grid">
-        <div class="g"><div class="k">Session</div><div class="v">${fmtGap(Math.round(s.durationHours * 60))}</div></div>
-        <div class="g"><div class="k">Allowance</div>${allowTile}</div>
-        <div class="g"><div class="k">Clonazepam total</div><div class="v">${clzTotHtml}</div><div class="v2">${clzSubHtml}</div></div>
-        <div class="g"><div class="k">Sleep</div><div class="v">${sleepText}</div></div>
-      </div>
+      <!-- v69: the 4 tiles (Session, Allowance, Clonazepam total, Sleep) left
+           the day card (Symon, 2026-11-15); the rings above show them and
+           Sleep sits beside the Awake pill at the top. -->
+      ${!s.isOpen && s.sleepHours != null ? `<div class="stotal"><span class="k">Sleep before</span><span class="v">${sleepText}</span></div>` : ''}
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
     </div>
     <div class="tlhead"><span>Meds levels</span><span>In body</span></div>
