@@ -2065,6 +2065,15 @@
       }
       return e;
     });
+    // v67 (Symon, 2026-11-15): Betahistine entries removed from history on
+    // his ask. A copy stays in 'removedBetahistine' so it can be undone.
+    const beta = data.filter(e => e.type === 'sleepmed' && e.name === 'Betahistine');
+    if (beta.length) {
+      try { const kept = JSON.parse(localStorage.getItem('removedBetahistine') || '[]'); localStorage.setItem('removedBetahistine', JSON.stringify(kept.concat(beta))); } catch (e) {}
+      data = data.filter(e => !(e.type === 'sleepmed' && e.name === 'Betahistine'));
+      migrated = true;
+      setTimeout(() => { try { silentBackupToGitHub(); } catch (e) {} }, 0);
+    }
     if (migrated) localStorage.setItem(dataKey, JSON.stringify(data));
 
     data.sort((a, b) => a.timestamp - b.timestamp);
@@ -3220,7 +3229,7 @@
       { k: 'atomoxetine', name: 'Atomoxetine', mg: taperPlan.atomoxetineMg || null },
       // Any-time meds (Symon, 2026-10-31): the sheet is "Meds", not just
       // sleep. Same 'sleepmed' type, so they never reach a stimulant total.
-      { k: 'betahistine', name: 'Betahistine', mg: 24 },
+      // Betahistine left the list 2026-11-15 (Symon's ask); old entries still show.
       { k: 'prep', name: 'PrEP', mg: null, noDose: true },
     ];
     // Clonazepam is always listed. Before CLONAZEPAM_FROM it is optional:
