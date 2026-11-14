@@ -64,7 +64,7 @@
 
   .stamp{text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--mut2);margin-bottom:18px;}
   /* v46 (his ask): date, time and hours awake big and first on the screen. */
-  .stamp{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;text-align:left;font-family:var(--sans);letter-spacing:0;margin:-4px 0 14px;}
+  .stamp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;font-family:var(--sans);letter-spacing:0;margin:-4px 0 14px;}
   .stamp .when{font-size:17px;font-weight:600;color:var(--txt);font-variant-numeric:tabular-nums;}
   .stamp .awake{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--grn);background:#e7f5ee;border-radius:999px;padding:4px 10px;font-variant-numeric:tabular-nums;}
   .stamp .awake[hidden]{display:none;}
@@ -307,6 +307,7 @@
   /* The one that doesn't fit right now (Wake while awake, Sleep while
      asleep) is dimmed but still answers a tap with a toast. */
   .tile.dim{opacity:.45;}
+  .tile[hidden]{display:none;}
 
   .insh{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;line-height:1.45;color:var(--txt);}
   .insh b{font-weight:700;}
@@ -841,18 +842,17 @@
       <!-- One grid of same-size tiles, Log Dose first. Sleep dose, Custom dose,
            Note and the Clonazepam tile are gone: Sleep closes the night, a Note
            goes in the Check sheet, and Clonazepam is a row in Sleep meds. -->
+      <!-- v70 (Symon, 2026-11-15): one row. Log Dose, Meds, one Sleep/Wake
+           button (shows Sleep while awake, Wake while asleep), BP. Check and
+           Meal left the screen (rarely used); kept hidden so old code still runs. -->
       <div class="tiles">
         <button class="tile go" id="chipLogDose"><svg viewBox="0 0 24 24" stroke="#fff" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg><span>Log Dose</span><span class="hint" id="logDoseAmt">0.8 ml</span></button>
-        <button class="tile" id="chipCheck"><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
-        <button class="tile" id="chipMeal"><svg viewBox="0 0 24 24" stroke="#b5642a" aria-hidden="true"><path d="M5 3v5a2 2 0 0 0 4 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2 1.2-3 3.4-3 6.5 0 1.6 1.2 2.5 3 2.5"/></svg><span>Meal</span></button>
-        <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
-      </div>
-      <!-- Wake, Sleep meds and Sleep are three separate buttons (Symon,
-           2026-10-08). Sleep meds no longer logs Sleep with it. -->
-      <div class="tiles three">
-        <button class="tile" id="chipWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake</span></button>
         <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#7a4fb5" aria-hidden="true"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l6-6a4.95 4.95 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg><span>Meds</span></button>
+        <button class="tile" id="chipWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake</span></button>
         <button class="tile" id="chipSleep"><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></button>
+        <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
+        <button class="tile" id="chipCheck" hidden><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
+        <button class="tile" id="chipMeal" hidden><svg viewBox="0 0 24 24" stroke="#b5642a" aria-hidden="true"><path d="M5 3v5a2 2 0 0 0 4 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2 1.2-3 3.4-3 6.5 0 1.6 1.2 2.5 3 2.5"/></svg><span>Meal</span></button>
       </div>
 
       <div class="btnrow meds">
@@ -3010,8 +3010,9 @@
   }
   function paintSleepWake() {
     const awake = isAwake();
-    document.getElementById('chipWake').classList.toggle('dim', awake);
-    document.getElementById('chipSleep').classList.toggle('dim', !awake);
+    // v70: one combined button; only the one that fits right now shows.
+    document.getElementById('chipWake').hidden = awake;
+    document.getElementById('chipSleep').hidden = !awake;
   }
 
 
