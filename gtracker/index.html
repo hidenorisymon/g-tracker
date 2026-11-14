@@ -1054,6 +1054,8 @@
           <div class="field cost"><input type="number" id="setClonidineMg" step="25" min="0" placeholder="mcg"><span class="cur">mcg</span></div></div>
         <div class="setrow"><div class="sk">Quetiapine dose<small>What Quetiapine logs from Meds. Blank = no mg saved</small></div>
           <div class="field cost"><input type="number" id="setQuetiapineMg" step="0.5" min="0" placeholder="mg"><span class="cur">mg</span></div></div>
+        <div class="setrow"><div class="sk">Atomoxetine dose<small>What Atomoxetine logs from Meds (Doc Rowalt, started 2026-11-15). Blank = no mg saved</small></div>
+          <div class="field cost"><input type="number" id="setAtomoxetineMg" step="5" min="0" placeholder="mg"><span class="cur">mg</span></div></div>
         <div class="setrow"><div class="sk">Daily cap<small>Ceiling in ml for one waking day. Fills the allowance ring: green under 70%, amber to 90%, red above. Blank or 0 = no cap</small></div>
           <div class="field cost"><input type="number" id="setDailyCap" step="0.1" min="0" placeholder="0"><span class="cur">ml</span></div></div>
         <div class="setrow"><div class="sk">Start date<small>When the taper schedule begins</small></div>
@@ -1858,7 +1860,7 @@
   const TAPER_EVERY_DAYS = 7;
   // adjustments: manual re-anchors, [{ from: 'YYYY-MM-DD', dose: n }] — one per
   // edit to Current dose, so past weeks keep showing what was actually taken.
-  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [], clonidineMg: 0.075, quetiapineMg: 25 };
+  let taperPlan = { start: null, startDose: 0.8, rescueDose: null, dailyCap: 0, adjustments: [], clonidineMg: 0.075, quetiapineMg: 25, atomoxetineMg: 40 };
   // Two later additions ride in taperPlan too, so the Gist backup carries
   // them with no change to its format:
   // benzoMg: what one Clonazepam tap logs (blank = BENZO_DEFAULT_MG).
@@ -2281,6 +2283,7 @@
     document.getElementById('setBenzoNextH').value = benzoNextH();
     document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
     document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
+    document.getElementById('setAtomoxetineMg').value = taperPlan.atomoxetineMg || '';
     refreshTaperCurrent(true);
     refreshRescueSetting(true);
     renderGistRow();
@@ -2400,6 +2403,7 @@
       // Typed in mcg, stored in mg like every other dose.
       clonidineMg: mgOrNull('setClonidineMg') ? Math.round(mgOrNull('setClonidineMg')) / 1000 : null,
       quetiapineMg: mgOrNull('setQuetiapineMg'),
+      atomoxetineMg: mgOrNull('setAtomoxetineMg'),
     };
     // Read Current dose last, against the freshly-rebuilt plan, so it only
     // records an override when the number really differs from the automatic one.
@@ -2412,6 +2416,7 @@
     document.getElementById('setBenzoNextH').value = benzoNextH();
     document.getElementById('setClonidineMg').value = taperPlan.clonidineMg ? Math.round(taperPlan.clonidineMg * 1000) : '';
     document.getElementById('setQuetiapineMg').value = taperPlan.quetiapineMg || '';
+    document.getElementById('setAtomoxetineMg').value = taperPlan.atomoxetineMg || '';
     silentBackupToGitHub();
 
     showToast('✓ Settings saved');
@@ -3210,6 +3215,9 @@
       // Clonidine left the list 2026-10-31 (Symon stopped it); old entries
       // still show and edit as before.
       { k: 'quetiapine', name: 'Quetiapine', mg: taperPlan.quetiapineMg || null },
+      // Atomoxetine (Doc Rowalt, 2026-11-14): non-stimulant, 'sleepmed' type
+      // like the others, so it never reaches the methylphenidate total.
+      { k: 'atomoxetine', name: 'Atomoxetine', mg: taperPlan.atomoxetineMg || null },
       // Any-time meds (Symon, 2026-10-31): the sheet is "Meds", not just
       // sleep. Same 'sleepmed' type, so they never reach a stimulant total.
       { k: 'betahistine', name: 'Betahistine', mg: 24 },
