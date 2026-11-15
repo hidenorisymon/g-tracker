@@ -188,7 +188,8 @@
   #cdial .big{color:var(--pur);}
   #benzoPeak2 .p2{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--txt2);margin-top:6px;font-variant-numeric:tabular-nums;}
   #benzoPeak2{font-size:10.5px;line-height:1.35;color:var(--mut);margin-top:3px;font-variant-numeric:tabular-nums;}
-  #benzoPeak2 .tdrow{display:flex;flex-direction:column;gap:1px;margin-top:8px;}
+  #benzoPeak2 .tdrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px solid var(--line2);}
+  #benzoPeak2 .tdrow:last-child{border-bottom:none;}
   #benzoPeak2 .tdn{font-size:12px;color:var(--txt2);font-weight:600;}
   #benzoPeak2 .tdv{font-family:var(--mono);font-size:12.5px;font-weight:600;white-space:nowrap;}
   #benzoPeak2 .tdv.ok{color:#3f8f5f;}
@@ -233,8 +234,10 @@
   .amed .x{flex:none;margin:-10px -12px -10px 0;padding:10px 12px;font-size:12px;line-height:12px;
     color:#c9c6bf;background:none;border:none;font-family:var(--sans);cursor:pointer;}
   .amed .x:active{color:var(--mut);}
-  .amed .pbar{height:3.5px;background:#eeece7;border-radius:2px;overflow:hidden;}
-  .amed .pbar i{display:block;height:100%;border-radius:2px;background:var(--neutral);transition:width 1s linear;}
+  .amed .pbar{position:relative;height:16px;background:#eeece7;border-radius:8px;overflow:hidden;}
+  .amed .pbar i{display:block;height:100%;border-radius:8px;background:var(--neutral);transition:width 1s linear;}
+  .amed .pbar .pn{position:absolute;top:0;bottom:0;display:flex;align-items:center;font-family:var(--mono);font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;}
+  .amed .pbar .pe{left:7px;color:#fff;} .amed .pbar .pl{right:7px;color:var(--mut);}
   .amed.ok .body{border-left-color:var(--grn);}
   .amed.ok .st{color:var(--grn);background:rgba(26,160,111,.12);} .amed.ok .pbar i{background:var(--grn);opacity:.8;}
   .amed.soon .body{border-left-color:var(--amb);}
@@ -482,7 +485,7 @@
      Deliberately its own classes rather than reusing .sessioncard/.brow — the
      Taper tab still renders those, and this layout is Log-only. */
   .sum{background:var(--card);border:none;border-radius:18px;padding:15px;box-shadow:var(--sh);}
-  .sum .stop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px;}
+  .sum .stop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
   .sum .sst{font-size:13.5px;font-weight:700;}
   .sum .sst .open{color:var(--grn);}
   .sum .srng{font-family:var(--mono);font-size:10.5px;color:var(--mut2);text-align:right;}
@@ -524,6 +527,13 @@
   .sum .grow.near{border-left-color:var(--amb);} .sum .grow .chip.near{background:rgba(209,144,42,.16);color:var(--amb);}
   .sum .grow.over{border-left-color:var(--red);} .sum .grow .chip.over{background:rgba(212,80,80,.16);color:var(--red);}
   .sum .medsplit{padding-left:13px;margin:-6px 0 8px;}
+  .sum .dl{display:flex;flex-direction:column;}
+  .sum .dlr{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line2);}
+  .sum .dlr:last-child{border-bottom:none;}
+  .sum .dk{font-size:12.5px;color:var(--txt2);font-weight:500;}
+  .sum .dv{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .sum .dv small{font-size:10.5px;color:var(--mut);font-weight:500;} .sum .dv small.over{color:var(--red);font-weight:700;}
+  .sum .dv.grn,.sum .dv.under,.sum .dv.yes{color:var(--grn);} .sum .dv.amb,.sum .dv.near{color:var(--amb);} .sum .dv.red,.sum .dv.over{color:var(--red);} .sum .dv.no{color:var(--mut);}
   .sum .stotal{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:11px;}
   .sum .stotal .k{font-size:12.5px;font-weight:600;color:var(--txt2);}
   .sum .stotal .v{font-family:var(--mono);font-size:17px;font-weight:700;letter-spacing:-.3px;}
@@ -827,9 +837,9 @@
             <div class="k" id="eyebrow">Allowance</div>
             <div class="v big" id="readout">—</div>
             <div class="s sub" id="ringSub"></div>
-            <div class="s"><b id="since">--:--</b> since last</div>
-            <div class="s" id="totalSub"></div>
-            <div class="s dext"><div id="gapRec"></div><div id="ciwaNow"></div></div>
+            <div class="s"><b id="since">--:--</b> since last<span id="sinceAt"></span></div>
+            <div class="s" id="totalSub" hidden></div>
+            <div class="s dext" hidden><div id="gapRec"></div><div id="ciwaNow"></div></div>
           </div>
         </div>
         <div class="hstat"><div class="k" id="lastBenzo">Clonazepam peak</div><div class="v" id="benzoPeak">—</div><div id="benzoPeak2"></div><div class="s" id="benzoSub" hidden></div></div>
@@ -2724,7 +2734,7 @@
       const line = (nm, arr) => {
         const x = arr[arr.length - 1];
         return `<div class="tdrow"><span class="tdn">${nm}</span>` + (x
-          ? `<span class="tdv ok">✓ ${x.mg ? fmtMg(x.mg) + ' mg · ' : ''}${clockText(x.timestamp)}</span>`
+          ? `<span class="tdv ok">✓ ${x.mg ? fmtMg(x.mg) + ' mg' : 'Done'}</span>`
           : `<span class="tdv no">Not yet</span>`) + `</div>`;
       };
       lastBenzoEl.textContent = 'Today';
@@ -2789,7 +2799,9 @@
       const html = '';
       if (gr && gr.innerHTML !== html) gr.innerHTML = html;
     }
-    const lastDoseText = dayDoses.length ? `Last ${clockText(dayDoses[dayDoses.length - 1].timestamp)}` : '';
+    // v71 (Symon, 2026-11-15): the last time joins the since row ("00:02 since last: 11:45 AM"), so the ring sub no longer repeats it.
+    { const sa = document.getElementById('sinceAt'); if (sa) sa.textContent = dayDoses.length ? `: ${clockText(dayDoses[dayDoses.length - 1].timestamp)}` : ''; }
+    const lastDoseText = '';
     if (!cur) {
       setDial(0, null);
       eyebrow.textContent = 'No dose yet';
@@ -4022,11 +4034,16 @@
     // WEARING OFF badge costs more than either — on a 375px screen keeping
     // both alongside them clips the drug name to "Conc…". The countdown is
     // the part worth reading, so those two cases drop the end clock instead.
-    else right = (r.partCount > 1 || status === 'soon')
-      ? `<b>${fmtGap(Math.round((r.endTs - now) / 60000))}</b> left`
-      : `ends <b>${fmtT(r.endTs)}</b> · <b>${fmtGap(Math.round((r.endTs - now) / 60000))}</b> left`;
+    // v71 (Symon, 2026-11-15): start and end on the right; the minutes
+    // used and left sit inside the bar itself.
+    else right = `<b>${fmtT(r.releaseTs)}</b> → <b>${fmtT(r.endTs)}</b>`;
     const span = r.endTs - r.releaseTs;
     const frac = span > 0 ? Math.min(1, Math.max(0, (now - r.releaseTs) / span)) : 0;
+    const mfmt = m => m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60 ? ' ' + (m % 60) + 'm' : ''}`;
+    const inBar = (status === 'ok' || status === 'soon')
+      ? (frac >= 0.14 ? `<span class="pn pe">${mfmt(Math.round((now - r.releaseTs) / 60000))}</span>` : '')
+        + (frac <= 0.86 ? `<span class="pn pl">${mfmt(Math.max(0, Math.round((r.endTs - now) / 60000)))} left</span>` : '')
+      : '';
     // data-dismiss is the same hook the swipe-revealed Remove uses, so both
     // exits go through one delegated listener and remove the whole dose.
     return `<div class="row1">
@@ -4035,7 +4052,7 @@
         <span class="off">${right}</span>
         <button class="x" data-dismiss="${r.ts}" aria-label="Dismiss ${escapeHtml(r.name)}">✕</button>
       </div>
-      <div class="pbar"><i style="width:${(frac * 100).toFixed(1)}%"></i></div>`;
+      <div class="pbar"><i style="width:${(frac * 100).toFixed(1)}%"></i>${inBar}</div>`;
   }
 
   // No confirm() anywhere: it's blocked in standalone PWA mode on Android.
@@ -5591,6 +5608,21 @@
     const clzNow = s.isOpen ? clzBodyAt(Date.now()) : 0;
     const clzSubHtml = (clzSess.length ? `${clzSess.length} dose${clzSess.length === 1 ? '' : 's'}` : 'none yet')
       + (clzNow >= 0.01 ? ` · ${(Math.round(clzNow * 100) / 100)} mg in body` : '');
+    // v71 (Symon, 2026-11-15): one compact list, label left, value right.
+    // Brings back the G total, the session length and clonazepam, and adds
+    // atomoxetine yes or no.
+    const atSess = s.timeline.filter(e => e.type === 'sleepmed' && e.name === 'Atomoxetine' && e.taken);
+    const atSum = Math.round(atSess.reduce((a, e) => a + (Number(e.mg) || 0), 0) * 100) / 100;
+    const dlRow = (k, v, cls) => `<div class="dlr"><span class="dk">${k}</span><span class="dv ${cls || ''}">${v}</span></div>`;
+    const dayLines = [
+      dlRow('G', allow ? allow.text : `${fmtMl(s.totalDailyMl)} ml`, allow ? allow.level : ''),
+      medMg > 0 ? dlRow('Methylphenidate', `${medMg} mg` + (medLeft === null ? '' : medLeft >= 0 ? ` <small>· ${mgNum(medLeft)} left</small>` : ` <small class="over">· ${mgNum(-medLeft)} over</small>`)
+        + ((s.ritalinMg > 0 && s.concertaMg > 0) ? `<small> · R ${s.ritalinMg} / C ${s.concertaMg}</small>` : ''), medCls) : '',
+      dlRow('Clonazepam', clzSess.length ? `✓ ${clzSum} mg` + (clzSess.length > 1 ? ` <small>· ${clzSess.length} doses</small>` : '') : 'No', clzSess.length ? 'yes' : 'no'),
+      dlRow('Atomoxetine', atSess.length ? `✓${atSum ? ' ' + atSum + ' mg' : ''}` : 'No', atSess.length ? 'yes' : 'no'),
+      dlRow(s.isOpen ? 'Awake' : 'Session', fmtGap(Math.round(s.durationHours * 60))),
+      !s.isOpen && s.sleepHours != null ? dlRow('Slept before', sleepText) : '',
+    ].join('');
     const lvLog = [];
     { const end = s.isOpen || s.endTs == null ? Date.now() : s.endTs;
       for (let t = Math.ceil(s.startTs / 3600000) * 3600000; t <= end; t += 3600000) lvLog.push({ type: 'levels', timestamp: t }); }
@@ -5600,11 +5632,10 @@
         <div class="sst">Day ${s.day}${s.isOpen ? ' · <span class="open">Ongoing</span>' : ''}</div>
         <div class="srng">${rangeText}</div>
       </div>
-      ${medHtml}
+      <div class="dl">${dayLines}</div>
       <!-- v69: the 4 tiles (Session, Allowance, Clonazepam total, Sleep) left
            the day card (Symon, 2026-11-15); the rings above show them and
            Sleep sits beside the Awake pill at the top. -->
-      ${!s.isOpen && s.sleepHours != null ? `<div class="stotal"><span class="k">Sleep before</span><span class="v">${sleepText}</span></div>` : ''}
       <div class="stotal"><span class="k">Total cost</span><span class="v">${fmtPeso(s.grandCost)}</span></div>
     </div>
     <div class="tlhead"><span>Meds levels</span><span>In body</span></div>
