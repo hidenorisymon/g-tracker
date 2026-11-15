@@ -860,7 +860,7 @@
         <button class="tile" id="chipSleepMeds"><svg viewBox="0 0 24 24" stroke="#7a4fb5" aria-hidden="true"><path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l6-6a4.95 4.95 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg><span>Meds</span></button>
         <button class="tile" id="chipWake"><svg viewBox="0 0 24 24" stroke="#c98a24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.28 5.28l1.77 1.77M16.95 16.95l1.77 1.77M5.28 18.72l1.77-1.77M16.95 7.05l1.77-1.77"/></svg><span>Wake</span></button>
         <button class="tile" id="chipSleep"><svg viewBox="0 0 24 24" stroke="#5a5fa8" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></button>
-        <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
+        <button class="tile" id="chipBp"><svg viewBox="0 0 24 24" stroke="#c4425e" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>HR/BP</span><span class="hint" id="bpHint" title="Concerta peak window"></span></button>
         <button class="tile" id="chipCheck" hidden><svg viewBox="0 0 24 24" stroke="#2a5fc4" aria-hidden="true"><polyline points="3 12 7 12 10 5 14 19 17 12 21 12"/></svg><span>Check</span></button>
         <button class="tile" id="chipMeal" hidden><svg viewBox="0 0 24 24" stroke="#b5642a" aria-hidden="true"><path d="M5 3v5a2 2 0 0 0 4 0V3"/><path d="M7 3v18"/><path d="M17 21V3c-2 1.2-3 3.4-3 6.5 0 1.6 1.2 2.5 3 2.5"/></svg><span>Meal</span></button>
       </div>
@@ -3112,9 +3112,15 @@
     if (!acts.length) return null;
     return Object.keys(BP_ACTS).find(k => k !== 'rested' && acts.includes(k)) || 'rested';
   }
+  // A heart-rate-only reading is a 'bp' entry with no sys/dia, so it keeps
+  // the same When/What tags, edit, delete and undo. Every BP number reader
+  // (flags, doctor report, due prompt) skips it via bpHasPressure.
+  function bpHasPressure(e) { return e && e.sys > 0 && e.dia > 0; }
+  function bpLabel(e) { return bpHasPressure(e) ? 'BP' : 'Heart rate'; }
+  function bpValue(e) { return bpHasPressure(e) ? `${e.sys}/${e.dia}` : `${e.pulse} bpm`; }
   function bpSubText(e) {
     const acts = Array.isArray(e.activities) && e.activities.length ? e.activities : [e.activity];
-    const bits = [e.pulse ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), acts.map(a => BP_ACTS_SHORT[a]).filter(Boolean).join(', ')];
+    const bits = [e.pulse && bpHasPressure(e) ? `pulse ${e.pulse}` : '', (BP_SLOTS[e.slot] || '').toLowerCase(), acts.map(a => BP_ACTS_SHORT[a]).filter(Boolean).join(', ')];
     if (Array.isArray(e.readings) && e.readings.length > 1) bits.push(`avg of ${e.readings.length}`);
     if (e.note) bits.push(e.note);
     return bits.filter(Boolean).join(' · ');
@@ -3134,7 +3140,10 @@
       return el && el.value !== '';
     });
     const v = [get('sys'), get('dia'), get('pulse')];
-    return { any, ok: v.every(x => x != null), v };
+    const raw = f => { const el = document.querySelector(`#quickBody .bprow[data-r="${r}"] [data-f="${f}"]`); return el ? el.value : ''; };
+    // Heart rate alone: SYS and DIA left empty, pulse filled.
+    const hrOnly = raw('sys') === '' && raw('dia') === '' && v[2] != null;
+    return { any, ok: v.every(x => x != null) || hrOnly, hrOnly, v };
   }
 
   function bpRowHtml(r, hidden) {
@@ -3148,11 +3157,11 @@
     const sessions = await computeSessions();
     const cur = sessions.length ? sessions[sessions.length - 1] : null;
     // The same shift's pre-stimulant rested reading, for the rise flag.
-    const pre = cur ? cur.bps.filter(e => e.slot === 'pre' && e.activity === 'rested').pop() : null;
+    const pre = cur ? cur.bps.filter(e => e.slot === 'pre' && e.activity === 'rested' && bpHasPressure(e)).pop() : null;
     const now = hhmm(new Date());
     openQuick(`
-      <div class="chead"><h3>Blood pressure</h3></div>
-      <div class="qsub">Take it as you are and tag it. If you can, sit quietly 5 min and take a second one tagged Rested. Both are kept.</div>
+      <div class="chead"><h3>Heart rate / BP</h3></div>
+      <div class="qsub">Heart rate only? Leave SYS and DIA empty and fill Pulse. Take it as you are and tag it. If you can, sit quietly 5 min and take a second one tagged Rested. Both are kept.</div>
       ${bpRowHtml(0, false)}
       ${bpRowHtml(1, true)}
       <button class="csame" data-q="bp-second">+ Second reading (saves the average)</button>
@@ -3174,11 +3183,13 @@
     const st = quickState;
     const rows = [bpReadRow(0)];
     if (st.second) rows.push(bpReadRow(1));
-    const good = rows.filter(r => r.ok).map(r => r.v);
-    const avg = i => good.length ? Math.round(good.reduce((s, v) => s + v[i], 0) / good.length) : null;
+    const hrOnly = rows[0].hrOnly;
+    // Both readings must be the same kind (both full BP, or both HR only).
+    const good = rows.filter(r => r.ok && r.hrOnly === hrOnly).map(r => r.v);
+    const avg = i => { const n = good.map(v => v[i]).filter(x => x != null); return n.length ? Math.round(n.reduce((s, x) => s + x, 0) / n.length) : null; };
     // Ready when row 1 is complete, and a started second row is complete too.
-    const ready = rows[0].ok && rows.every(r => r.ok || !r.any) && !!st.slot && !!st.activity;
-    return { ready, readings: good, sys: avg(0), dia: avg(1), pulse: avg(2) };
+    const ready = rows[0].ok && rows.every(r => (r.ok && r.hrOnly === hrOnly) || !r.any) && !!st.slot && !!st.activity;
+    return { ready, hrOnly, readings: good, sys: avg(0), dia: avg(1), pulse: avg(2) };
   }
 
   function paintBpSheet() {
@@ -3194,7 +3205,7 @@
     if (d.sys != null && st.activity && st.activity !== 'rested') {
       html += `<div class="bpflag">Active reading: kept as real-world load, not compared with the BP ranges.</div>`;
     }
-    if (d.readings.length > 1) html = `<div class="bpflag">Average ${d.sys}/${d.dia} · pulse ${d.pulse}</div>` + html;
+    if (d.readings.length > 1) html = `<div class="bpflag">Average ${d.hrOnly ? `heart rate ${d.pulse}` : `${d.sys}/${d.dia} · pulse ${d.pulse}`}</div>` + html;
     document.getElementById('bpFlag').innerHTML = html;
     document.getElementById('qGo').disabled = !d.ready;
   }
@@ -3225,7 +3236,9 @@
     st.onClose = null;
     closeQuick();
     await logEventAt((ts, data) => {
-      const e = { type: 'bp', timestamp: ts, sys: d.sys, dia: d.dia, pulse: d.pulse, slot, activity, readings: d.readings };
+      const e = d.hrOnly
+        ? { type: 'bp', timestamp: ts, pulse: d.pulse, slot, activity, readings: d.readings.map(v => [v[2]]) }
+        : { type: 'bp', timestamp: ts, sys: d.sys, dia: d.dia, pulse: d.pulse, slot, activity, readings: d.readings };
       if (st.acts.length > 1) e.activities = Object.keys(BP_ACTS).filter(k => st.acts.includes(k));
       const ghb = ciwaMinutesSince(data, x => isDoseEntry(x) && Number(x.ml) > 0, ts);
       const stim = ciwaMinutesSince(data, x => isMedEntry(x), ts);
@@ -3233,7 +3246,7 @@
       if (stim != null) e.minSinceStim = stim;
       if (note) e.note = note;
       return e;
-    }, ts0, `BP ${d.sys}/${d.dia} saved` + (flags.some(f => f.lvl === 'red') ? ' · recheck in 5 min' : ''));
+    }, ts0, (d.hrOnly ? `Heart rate ${d.pulse} saved` : `BP ${d.sys}/${d.dia} saved`) + (flags.some(f => f.lvl === 'red') ? ' · recheck in 5 min' : ''));
   }
 
   // ----- Sleep meds: one button, one row per med -----
@@ -3922,7 +3935,7 @@
     due.prompted = true;
     saveBpReminderList(list);
     const data = await getAllData();
-    if (data.some(e => e.type === 'bp' && e.timestamp >= due.at - 30 * 60000)) return;
+    if (data.some(e => e.type === 'bp' && bpHasPressure(e) && e.timestamp >= due.at - 30 * 60000)) return;
     openBpSheet({ slot: 'peak' });
   }
 
@@ -5091,7 +5104,7 @@
         const sub = sleepmedSubText(e);
         return `${t}   ${e.name}   ${e.taken ? 'taken' + (e.mg > 0 ? ' ' + doseLabel(e.mg) : '') : 'skipped'}${sub ? ' · ' + sub : ''}`;
       }
-      if (e.type === 'bp') return `${t}   BP   ${e.sys}/${e.dia} · ${bpSubText(e)}`;
+      if (e.type === 'bp') return `${t}   ${bpLabel(e)}   ${bpValue(e)} · ${bpSubText(e)}`;
       const kind = doseKind(e);
       const tag = kind === 'wake' ? 'Wake' : kind === 'sleep' ? 'Sleep' : kind === 'rescue' ? 'Rescue' : e.custom ? 'Custom' : 'Dose';
       const clzC = kind === 'wake' ? 0 : clzOfDose(e);
@@ -5513,7 +5526,7 @@
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="meal"><span class="sllabel">${fmtTime(e.timestamp)} · Meal</span><span>${escapeHtml(mealText(e))}</span></div>${e.note ? `<div class="slciwa">${escapeHtml(e.note)}</div>` : ''}`;
       }
       if (e.type === 'bp') {
-        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="bp"><span class="sllabel">${fmtTime(e.timestamp)} · BP</span><span>${e.sys}/${e.dia}</span></div><div class="slciwa">${escapeHtml(bpSubText(e))}</div>`;
+        return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="bp"><span class="sllabel">${fmtTime(e.timestamp)} · ${bpLabel(e)}</span><span>${bpValue(e)}</span></div><div class="slciwa">${escapeHtml(bpSubText(e))}</div>`;
       }
       if (e.type === 'benzo') {
         return `<div class="slrow tap" data-ts="${e.timestamp}" data-kind="benzo"><span class="sllabel">${fmtTime(e.timestamp)} · ${escapeHtml(e.name || 'Clonazepam')}</span><span>${e.missed ? 'missed' : e.mg + ' mg'}</span></div>`;
@@ -5722,8 +5735,8 @@
       return `<div class="tlrow tap" data-ts="${e.timestamp}" data-kind="bp">
         <span class="tldot" style="background:${fl && fl.lvl === 'red' ? 'var(--red)' : '#c4425e'}"></span>
         <span class="tltime">${fmtTime(e.timestamp)}</span>
-        <div class="tlbody"><div class="tltext">BP</div><div class="tlciwa${fl && fl.lvl === 'red' ? ' hard' : fl && fl.lvl === 'amb' ? ' amb' : ''}">${escapeHtml(bpSubText(e))}</div></div>
-        <span class="tlamt">${e.sys}/${e.dia}</span>
+        <div class="tlbody"><div class="tltext">${bpLabel(e)}</div><div class="tlciwa${fl && fl.lvl === 'red' ? ' hard' : fl && fl.lvl === 'amb' ? ' amb' : ''}">${escapeHtml(bpSubText(e))}</div></div>
+        <span class="tlamt">${bpValue(e)}</span>
       </div>`;
     }
     if (isMedEntry(e)) {
@@ -6153,6 +6166,7 @@
     if (excluded) exclusions.push({ date: when, entry: 'whole day', reason: excluded });
     const bps = [];
     s.bps.forEach(b => {
+      if (!bpHasPressure(b)) return;
       if (b.sys < DOC_BP_SYS[0] || b.sys > DOC_BP_SYS[1]) exclusions.push({ date: when, entry: `BP ${b.sys}/${b.dia} at ${docClock(b.timestamp)}`, reason: `systolic outside ${DOC_BP_SYS[0]} to ${DOC_BP_SYS[1]}` });
       else bps.push(b);
     });
@@ -6343,7 +6357,7 @@
         D.s.ciwaReads.forEach(e => { if (e.ciwa.note) notes.push({ ts: e.timestamp, text: `${e.ciwa.note} (with CIWA ${e.ciwa.total})` }); });
         D.s.timeline.forEach(e => {
           if (!e.note || e.ciwa) return;
-          const w = isDoseEntry(e) ? `dose ${fmtMl(e.ml)} ml` : e.type === 'meal' ? 'meal' : e.type === 'bp' ? `BP ${e.sys}/${e.dia}` : isMedEntry(e) ? e.name : null;
+          const w = isDoseEntry(e) ? `dose ${fmtMl(e.ml)} ml` : e.type === 'meal' ? 'meal' : e.type === 'bp' ? `${bpLabel(e)} ${bpValue(e)}` : isMedEntry(e) ? e.name : null;
           if (w) notes.push({ ts: e.timestamp, text: `${e.note} (with ${w})` });
         });
       });
