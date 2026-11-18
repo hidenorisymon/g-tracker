@@ -2089,6 +2089,15 @@
       migrated = true;
       setTimeout(() => { try { silentBackupToGitHub(); } catch (e) {} }, 0);
     }
+    // v73 (Symon, 2026-11-18): Pampanga trip had no sleep logged. Adds
+    // asleep Tue 11-17 00:00 and wake 09:00 (+08:00) once. The flag keeps
+    // it from coming back if he deletes them later.
+    if (!localStorage.getItem('fixV73PampangaSleep')) {
+      const add = [{ type: 'asleep', timestamp: 1794844800000 }, { timestamp: 1794877200000, ml: 0, type: 'wake' }];
+      for (const n of add) if (!data.some(e => e.timestamp === n.timestamp)) { data.push(n); migrated = true; }
+      localStorage.setItem('fixV73PampangaSleep', '1');
+      if (migrated) setTimeout(() => { try { silentBackupToGitHub(); } catch (e) {} }, 0);
+    }
     if (migrated) localStorage.setItem(dataKey, JSON.stringify(data));
 
     data.sort((a, b) => a.timestamp - b.timestamp);
